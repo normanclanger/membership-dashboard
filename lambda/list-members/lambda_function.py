@@ -28,7 +28,9 @@ def lambda_handler(event, context):
         for row in rows
     ]
 
-    return success(members)
+    return success({
+        "members": members
+    })
 
-#if __name__ == "__main__":
-#    print(lambda_handler({}, {}))
+if __name__ == "__main__":
+    print(lambda_handler({}, {}))
