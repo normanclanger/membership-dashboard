@@ -46,41 +46,6 @@ jobs:
           cd lambda/membership-api-members/package
           zip -r ../lambda.zip .
 
-      - name: Show GitHub repository information
-        run: |
-          echo "Repository: $GITHUB_REPOSITORY"
-          echo "Repository ID: $GITHUB_REPOSITORY_ID"
-          echo "Repository owner: $GITHUB_REPOSITORY_OWNER"
-          echo "Repository owner ID: $GITHUB_REPOSITORY_OWNER_ID"
-          echo "Ref: $GITHUB_REF"
-
-      - name: Show OIDC subject
-        env:
-          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
-          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
-        run: |
-          TOKEN=$(curl -sSf \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
-            | python -c "import sys,json; print(json.load(sys.stdin)['value'])")
-
-          python - "$TOKEN" <<'PY'
-          import sys
-          import base64
-          import json
-
-          token = sys.argv[1]
-          payload = token.split('.')[1]
-          payload += '=' * (-len(payload) % 4)
-
-          claims = json.loads(base64.urlsafe_b64decode(payload))
-
-          print("OIDC subject:")
-          print(claims.get("sub"))
-          print()
-          print("OIDC audience:")
-          print(claims.get("aud"))
-          PY
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
