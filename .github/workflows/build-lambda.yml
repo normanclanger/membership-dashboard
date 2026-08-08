@@ -1,0 +1,42 @@
+name: Build Lambda
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'lambda/membership-api-members/**'
+      - '.github/workflows/build-lambda.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Build Lambda package
+        run: |
+          cd lambda/membership-api-members
+          rm -rf package
+          mkdir package
+          pip install \
+            --platform manylinux2014_x86_64 \
+            --target package \
+            --implementation cp \
+            --python-version 3.13 \
+            --only-binary=:all: \
+            -r requirements.txt
+
+          cp lambda_function.py database.py responses.py package/
+
+      - name: Create deployment ZIP
+        run: |
+          cd lambda/membership-api-members/package
+          zip -r ../lambda.zip .
