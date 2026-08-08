@@ -1,4 +1,4 @@
-name: Build Lambda
+name: Build and Deploy Lambda
 
 on:
   push:
@@ -8,8 +8,12 @@ on:
       - 'lambda/membership-api-members/**'
       - '.github/workflows/build-lambda.yml'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,6 +30,7 @@ jobs:
           cd lambda/membership-api-members
           rm -rf package
           mkdir package
+
           pip install \
             --platform manylinux2014_x86_64 \
             --target package \
@@ -40,3 +45,15 @@ jobs:
         run: |
           cd lambda/membership-api-members/package
           zip -r ../lambda.zip .
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: eu-north-1
+
+      - name: Deploy Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name membership-api-members \
+            --zip-file fileb://lambda/membership-api-members/lambda.zip
