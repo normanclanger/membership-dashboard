@@ -1,0 +1,4 @@
+-- Migration 001: baseline
+-- Existing production/test schema captured on 2026-08-08.
+-- This migration is intentionally not executed against the existing database.
+-- Future migrations must alter the existing schema without recreating data.
