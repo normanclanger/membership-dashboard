@@ -35,14 +35,6 @@ jobs:
             --project-ref ntwnoujmwitfszwixgyg \
             --workdir .
 
-      - name: Mark baseline as applied
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          supabase migration repair \
-            --status applied \
-            20260808150000
-
       - name: Check migration status
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
