@@ -23,4 +23,6 @@ Serverless architecture using Hugo + API Gateway + Lambda + Supabase.
 
 2026-08-06
 
+Added CORS configuration to API-GATEWAY, to allow different url request
 
+08/08/26
