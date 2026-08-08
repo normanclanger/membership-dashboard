@@ -46,6 +46,14 @@ jobs:
           cd lambda/membership-api-members/package
           zip -r ../lambda.zip .
 
+      - name: Show GitHub repository information
+        run: |
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Repository ID: $GITHUB_REPOSITORY_ID"
+          echo "Repository owner: $GITHUB_REPOSITORY_OWNER"
+          echo "Repository owner ID: $GITHUB_REPOSITORY_OWNER_ID"
+          echo "Ref: $GITHUB_REF"
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
