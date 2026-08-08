@@ -35,8 +35,8 @@ jobs:
             --project-ref ntwnoujmwitfszwixgyg \
             --workdir .
 
-      - name: Check migration status
+      - name: Apply database migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          supabase migration list --linked
+          supabase db push --linked --yes
