@@ -41,7 +41,7 @@ jobs:
         run: |
           supabase db push --linked --yes
 
-        name: Check migration status
+      - name: Check migration status
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
