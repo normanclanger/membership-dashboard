@@ -126,6 +126,137 @@ def lambda_handler(event, context):
             "member": member_from_row(row)
         })
 
+
+
+    # ---------------------------------------------------------
+    # PATCH /api/members/{id}
+    # ---------------------------------------------------------
+    if http_method == "PATCH":
+        path_parameters = event.get("pathParameters") or {}
+        member_id = path_parameters.get("id")
+
+        if not member_id:
+            return bad_request({
+                "error": "Member ID is required"
+            })
+
+        try:
+            body = json.loads(event.get("body") or "{}")
+        except json.JSONDecodeError:
+            return bad_request({
+                "error": "Request body must contain valid JSON"
+            })
+
+        allowed_fields = {
+            "membership_number",
+            "first_name",
+            "surname",
+            "tower_id",
+            "date_of_birth",
+            "membership_class_id",
+            "membership_status_id",
+            "full_member_type_id"
+        }
+
+        unknown_fields = set(body) - allowed_fields
+
+        if unknown_fields:
+            return bad_request({
+                "error": "Unknown fields",
+                "fields": sorted(unknown_fields)
+            })
+
+        if not body:
+            return bad_request({
+                "error": "No fields supplied for update"
+            })
+
+        conn = get_connection()
+
+        try:
+            with conn.cursor() as cur:
+
+                # First confirm the member exists.
+                cur.execute(
+                    "SELECT id FROM members WHERE id = %s;",
+                    (member_id,)
+                )
+
+                if cur.fetchone() is None:
+                    return not_found({
+                        "error": "Member not found"
+                    })
+
+                set_clauses = []
+                values = []
+
+                column_map = {
+                    "membership_number": "membership_number",
+                    "first_name": "first_name",
+                    "surname": "surname",
+                    "tower_id": "tower_id",
+                    "date_of_birth": "date_of_birth",
+                    "membership_class_id": "membership_class_id",
+                    "membership_status_id": "membership_status_id",
+                    "full_member_type_id": "full_member_type_id"
+                }
+
+                for field in body:
+                    set_clauses.append(f"{column_map[field]} = %s")
+                    values.append(body[field])
+
+                values.append(member_id)
+
+                try:
+                    cur.execute(
+                        f"""
+                        UPDATE members
+                        SET {", ".join(set_clauses)}
+                        WHERE id = %s
+                        RETURNING
+                            id,
+                            membership_number,
+                            first_name,
+                            surname,
+                            tower_id,
+                            date_of_birth,
+                            membership_class_id,
+                            membership_status_id,
+                            full_member_type_id;
+                        """,
+                        values
+                    )
+
+                    row = cur.fetchone()
+                    conn.commit()
+
+                except Exception as exc:
+                    conn.rollback()
+
+                    if getattr(exc, "sqlstate", None) == "23505":
+                        return conflict({
+                            "error": "Membership number already exists"
+                        })
+
+                    if getattr(exc, "sqlstate", None) == "23503":
+                        return bad_request({
+                            "error": "One or more referenced records do not exist"
+                        })
+
+                    raise
+
+        finally:
+            conn.close()
+
+        return success({
+            "member": member_from_row(row)
+        })
+
+
+
+
+
+
     # ---------------------------------------------------------
     # GET /api/members/{id}
     # ---------------------------------------------------------
