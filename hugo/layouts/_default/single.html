@@ -1,50 +1,7 @@
 {{ define "main" }}
 
-<main>
-    {{ .Content }}
+<h1>{{ .Title }}</h1>
 
-    <table id="members">
-        <thead>
-            <tr>
-                <th>Membership</th>
-                <th>First name</th>
-                <th>Surname</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td colspan="3">Loading...</td>
-            </tr>
-        </tbody>
-    </table>
-</main>
-
-<script>
-fetch("https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com/api/members")
-    .then(response => response.json())
-    .then(data => {
-        const tbody = document.querySelector("#members tbody");
-
-        tbody.innerHTML = "";
-
-        data.members.forEach(member => {
-            const row = document.createElement("tr");
-
-            row.innerHTML = `
-                <td>${member.membership_number}</td>
-                <td>${member.first_name}</td>
-                <td>${member.surname}</td>
-            `;
-
-            tbody.appendChild(row);
-        });
-    })
-    .catch(error => {
-        console.error(error);
-
-        document.querySelector("#members tbody").innerHTML =
-            '<tr><td colspan="3">Unable to load members.</td></tr>';
-    });
-</script>
+{{ .Content }}
 
 {{ end }}

@@ -1,0 +1,34 @@
+{{ define "main" }}
+
+<h1>Member</h1>
+
+<div id="member-detail">
+    Loading...
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const memberId = params.get("id");
+
+fetch(`https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com/api/members/${memberId}`)
+    .then(response => response.json())
+    .then(data => {
+        const member = data.member;
+
+        document.querySelector("#member-detail").innerHTML = `
+            <p><strong>Membership:</strong> ${member.membership_number}</p>
+            <p><strong>First name:</strong> ${member.first_name}</p>
+            <p><strong>Surname:</strong> ${member.surname}</p>
+            <p><strong>Tower:</strong> ${member.tower_id}</p>
+            <p><strong>Date of birth:</strong> ${member.date_of_birth || "�"}</p>
+        `;
+    })
+    .catch(error => {
+        console.error(error);
+
+        document.querySelector("#member-detail").innerHTML =
+            "<p>Unable to load member.</p>";
+    });
+</script>
+
+{{ end }}

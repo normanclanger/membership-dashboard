@@ -1,0 +1,81 @@
+{{ define "main" }}
+
+<main>
+    {{ .Content }}
+
+    <div>
+        <label for="member-search">Search members:</label>
+        <input
+            type="search"
+            id="member-search"
+            placeholder="Name or membership number"
+    >
+    </div>
+
+    <table id="members">
+        <thead>
+            <tr>
+                <th>Membership</th>
+                <th>First name</th>
+                <th>Surname</th>
+                <th>Tower</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td colspan="4">Loading...</td>
+            </tr>
+        </tbody>
+    </table>
+</main>
+
+<script>
+const searchInput = document.querySelector("#member-search");
+
+function loadMembers() {
+    const search = searchInput.value.trim();
+
+    const url = search
+        ? `https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com/api/members?search=${encodeURIComponent(search)}`
+        : "https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com/api/members";
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.querySelector("#members tbody");
+
+            tbody.innerHTML = "";
+
+            data.members.forEach(member => {
+                const row = document.createElement("tr");
+
+                row.innerHTML = `
+                    <td>
+                        <a href="/member/?id=${member.id}">
+                        ${member.membership_number}
+                        </a>
+                    </td>
+                    <td>${member.first_name}</td>
+                    <td>${member.surname}</td>
+                    <td>${member.tower_id}</td>
+                `;
+
+                tbody.appendChild(row);
+            });
+        })
+        .catch(error => {
+            console.error(error);
+
+            document.querySelector("#members tbody").innerHTML =
+                '<tr><td colspan="4">Unable to load members.</td></tr>';
+        });
+    }
+
+loadMembers();
+
+searchInput.addEventListener("search", loadMembers);
+
+
+</script>
+
+{{ end }}
