@@ -10,6 +10,19 @@ from responses import (
 )
 
 
+def member_from_row(row):
+    return {
+        "id": row[0],
+        "membership_number": row[1],
+        "first_name": row[2],
+        "surname": row[3],
+        "tower_id": row[4],
+        "date_of_birth": row[5].isoformat() if row[5] else None,
+        "membership_class_id": row[6],
+        "membership_status_id": row[7],
+        "full_member_type_id": row[8]
+    }
+
 def member_detail_from_row(row):
     return {
         "id": row[0],
@@ -143,7 +156,7 @@ def lambda_handler(event, context):
             conn.close()
 
         return created({
-            "member": member_detail_from_row(row)
+            "member": member_from_row(row)
         })
 
 
@@ -269,7 +282,7 @@ def lambda_handler(event, context):
             conn.close()
 
         return success({
-            "member": member_detail_from_row(row)
+            "member": member_from_row(row)
         })
 
 
@@ -400,5 +413,5 @@ def lambda_handler(event, context):
         conn.close()
 
     return success({
-        "members": [member_detail_from_row(row) for row in rows]
+        "members": [member_from_row(row) for row in rows]
     })
