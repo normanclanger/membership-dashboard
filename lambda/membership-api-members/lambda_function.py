@@ -143,7 +143,7 @@ def lambda_handler(event, context):
             conn.close()
 
         return created({
-            "member": member_from_row(row)
+            "member": member_detail_from_row(row)
         })
 
 
@@ -269,7 +269,7 @@ def lambda_handler(event, context):
             conn.close()
 
         return success({
-            "member": member_from_row(row)
+            "member": member_detail_from_row(row)
         })
 
 
@@ -400,5 +400,5 @@ def lambda_handler(event, context):
         conn.close()
 
     return success({
-        "members": [member_from_row(row) for row in rows]
+        "members": [member_detail_from_row(row) for row in rows]
     })
