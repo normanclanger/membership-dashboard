@@ -9,5 +9,37 @@
 
     {{ block "main" . }}{{ end }}
 
+    {{ if .Params.protected }}
+
+{{ if .Params.protected }}
+
+<script type="module">
+    import { requireLogin } from "/js/auth.js";
+
+    try {
+        const user = await requireLogin();
+
+        if (!user) {
+            throw new Error("Authentication required");
+        }
+
+        window.currentUser = user;
+
+        document.dispatchEvent(
+            new CustomEvent("authentication-ready", {
+                detail: user
+            })
+        );
+
+    } catch (error) {
+        console.error("Authentication failed:", error);
+    }
+</script>
+
+{{ end }}
+
+    {{ end }}
+
 </body>
 </html>
+

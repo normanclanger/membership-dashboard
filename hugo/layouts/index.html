@@ -1,0 +1,25 @@
+{{ define "main" }}
+
+<main class="container">
+    <h1>Suffolk Guild of Ringers Administration</h1>
+
+    <p>
+        <button id="login-button" type="button">
+            Sign in
+        </button>
+    </p>
+</main>
+
+<script type="module">
+    import { userManager } from "/js/auth.js";
+
+    document
+        .getElementById("login-button")
+        .addEventListener("click", async () => {
+            await userManager.signinRedirect();
+        });
+</script>
+
+
+{{ end }}
+

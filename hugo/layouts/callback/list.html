@@ -1,0 +1,26 @@
+{{ define "main" }}
+
+<main>
+    <h1>Signing in...</h1>
+    <p>Please wait.</p>
+</main>
+
+<script type="module">
+    import { userManager } from "/js/auth.js";
+
+    try {
+        await userManager.signinCallback();
+
+        window.location.href = "/dashboard/";
+    } catch (error) {
+        console.error("Sign-in failed:", error);
+
+        document.querySelector("main").innerHTML = `
+            <h1>Sign-in failed</h1>
+            <p>We were unable to complete the sign-in.</p>
+            <p>Please check the browser console for details.</p>
+        `;
+    }
+</script>
+
+{{ end }}

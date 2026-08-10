@@ -1,4 +1,4 @@
 ---
-title: "Member"
+title: "Dashboard"
 protected: true
 ---

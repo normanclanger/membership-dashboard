@@ -1,5 +1,6 @@
 ---
 title: "Members"
+protected: true
 ---
 
 # Members
