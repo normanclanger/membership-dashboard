@@ -10,17 +10,37 @@ from responses import (
 )
 
 
-def member_from_row(row):
+def member_detail_from_row(row):
     return {
         "id": row[0],
         "membership_number": row[1],
         "first_name": row[2],
         "surname": row[3],
-        "tower_id": row[4],
-        "date_of_birth": row[5].isoformat() if row[5] else None,
-        "membership_class_id": row[6],
-        "membership_status_id": row[7],
-        "full_member_type_id": row[8]
+        "tower": {
+            "id": row[4],
+            "name": row[5]
+        } if row[4] is not None else None,
+        "district": {
+            "id": row[6],
+            "code": row[7],
+            "name": row[8]
+        } if row[6] is not None else None,
+        "date_of_birth": row[9].isoformat() if row[9] else None,
+        "membership_class": {
+            "id": row[10],
+            "code": row[11],
+            "name": row[12]
+        } if row[10] is not None else None,
+        "membership_status": {
+            "id": row[13],
+            "code": row[14],
+            "name": row[15]
+        } if row[13] is not None else None,
+        "full_member_type": {
+            "id": row[16],
+            "code": row[17],
+            "name": row[18]
+        } if row[16] is not None else None
     }
 
 
@@ -276,17 +296,50 @@ def lambda_handler(event, context):
                 cur.execute(
                     """
                     SELECT
-                        id,
-                        membership_number,
-                        first_name,
-                        surname,
-                        tower_id,
-                        date_of_birth,
-                        membership_class_id,
-                        membership_status_id,
-                        full_member_type_id
-                    FROM members
-                    WHERE id = %s;
+                        m.id,
+                        m.membership_number,
+                        m.first_name,
+                        m.surname,
+
+                        t.id,
+                        t.tower_name,
+
+                        d.id,
+                        d.code,
+                        d.name,
+
+                        m.date_of_birth,
+
+                        mc.id,
+                        mc.code,
+                        mc.name,
+
+                        ms.id,
+                        ms.code,
+                        ms.name,
+
+                        fmt.id,
+                        fmt.code,
+                        fmt.name
+
+                    FROM members m
+
+                    JOIN towers t
+                        ON m.tower_id = t.id
+
+                    JOIN districts d
+                        ON t.district_id = d.id
+
+                    LEFT JOIN membership_classes mc
+                        ON m.membership_class_id = mc.id
+
+                    LEFT JOIN membership_statuses ms
+                        ON m.membership_status_id = ms.id
+
+                    LEFT JOIN full_member_types fmt
+                        ON m.full_member_type_id = fmt.id
+
+                    WHERE m.id = %s;
                     """,
                     (member_id,)
                 )
@@ -299,7 +352,7 @@ def lambda_handler(event, context):
                     })
 
                 return success({
-                    "member": member_from_row(row)
+                    "member": member_detail_from_row(row)
                 })
 
             if search:
