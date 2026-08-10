@@ -6,29 +6,48 @@
     Loading...
 </div>
 
+<p>
+    <a href="/members/">Back to members</a>
+</p>
+
 <script>
 const params = new URLSearchParams(window.location.search);
 const memberId = params.get("id");
 
-fetch(`https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com/api/members/${memberId}`)
-    .then(response => response.json())
-    .then(data => {
-        const member = data.member;
+if (!memberId) {
+    document.querySelector("#member-detail").innerHTML =
+        "<p>No member ID was supplied.</p>";
+} else {
+    fetch(`https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com/api/members/${memberId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
 
-        document.querySelector("#member-detail").innerHTML = `
-            <p><strong>Membership:</strong> ${member.membership_number}</p>
-            <p><strong>First name:</strong> ${member.first_name}</p>
-            <p><strong>Surname:</strong> ${member.surname}</p>
-            <p><strong>Tower:</strong> ${member.tower_id}</p>
-            <p><strong>Date of birth:</strong> ${member.date_of_birth || "�"}</p>
-        `;
-    })
-    .catch(error => {
-        console.error(error);
+            return response.json();
+        })
+        .then(data => {
+            const member = data.member;
 
-        document.querySelector("#member-detail").innerHTML =
-            "<p>Unable to load member.</p>";
-    });
+            document.querySelector("#member-detail").innerHTML = `
+                <p><strong>Membership:</strong> ${member.membership_number}</p>
+                <p><strong>First name:</strong> ${member.first_name}</p>
+                <p><strong>Surname:</strong> ${member.surname}</p>
+                <p><strong>Tower:</strong> ${member.tower ? member.tower.name : "—"}</p>
+                <p><strong>District:</strong> ${member.district ? member.district.name : "—"}</p>
+                <p><strong>Date of birth:</strong> ${member.date_of_birth || "—"}</p>
+                <p><strong>Membership class:</strong> ${member.membership_class ? member.membership_class.name : "—"}</p>
+                <p><strong>Membership status:</strong> ${member.membership_status ? member.membership_status.name : "—"}</p>
+                <p><strong>Member type:</strong> ${member.full_member_type ? member.full_member_type.name : "—"}</p>
+            `;
+        })
+        .catch(error => {
+            console.error(error);
+
+            document.querySelector("#member-detail").innerHTML =
+                "<p>Unable to load member.</p>";
+        });
+}
 </script>
 
 {{ end }}
