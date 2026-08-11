@@ -1,0 +1,122 @@
+{{ define "main" }}
+
+<h1>Create Member</h1>
+
+<div id="create-member-error" hidden></div>
+
+<div id="create-member-page">
+
+    <p>
+        <strong>Last membership number created:</strong>
+        <span id="last-membership-number">Loading...</span>
+    </p>
+
+    <form id="create-member-form">
+
+        <p>
+            <label for="membership_number">
+                Membership number:
+            </label>
+            <input
+                type="text"
+                id="membership_number"
+                name="membership_number"
+                required
+            >
+        </p>
+
+        <p>
+            <label for="first_name">
+                First name:
+            </label>
+            <input
+                type="text"
+                id="first_name"
+                name="first_name"
+                required
+            >
+        </p>
+
+        <p>
+            <label for="surname">
+                Surname:
+            </label>
+            <input
+                type="text"
+                id="surname"
+                name="surname"
+                required
+            >
+        </p>
+
+        <p>
+            <label for="tower_id">
+                Tower:
+            </label>
+            <select id="tower_id" name="tower_id" required>
+                <option value="">Loading...</option>
+            </select>
+        </p>
+
+        <p>
+            <label for="date_of_birth">
+                Date of birth:
+            </label>
+            <input
+                type="date"
+                id="date_of_birth"
+                name="date_of_birth"
+            >
+        </p>
+
+        <p>
+            <label for="membership_class_id">
+                Membership class:
+            </label>
+            <select
+                id="membership_class_id"
+                name="membership_class_id"
+            >
+                <option value="">Loading...</option>
+            </select>
+        </p>
+
+        <p>
+            <label for="full_member_type_id">
+                Member type:
+            </label>
+            <select
+                id="full_member_type_id"
+                name="full_member_type_id"
+		disabled
+            >
+                <option value="">Loading...</option>
+            </select>
+        </p>
+
+        <p>
+            <label for="membership_status_id">
+                Membership status:
+            </label>
+            <select
+                id="membership_status_id"
+                name="membership_status_id"
+            >
+                <option value="">Loading...</option>
+            </select>
+        </p>
+
+
+        <p>
+            <button type="submit" id="create-member-button">
+                Create member
+            </button>
+        </p>
+
+    </form>
+
+</div>
+
+<script type="module" src="/js/create-member.js"></script>
+
+{{ end }}
