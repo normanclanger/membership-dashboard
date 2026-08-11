@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - 'lambda/membership-api-members/**'
+      - 'lambda/member-lookups/**'
       - '.github/workflows/build-lambda.yml'
 
 permissions:
@@ -25,7 +26,11 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Build Lambda package
+      # ---------------------------------------------------------
+      # Build membership-api-members
+      # ---------------------------------------------------------
+
+      - name: Build members Lambda package
         run: |
           cd lambda/membership-api-members
           rm -rf package
@@ -41,11 +46,39 @@ jobs:
 
           cp lambda_function.py database.py responses.py package/
 
-      - name: Create deployment ZIP
+      - name: Create members deployment ZIP
         run: |
           cd lambda/membership-api-members/package
           zip -r ../lambda.zip .
 
+      # ---------------------------------------------------------
+      # Build member-lookups
+      # ---------------------------------------------------------
+
+      - name: Build member-lookups Lambda package
+        run: |
+          cd lambda/member-lookups
+          rm -rf package
+          mkdir package
+
+          pip install \
+            --platform manylinux2014_x86_64 \
+            --target package \
+            --implementation cp \
+            --python-version 3.13 \
+            --only-binary=:all: \
+            -r requirements.txt
+
+          cp lambda_function.py database.py responses.py package/
+
+      - name: Create member-lookups deployment ZIP
+        run: |
+          cd lambda/member-lookups/package
+          zip -r ../lambda.zip .
+
+      # ---------------------------------------------------------
+      # AWS credentials
+      # ---------------------------------------------------------
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -53,8 +86,22 @@ jobs:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: eu-north-1
 
-      - name: Deploy Lambda
+      # ---------------------------------------------------------
+      # Deploy members Lambda
+      # ---------------------------------------------------------
+
+      - name: Deploy members Lambda
         run: |
           aws lambda update-function-code \
             --function-name membership-api-members \
             --zip-file fileb://lambda/membership-api-members/lambda.zip
+
+      # ---------------------------------------------------------
+      # Deploy member-lookups Lambda
+      # ---------------------------------------------------------
+
+      - name: Deploy member-lookups Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name member-lookups \
+            --zip-file fileb://lambda/member-lookups/lambda.zip
