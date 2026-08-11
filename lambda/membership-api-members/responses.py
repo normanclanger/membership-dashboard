@@ -29,3 +29,6 @@ def not_found(data):
 
 def conflict(data):
     return response(409, data)
+
+def forbidden(data):
+    return response(403, data)

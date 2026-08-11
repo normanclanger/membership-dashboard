@@ -6,7 +6,8 @@ from responses import (
     created,
     bad_request,
     not_found,
-    conflict
+    conflict,
+    forbidden
 )
 
 
@@ -57,6 +58,44 @@ def member_detail_from_row(row):
     }
 
 
+# logic to determine if the user has permission to edit members
+
+def get_user_groups(event):
+    claims = (
+        event.get("requestContext", {})
+        .get("authorizer", {})
+        .get("jwt", {})
+        .get("claims", {})
+    )
+
+    groups = claims.get("cognito:groups", "")
+
+    if not groups:
+        return set()
+
+    groups = groups.strip("[]")
+
+    if not groups:
+        return set()
+
+    return {
+        group.strip().strip("'\"")
+        for group in groups.split(",")
+        if group.strip()
+    }
+
+
+def can_edit_members(event):
+    groups = get_user_groups(event)
+
+    return bool(
+        groups.intersection({
+            "MembershipAdmin",
+            "ApplicationAdmin"
+        })
+    )
+
+
 def lambda_handler(event, context):
     http_method = event.get("requestContext", {}).get("http", {}).get("method")
 
@@ -64,6 +103,12 @@ def lambda_handler(event, context):
     # POST /api/members
     # ---------------------------------------------------------
     if http_method == "POST":
+
+        if not can_edit_members(event):
+            return forbidden({
+            "error": "You do not have permission to create members"
+        })
+
         try:
             body = json.loads(event.get("body") or "{}")
         except json.JSONDecodeError:
@@ -165,9 +210,16 @@ def lambda_handler(event, context):
     # PATCH /api/members/{id}
     # ---------------------------------------------------------
     if http_method == "PATCH":
+
+
         path_parameters = event.get("pathParameters") or {}
         member_id = path_parameters.get("id")
 
+        if not can_edit_members(event):
+            return forbidden({
+                "error": "You do not have permission to edit members"
+            })
+            
         if not member_id:
             return bad_request({
                 "error": "Member ID is required"
