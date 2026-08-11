@@ -219,7 +219,7 @@ def lambda_handler(event, context):
             return forbidden({
                 "error": "You do not have permission to edit members"
             })
-            
+
         if not member_id:
             return bad_request({
                 "error": "Member ID is required"
@@ -461,9 +461,25 @@ def lambda_handler(event, context):
 
             rows = cur.fetchall()
 
+            cur.execute(
+                """
+                SELECT membership_number
+                FROM members
+                ORDER BY id DESC
+                LIMIT 1;
+                """
+            )
+            
+        
+
+            last_created_row = cur.fetchone()
+
     finally:
         conn.close()
 
     return success({
-        "members": [member_from_row(row) for row in rows]
-    })
+        "members": [member_from_row(row) for row in rows],
+        "last_created": {
+            "membership_number": last_created_row[0]
+        } if last_created_row else None
+})
