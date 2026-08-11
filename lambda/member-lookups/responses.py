@@ -11,6 +11,7 @@ def response(status_code, data):
     }
 
 
+
 def success(data):
     return response(200, data)
 
