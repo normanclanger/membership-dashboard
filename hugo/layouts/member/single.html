@@ -7,14 +7,34 @@
 </div>
 
 <p>
+    <a
+        id="edit-member-link"
+        href="#"
+    >
+        Edit member
+    </a>
+</p>
+
+<p>
     <a href="/members/">Back to members</a>
 </p>
 
 <script>
 document.addEventListener("authentication-ready", async () => {
 
-    const params = new URLSearchParams(window.location.search);
-    const memberId = params.get("id");
+    const params =
+        new URLSearchParams(window.location.search);
+
+    const memberId =
+        params.get("id");
+
+    const editLink =
+        document.querySelector("#edit-member-link");
+
+    if (editLink && memberId) {
+        editLink.href =
+            `/patch-member/?id=${memberId}`;
+    }
 
     if (!memberId) {
         document.querySelector("#member-detail").innerHTML =
@@ -23,44 +43,104 @@ document.addEventListener("authentication-ready", async () => {
     }
 
     try {
-        const user = window.currentUser;
+
+        const user =
+            window.currentUser;
 
         if (!user || !user.access_token) {
             throw new Error("No authenticated user");
         }
 
-        const response = await fetch(
-            `https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com/api/members/${memberId}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${user.access_token}`
+        const response =
+            await fetch(
+                `https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com/api/members/${memberId}`,
+                {
+                    headers: {
+                        Authorization:
+                            `Bearer ${user.access_token}`
+                    }
                 }
-            }
-        );
+            );
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+            throw new Error(
+                `HTTP ${response.status}`
+            );
         }
 
-        const data = await response.json();
-        const member = data.member;
+        const data =
+            await response.json();
 
-        document.querySelector("#member-detail").innerHTML = `
-            <p><strong>Membership:</strong> ${member.membership_number}</p>
-            <p><strong>First name:</strong> ${member.first_name}</p>
-            <p><strong>Surname:</strong> ${member.surname}</p>
-            <p><strong>Tower:</strong> ${member.tower ? member.tower.name : "—"}</p>
-            <p><strong>District:</strong> ${member.district ? member.district.name : "—"}</p>
-            <p><strong>Date of birth:</strong> ${member.date_of_birth || "—"}</p>
-            <p><strong>Membership class:</strong> ${member.membership_class ? member.membership_class.name : "—"}</p>
-            <p><strong>Membership status:</strong> ${member.membership_status ? member.membership_status.name : "—"}</p>
-            <p><strong>Member type:</strong> ${member.full_member_type ? member.full_member_type.name : "—"}</p>
+        const member =
+            data.member;
+
+        document.querySelector(
+            "#member-detail"
+        ).innerHTML = `
+
+            <p>
+                <strong>Membership:</strong>
+                ${member.membership_number}
+            </p>
+
+            <p>
+                <strong>First name:</strong>
+                ${member.first_name}
+            </p>
+
+            <p>
+                <strong>Surname:</strong>
+                ${member.surname}
+            </p>
+
+            <p>
+                <strong>Tower:</strong>
+                ${member.tower
+                    ? member.tower.name
+                    : "�"}
+            </p>
+
+            <p>
+                <strong>District:</strong>
+                ${member.district
+                    ? member.district.name
+                    : "�"}
+            </p>
+
+            <p>
+                <strong>Date of birth:</strong>
+                ${member.date_of_birth || "�"}
+            </p>
+
+            <p>
+                <strong>Membership class:</strong>
+                ${member.membership_class
+                    ? member.membership_class.name
+                    : "�"}
+            </p>
+
+            <p>
+                <strong>Membership status:</strong>
+                ${member.membership_status
+                    ? member.membership_status.name
+                    : "�"}
+            </p>
+
+            <p>
+                <strong>Member type:</strong>
+                ${member.full_member_type
+                    ? member.full_member_type.name
+                    : "�"}
+            </p>
         `;
 
     } catch (error) {
+
         console.error(error);
 
-        document.querySelector("#member-detail").innerHTML =
+        document.querySelector(
+            "#member-detail"
+        ).innerHTML =
             "<p>Unable to load member.</p>";
     }
 });

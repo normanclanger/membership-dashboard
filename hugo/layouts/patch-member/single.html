@@ -1,0 +1,151 @@
+{{ define "main" }}
+
+<div id="patch-member-page">
+
+    <h1>Patch Member</h1>
+
+    <div id="patch-member-loading">
+        Loading member...
+    </div>
+
+    <div id="patch-member-error"
+         hidden
+         class="error-message">
+    </div>
+
+    <form id="patch-member-form" hidden>
+
+        <div>
+            <label for="membership_number">
+                Membership number
+            </label>
+
+            <input
+                type="text"
+                id="membership_number"
+                name="membership_number"
+                readonly 
+            >
+        </div>
+
+        <div>
+            <label for="first_name">
+                First name
+            </label>
+
+            <input
+                type="text"
+                id="first_name"
+                name="first_name"
+                required
+            >
+        </div>
+
+        <div>
+            <label for="surname">
+                Surname
+            </label>
+
+            <input
+                type="text"
+                id="surname"
+                name="surname"
+                required
+            >
+        </div>
+
+        <div>
+            <label for="tower_id">
+                Tower
+            </label>
+
+            <select
+                id="tower_id"
+                name="tower_id"
+                required
+            >
+                <option value="">
+                    Loading...
+                </option>
+            </select>
+        </div>
+
+        <div>
+            <label for="date_of_birth">
+                Date of birth
+            </label>
+
+            <input
+                type="date"
+                id="date_of_birth"
+                name="date_of_birth"
+            >
+        </div>
+
+        <div>
+            <label for="membership_class_id">
+                Membership class
+            </label>
+
+            <select
+                id="membership_class_id"
+                name="membership_class_id"
+                required
+            >
+                <option value="">
+                    Loading...
+                </option>
+            </select>
+        </div>
+
+        <div>
+            <label for="full_member_type_id">
+                Member type
+            </label>
+
+            <select
+                id="full_member_type_id"
+                name="full_member_type_id"
+            >
+                <option value="">
+                    Please select...
+                </option>
+            </select>
+        </div>
+
+        <div>
+            <label for="membership_status_id">
+                Membership status
+            </label>
+
+            <select
+                id="membership_status_id"
+                name="membership_status_id"
+                required
+            >
+                <option value="">
+                    Loading...
+                </option>
+            </select>
+        </div>
+
+        <div>
+            <button
+                type="submit"
+                id="patch-member-button"
+            >
+                Save changes
+            </button>
+
+            <a href="/members/">
+                Cancel
+            </a>
+        </div>
+
+    </form>
+
+</div>
+
+<script type="module" src="/js/patch-member.js"></script>
+
+{{ end }}

@@ -233,7 +233,6 @@ def lambda_handler(event, context):
             })
 
         allowed_fields = {
-            "membership_number",
             "first_name",
             "surname",
             "tower_id",
@@ -276,7 +275,6 @@ def lambda_handler(event, context):
                 values = []
 
                 column_map = {
-                    "membership_number": "membership_number",
                     "first_name": "first_name",
                     "surname": "surname",
                     "tower_id": "tower_id",
