@@ -206,10 +206,10 @@ async function patchMember(user, memberId) {
         new FormData(form);
 
     const body = {
-        membership_number:
-            formData
-                .get("membership_number")
-                .trim(),
+//        membership_number:
+//            formData
+//                .get("membership_number")
+//                .trim(),
 
         first_name:
             formData
