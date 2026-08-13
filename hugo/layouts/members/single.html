@@ -1,33 +1,44 @@
 {{ define "main" }}
 
-<main>
-    {{ .Content }}
+<h1>Members</h1>
 
-    <div>
-        <label for="member-search">Search members:</label>
+<div class="members-page">
+
+    <div class="member-search">
+        <label for="member-search">
+            Search members:
+        </label>
+
         <input
             type="search"
             id="member-search"
             placeholder="Name or membership number"
-    >
+        >
     </div>
 
     <table id="members">
+
         <thead>
             <tr>
                 <th>Membership</th>
                 <th>First name</th>
                 <th>Surname</th>
                 <th>Tower</th>
+		<th>Actions</th>
             </tr>
         </thead>
+
         <tbody>
             <tr>
-                <td colspan="4">Loading...</td>
+                <td colspan="5">
+                    Loading...
+                </td>
             </tr>
         </tbody>
+
     </table>
-</main>
+
+</div>
 
 <script>
 const searchInput = document.querySelector("#member-search");
@@ -73,7 +84,9 @@ async function loadMembers() {
                 </td>
                 <td>${member.first_name}</td>
                 <td>${member.surname}</td>
-                <td>${member.tower_id}</td>
+                <td>
+                   ${member.tower?'${member.tower.name} (${member.district?.code || "-"})' : "-"}
+                </td>
             `;
 
             tbody.appendChild(row);

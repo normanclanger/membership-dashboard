@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Title }}</title>
+</head>
+<body>
+
+    {{ block "main" . }}{{ end }}
+
+    {{ if .Params.protected }}
+
+{{ if .Params.protected }}
+
+<script type="module">
+    import { requireLogin } from "/js/auth.js";
+
+    try {
+        const user = await requireLogin();
+
+        if (!user) {
+            throw new Error("Authentication required");
+        }
+
+        window.currentUser = user;
+
+        document.dispatchEvent(
+            new CustomEvent("authentication-ready", {
+                detail: user
+            })
+        );
+
+    } catch (error) {
+        console.error("Authentication failed:", error);
+    }
+</script>
+
+{{ end }}
+
+    {{ end }}
+
+</body>
+</html>
+

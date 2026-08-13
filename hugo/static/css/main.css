@@ -1,0 +1,364 @@
+/* =========================================================
+   Base
+   ========================================================= */
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+}
+
+body {
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    background: #f5f6f8;
+    color: #222;
+}
+
+
+/* =========================================================
+   Header
+   ========================================================= */
+
+.site-header {
+    background: #ffffff;
+    border-bottom: 1px solid #d9dce1;
+}
+
+.site-header-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 18px 24px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.site-branding {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+
+    color: inherit;
+    text-decoration: none;
+}
+
+.site-logo {
+    width: 72px;
+    height: 72px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #333;
+    color: #ffffff;
+
+    border-radius: 6px;
+
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.site-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.site-subtitle {
+    margin-top: 3px;
+
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.signed-in-user {
+    color: #555;
+    font-size: 0.9rem;
+    text-align: right;
+}
+
+
+/* =========================================================
+   Navigation
+   ========================================================= */
+
+.site-navigation {
+    background: #333;
+}
+
+.site-navigation-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+
+    padding: 0 24px;
+
+    display: flex;
+}
+
+.nav-link {
+    display: block;
+
+    padding: 13px 22px;
+
+    color: #ffffff;
+    text-decoration: none;
+
+    font-size: 0.95rem;
+}
+
+a.nav-link:hover {
+    background: #444;
+}
+
+.nav-link-disabled {
+    color: #999;
+    cursor: default;
+}
+
+
+/* =========================================================
+   Main content
+   ========================================================= */
+
+.site-main {
+    max-width: 1100px;
+    margin: 0 auto;
+
+    padding: 30px 24px;
+
+    min-height: 500px;
+}
+
+.site-main h1 {
+    margin-top: 0;
+}
+
+
+/* =========================================================
+   Footer
+   ========================================================= */
+
+.site-footer {
+    background: #ffffff;
+    border-top: 1px solid #d9dce1;
+}
+
+.site-footer-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+
+    padding: 24px;
+
+    text-align: center;
+}
+
+.footer-actions {
+    margin-bottom: 18px;
+}
+
+.logout-button {
+    padding: 8px 18px;
+
+    border: 1px solid #aaa;
+    border-radius: 4px;
+
+    background: #ffffff;
+
+    cursor: pointer;
+}
+
+.logout-button:hover {
+    background: #f0f0f0;
+}
+
+.footer-information {
+    color: #666;
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   Small screens
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+    .site-header-inner {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .signed-in-user {
+        text-align: left;
+    }
+
+    .site-navigation-inner {
+        padding: 0;
+    }
+
+    .nav-link {
+        flex: 1;
+        padding: 12px 10px;
+        text-align: center;
+    }
+
+    .site-main {
+        padding: 24px 16px;
+    }
+}
+
+/* =========================================================
+   Members page
+   ========================================================= */
+
+.members-page {
+    width: 100%;
+}
+
+
+/* ---------------------------------------------------------
+   Member search
+   --------------------------------------------------------- */
+
+.member-search {
+    margin-bottom: 20px;
+}
+
+.member-search label {
+    display: block;
+    margin-bottom: 6px;
+
+    font-weight: 600;
+}
+
+.member-search input {
+    width: 100%;
+    max-width: 420px;
+
+    padding: 9px 11px;
+
+    border: 1px solid #bbb;
+    border-radius: 4px;
+
+    background: #ffffff;
+
+    font: inherit;
+}
+
+.member-search input:focus {
+    outline: none;
+    border-color: #555;
+
+    box-shadow:
+        0 0 0 2px rgba(0, 0, 0, 0.08);
+}
+
+
+/* ---------------------------------------------------------
+   Members table
+   --------------------------------------------------------- */
+
+#members {
+    width: 100%;
+
+    border-collapse: collapse;
+
+    background: #ffffff;
+
+    border: 1px solid #d9dce1;
+}
+
+
+/* Table headings */
+
+#members thead {
+    background: #333;
+    color: #ffffff;
+}
+
+#members th {
+    padding: 11px 14px;
+
+    text-align: left;
+
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+
+/* Table cells */
+
+#members td {
+    padding: 10px 14px;
+
+    border-top: 1px solid #e1e3e6;
+
+    font-size: 0.95rem;
+}
+
+
+/* Alternating rows */
+
+#members tbody tr:nth-child(even) {
+    background: #f8f9fa;
+}
+
+
+/* Hover */
+
+#members tbody tr:hover {
+    background: #eef1f4;
+}
+
+
+/* Member links */
+
+#members a {
+    color: #333;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+#members a:hover {
+    text-decoration: underline;
+}
+
+
+/* ---------------------------------------------------------
+   Mobile table
+   --------------------------------------------------------- */
+
+@media (max-width: 700px) {
+
+    #members {
+        font-size: 0.9rem;
+    }
+
+    #members th,
+    #members td {
+        padding: 9px 8px;
+    }
+
+    /*
+       Hide the Tower column on small screens.
+       We can revisit this if it proves useful on mobile.
+    */
+
+    #members th:nth-child(4),
+    #members td:nth-child(4) {
+        display: none;
+    }
+
+}

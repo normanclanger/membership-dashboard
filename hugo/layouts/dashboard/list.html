@@ -1,35 +1,21 @@
 {{ define "main" }}
 
 <main>
-    <h1>Suffolk Guild of Ringers Administration</h1>
+    <h1>Suffolk Guild of Ringers - Membership</h1>
 
     <h2>Dashboard</h2>
 
     <ul>
         <li>
-            <a href="/members/">Members</a>
+            <a href="/members/">List, search and edit existing members</a>
         </li>
 
         <li>
-            <a href="/create-member/">Create member</a>
+            <a href="/create-member/">Create a new member</a>
         </li>
     </ul>
 
 
-    <p>
-        <button id="logout-button" type="button">
-            Sign out
-        </button>
-    </p>
-
-
-<script type="module">
-    import { signOutRedirect } from "/js/auth.js";
-
-    document
-        .getElementById("logout-button")
-        .addEventListener("click", signOutRedirect);
-</script>
 
 </main>
 

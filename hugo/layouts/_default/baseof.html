@@ -1,45 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ .Title }}</title>
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        {{ if .Title }}
+            {{ .Title }} -
+        {{ end }}
+        Suffolk Guild of Ringers Administration
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="/css/main.css"
+    >
+
 </head>
-<body>
 
-    {{ block "main" . }}{{ end }}
+<body
+    data-protected="{{ if .Params.protected }}true{{ else }}false{{ end }}"
+>
 
-    {{ if .Params.protected }}
+    {{ partial "header.html" . }}
 
-{{ if .Params.protected }}
+    {{ partial "navigation.html" . }}
 
-<script type="module">
-    import { requireLogin } from "/js/auth.js";
+    <main class="site-main">
 
-    try {
-        const user = await requireLogin();
+        {{ block "main" . }}
+        {{ end }}
 
-        if (!user) {
-            throw new Error("Authentication required");
-        }
+    </main>
 
-        window.currentUser = user;
+    {{ partial "footer.html" . }}
 
-        document.dispatchEvent(
-            new CustomEvent("authentication-ready", {
-                detail: user
-            })
-        );
-
-    } catch (error) {
-        console.error("Authentication failed:", error);
-    }
-</script>
-
-{{ end }}
-
-    {{ end }}
+    <script
+        type="module"
+        src="/js/site.js"
+    ></script>
 
 </body>
-</html>
 
+</html>
