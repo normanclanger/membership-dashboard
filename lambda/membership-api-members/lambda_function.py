@@ -418,68 +418,68 @@ def lambda_handler(event, context):
                     "member": member_detail_from_row(row)
                 })
 
-        if search:
-            cur.execute(
-                """
-                SELECT
-                    m.id,
-                    m.membership_number,
-                    m.first_name,
-                    m.surname,
+            if search:
+                cur.execute(
+                    """
+                    SELECT
+                        m.id,
+                        m.membership_number,
+                        m.first_name,
+                        m.surname,
 
-                    t.id,
-                    t.tower_name,
+                        t.id,
+                        t.tower_name,
 
-                    d.id,
-                    d.code,
-                    d.name,
+                        d.id,
+                        d.code,
+                        d.name,
 
-                    m.date_of_birth,
+                        m.date_of_birth,
 
-                    mc.id,
-                    mc.code,
-                    mc.name,
+                        mc.id,
+                        mc.code,
+                        mc.name,
 
-                    ms.id,
-                    ms.code,
-                    ms.name,
+                        ms.id,
+                        ms.code,
+                        ms.name,
 
-                    fmt.id,
-                    fmt.code,
-                    fmt.name
+                        fmt.id,
+                        fmt.code,
+                        fmt.name
 
-                FROM members m
+                    FROM members m
 
-                JOIN towers t
-                    ON m.tower_id = t.id
+                    JOIN towers t
+                        ON m.tower_id = t.id
 
-                JOIN districts d
-                    ON t.district_id = d.id
+                    JOIN districts d
+                        ON t.district_id = d.id
 
-                LEFT JOIN membership_classes mc
-                    ON m.membership_class_id = mc.id
+                    LEFT JOIN membership_classes mc
+                        ON m.membership_class_id = mc.id
 
-                LEFT JOIN membership_statuses ms
-                    ON m.membership_status_id = ms.id
+                    LEFT JOIN membership_statuses ms
+                        ON m.membership_status_id = ms.id
 
-                LEFT JOIN full_member_types fmt
-                    ON m.full_member_type_id = fmt.id
+                    LEFT JOIN full_member_types fmt
+                        ON m.full_member_type_id = fmt.id
 
-                WHERE m.membership_number ILIKE %s
-                   OR m.first_name ILIKE %s
-                   OR m.surname ILIKE %s
+                    WHERE m.membership_number ILIKE %s
+                       OR m.first_name ILIKE %s
+                       OR m.surname ILIKE %s
 
-                ORDER BY m.surname, m.first_name;
-                """,
-                (
-                    f"%{search}%",
-                    f"%{search}%",
-                    f"%{search}%"
+                    ORDER BY m.surname, m.first_name;
+                    """,
+                    (
+                        f"%{search}%",
+                        f"%{search}%",
+                        f"%{search}%"
+                    )
                 )
-            )
 
 
-        else:
+            else:
                 cur.execute(
                     """
                     SELECT
@@ -528,18 +528,30 @@ def lambda_handler(event, context):
 
                     ORDER BY m.surname, m.first_name;
                     """
-                )
+               )
             
-        
+            rows = cur.fetchall()
 
-        last_created_row = cur.fetchone()
+            cur.execute(
+                """
+                SELECT membership_number
+                FROM members
+                ORDER BY id DESC
+                LIMIT 1;
+                """
+            )
+
+            last_created_row = cur.fetchone()
+            
+            return success({
+                "members": [member_detail_from_row(row) for row in rows],
+                "last_created": {
+                "membership_number": last_created_row[0]
+            } if last_created_row else None
+            })
 
     finally:
         conn.close()
 
-    return success({
-        "members": [member_detail_from_row(row) for row in rows],
-        "last_created": {
-            "membership_number": last_created_row[0]
-        } if last_created_row else None
-})
+
+
