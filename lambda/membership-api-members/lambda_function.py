@@ -479,8 +479,7 @@ def lambda_handler(event, context):
             )
 
 
-            else:
-            else:
+        else:
                 cur.execute(
                     """
                     SELECT
@@ -533,7 +532,7 @@ def lambda_handler(event, context):
             
         
 
-            last_created_row = cur.fetchone()
+        last_created_row = cur.fetchone()
 
     finally:
         conn.close()
