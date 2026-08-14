@@ -43,6 +43,7 @@
 const searchInput = document.querySelector("#member-search");
 
 async function loadMembers() {
+    const canEdit = window.canEditMembers === true;
     const search = searchInput.value.trim();
 
     const url = search
@@ -91,12 +92,19 @@ async function loadMembers() {
                       href="/member/?id=${member.id}">
                       Details 
                     </a>
-                    |
-                    <a class="btn btn-danger btn-sm"
-                      href="/patch-member/?id=${member.id}">
-                     Edit 
-                    </a>
-
+                    ${
+                        canEdit
+                            ? `
+                                |
+                                <a
+                                    class="btn btn-danger btn-sm"
+                                    href="/patch-member/?id=${member.id}"
+                                >
+                                    Edit
+                                </a>
+              `
+                            : ""
+                    }
 		</td>
 
             `;

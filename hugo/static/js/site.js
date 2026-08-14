@@ -27,6 +27,32 @@ document.addEventListener(
             window.currentUser =
                 user;
 
+            /*
+             * Determine the user's Cognito groups.
+             */
+            const groups =
+                user.profile?.["cognito:groups"] || [];
+
+            const userGroups =
+                Array.isArray(groups)
+                    ? groups
+                    : [groups];
+
+            /*
+             * Determine whether the user can edit members.
+             *
+             * This is only for controlling the UI.
+             * The API continues to enforce permissions.
+             */
+            window.canEditMembers =
+                userGroups.some(group =>
+                    [
+                        "MembershipAdmin",
+                        "ApplicationAdmin"
+                    ].includes(group)
+                );
+
+
             const signedInUser =
                 document.querySelector(
                     "#signed-in-user"
@@ -38,8 +64,20 @@ document.addEventListener(
                     user.profile?.email ||
                     "Unknown user";
 
+                const role =
+                    window.canEditMembers
+                        ? userGroups
+                            .filter(group =>
+                                [
+                                    "MembershipAdmin",
+                                    "ApplicationAdmin"
+                                ].includes(group)
+                            )
+                            .join(", ")
+                        : "Read-only";
+
                 signedInUser.textContent =
-                    `Signed in as ${email}`;
+                    `Signed in as ${email}  (${role})`;
             }
 
             const logoutButton =

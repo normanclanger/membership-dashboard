@@ -20,9 +20,9 @@
 <div class="page-actions">
 
     <a
-        id="edit-member-link"
+        id="edit-member-action"
         href="#"
-        class="btn btn-primary"
+        class="btn btn-danger btn-sm"
     >
         Edit member
     </a>
@@ -37,26 +37,39 @@
 </div>
 </div>
 <script>
-document.addEventListener("authentication-ready", async () => {
 
-    const params =
-        new URLSearchParams(window.location.search);
+document.addEventListener(
+    "authentication-ready",
+    async () => {
 
-    const memberId =
-        params.get("id");
+        const params =
+            new URLSearchParams(
+                window.location.search
+            );
 
-    const editLink =
-        document.querySelector("#edit-member-link");
+        const memberId =
+            params.get("id");
 
-    if (editLink && memberId) {
-        editLink.href =
-            `/patch-member/?id=${memberId}`;
-    }
+        const editAction =
+            document.querySelector(
+                "#edit-member-action"
+            );
 
-    if (!memberId) {
-        document.querySelector("#member-detail").innerHTML =
-            "<p>No member ID was supplied.</p>";
-        return;
+        if (
+            editAction &&
+            memberId &&
+            window.canEditMembers === true
+        ) {
+            editAction.href =
+                `/patch-member/?id=${memberId}`;
+        } else if (editAction) {
+            editAction.remove();
+        }
+
+        if (!memberId) {
+            document.querySelector("#member-detail").innerHTML =
+                "<p>No member ID was supplied.</p>";
+            return;
     }
 
     try {
@@ -133,7 +146,6 @@ document.addEventListener("authentication-ready", async () => {
         </td>
     </tr>
 
-    <tr>
 
     <tr>
         <th>Member type</th>
