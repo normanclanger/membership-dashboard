@@ -2,23 +2,40 @@
 
 <h1>Member</h1>
 
-<div id="member-detail">
-    <p>Loading...</p>
-</div>
+<div class="table-container">
 
-<p>
+    <table class="table table-striped mb-0">
+
+        <tbody id="member-detail">
+
+            <tr>
+                <th>Membership</th>
+                <td>Loading...</td>
+            </tr>
+
+        </tbody>
+
+    </table>
+
+<div class="page-actions">
+
     <a
         id="edit-member-link"
         href="#"
+        class="btn btn-primary"
     >
         Edit member
     </a>
-</p>
 
-<p>
-    <a href="/members/">Back to members</a>
-</p>
+    <a
+        href="/members/"
+        class="btn btn-secondary"
+    >
+        Back to members
+    </a>
 
+</div>
+</div>
 <script>
 document.addEventListener("authentication-ready", async () => {
 
@@ -78,60 +95,62 @@ document.addEventListener("authentication-ready", async () => {
             "#member-detail"
         ).innerHTML = `
 
-            <p>
-                <strong>Membership:</strong>
-                ${member.membership_number}
-            </p>
+    <tr>
+        <th>Membership</th>
+        <td>${member.membership_number}</td>
+    </tr>
 
-            <p>
-                <strong>First name:</strong>
-                ${member.first_name}
-            </p>
+    <tr>
+        <th>First name</th>
+        <td>${member.first_name}</td>
+    </tr>
 
-            <p>
-                <strong>Surname:</strong>
-                ${member.surname}
-            </p>
+    <tr>
+        <th>Surname</th>
+        <td>${member.surname}</td>
+    </tr>
 
-            <p>
-                <strong>Tower:</strong>
-                ${member.tower
-                    ? member.tower.name
-                    : "�"}
-            </p>
+    <tr>
+        <th>Tower</th>
+        <td>
+        ${member.tower
+            ? `${member.tower.name} (${member.district?.code || "-"})`
+            : "-"}
+        </td>
+    </tr>
 
-            <p>
-                <strong>District:</strong>
-                ${member.district
-                    ? member.district.name
-                    : "�"}
-            </p>
+    <tr>
+        <th>Date of birth</th>
+        <td>${member.date_of_birth || "-"}
+</td>
+    </tr>
 
-            <p>
-                <strong>Date of birth:</strong>
-                ${member.date_of_birth || "�"}
-            </p>
+    <tr>
+        <th>Membership class</th>
+        <td>
+            ${member.membership_class
+                ? member.membership_class.name :"-"}
+        </td>
+    </tr>
 
-            <p>
-                <strong>Membership class:</strong>
-                ${member.membership_class
-                    ? member.membership_class.name
-                    : "�"}
-            </p>
+    <tr>
 
-            <p>
-                <strong>Membership status:</strong>
-                ${member.membership_status
-                    ? member.membership_status.name
-                    : "�"}
-            </p>
+    <tr>
+        <th>Member type</th>
+        <td>
+            ${member.full_member_type
+                ? member.full_member_type.name :"-"}
+        </td>
+    </tr>
 
-            <p>
-                <strong>Member type:</strong>
-                ${member.full_member_type
-                    ? member.full_member_type.name
-                    : "�"}
-            </p>
+    <tr>
+        <th>Membership status</th>
+        <td>
+            ${member.membership_status
+                ? member.membership_status.name :"-"}
+        </td>
+    </tr>
+
         `;
 
     } catch (error) {

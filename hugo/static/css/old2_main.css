@@ -1,10 +1,9 @@
-(.venv) tim@pi-bell:~/membership-dashboard/hugo $ cat static/css/main.css
 /* ---------------------------------------------------------
    Membership Dashboard - Site CSS
    --------------------------------------------------------- */
 
 :root {
-    --site-max-width: 1000px;
+    --site-max-width: 1200px;
 }
 
 /* ---------------------------------------------------------
@@ -16,56 +15,10 @@ body {
     color: #212529;
 }
 
-.site-main {
-    width: 100%;
+.site-container {
     max-width: var(--site-max-width);
     margin: 0 auto;
-    padding: 2rem 1.5rem;
-    box-sizing: border-box;
-}
-
-.site-header-inner,
-.site-navigation-inner,
-.site-footer-inner {
-    width: 100%;
-    max-width: var(--site-max-width);
-    margin: 00 auto;
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-    box-sizing: border-box;
-}
-
-.site-header-inner {
-    padding-top: 1rem;
-    padding-bottom: 1rem;
-}
-/* ---------------------------------------------------------
-   Members list
-   --------------------------------------------------------- */
-
-.members-page {
-    width: 100%;
-}
-
-.members-page #members {
-    width: 100%;
-    background-color: #ffffff;
-    border-collapse: collapse;
-}
-
-.members-page #members th,
-.members-page #members td {
-    padding: 0.75rem 1rem;
-    vertical-align: middle;
-    text-align: left;
-}
-
-.members-page #members th {
-    white-space: nowrap;
-}
-
-.members-page #members td {
-    white-space: nowrap;
+    padding: 0 1rem;
 }
 
 
@@ -107,37 +60,33 @@ body {
    Navigation
    --------------------------------------------------------- */
 
-.site-navigation {
+.site-nav {
     background-color: #212529;
 }
 
-.site-navigation .nav-link {
+.site-nav .nav-link {
     color: #ffffff;
     padding: 0.75rem 1rem;
 }
 
-.site-navigation .nav-link:hover,
-.site-navigation .nav-link:focus {
+.site-nav .nav-link:hover,
+.site-nav .nav-link:focus {
     background-color: #343a40;
     color: #ffffff;
 }
 
-.site-navigation .nav-link.active {
+.site-nav .nav-link.active {
     background-color: #495057;
 }
 
-
-.site-navigation-inner {
-
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-}
 
 /* ---------------------------------------------------------
    Main content
    --------------------------------------------------------- */
 
+main {
+    padding: 2rem 0;
+}
 
 .page-title {
     margin-bottom: 1.5rem;
@@ -239,4 +188,3 @@ body {
         height: 40px;
     }
 }
-

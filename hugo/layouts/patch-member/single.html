@@ -1,151 +1,168 @@
 {{ define "main" }}
 
-<div id="patch-member-page">
+<h1>Edit Member</h1>
 
-    <h1>Patch Member</h1>
+<div
+    id="patch-member-loading"
+>
+    Loading member...
+</div>
 
-    <div id="patch-member-loading">
-        Loading member...
-    </div>
+<div
+    id="patch-member-error"
+    hidden
+    class="alert alert-danger"
+>
+</div>
 
-    <div id="patch-member-error"
-         hidden
-         class="error-message">
-    </div>
+<div class="table-container">
 
     <form id="patch-member-form" hidden>
 
-        <div>
-            <label for="membership_number">
-                Membership number
-            </label>
+        <table class="table table-striped mb-0">
 
-            <input
-                type="text"
-                id="membership_number"
-                name="membership_number"
-                readonly 
-            >
-        </div>
+            <tbody>
 
-        <div>
-            <label for="first_name">
-                First name
-            </label>
+                <tr>
+                    <th>Membership number</th>
+                    <td>
+                        <input
+                            type="text"
+                            id="membership_number"
+                            name="membership_number"
+                            class="form-control"
+                            readonly
+                        >
+                    </td>
+                </tr>
 
-            <input
-                type="text"
-                id="first_name"
-                name="first_name"
-                required
-            >
-        </div>
+                <tr>
+                    <th>First name</th>
+                    <td>
+                        <input
+                            type="text"
+                            id="first_name"
+                            name="first_name"
+                            class="form-control"
+                            required
+                        >
+                    </td>
+                </tr>
 
-        <div>
-            <label for="surname">
-                Surname
-            </label>
+                <tr>
+                    <th>Surname</th>
+                    <td>
+                        <input
+                            type="text"
+                            id="surname"
+                            name="surname"
+                            class="form-control"
+                            required
+                        >
+                    </td>
+                </tr>
 
-            <input
-                type="text"
-                id="surname"
-                name="surname"
-                required
-            >
-        </div>
+                <tr>
+                    <th>Tower</th>
+                    <td>
+                        <select
+                            id="tower_id"
+                            name="tower_id"
+                            class="form-select"
+                            required
+                        >
+                            <option value="">Loading...</option>
+                        </select>
+                    </td>
+                </tr>
 
-        <div>
-            <label for="tower_id">
-                Tower
-            </label>
+                <tr>
+                    <th>Date of birth</th>
+                    <td>
+                        <input
+                            type="date"
+                            id="date_of_birth"
+                            name="date_of_birth"
+                            class="form-control"
+                        >
+                    </td>
+                </tr>
 
-            <select
-                id="tower_id"
-                name="tower_id"
-                required
-            >
-                <option value="">
-                    Loading...
-                </option>
-            </select>
-        </div>
+                <tr>
+                    <th>Membership class</th>
+                    <td>
+                        <select
+                            id="membership_class_id"
+                            name="membership_class_id"
+                            class="form-select"
+                            required
+                        >
+                            <option value="">Loading...</option>
+                        </select>
+                    </td>
+                </tr>
 
-        <div>
-            <label for="date_of_birth">
-                Date of birth
-            </label>
+                <tr>
+                    <th>Member type</th>
+                    <td>
+                        <select
+                            id="full_member_type_id"
+                            name="full_member_type_id"
+                            class="form-select"
+                        >
+                            <option value="">
+                                Please select...
+                            </option>
+                        </select>
+                    </td>
+                </tr>
 
-            <input
-                type="date"
-                id="date_of_birth"
-                name="date_of_birth"
-            >
-        </div>
+                <tr>
+                    <th>Membership status</th>
+                    <td>
+                        <select
+                            id="membership_status_id"
+                            name="membership_status_id"
+                            class="form-select"
+                            required
+                        >
+                            <option value="">Loading...</option>
+                        </select>
+                    </td>
+                </tr>
 
-        <div>
-            <label for="membership_class_id">
-                Membership class
-            </label>
+            </tbody>
 
-            <select
-                id="membership_class_id"
-                name="membership_class_id"
-                required
-            >
-                <option value="">
-                    Loading...
-                </option>
-            </select>
-        </div>
+        </table>
 
-        <div>
-            <label for="full_member_type_id">
-                Member type
-            </label>
+        <p></p>
 
-            <select
-                id="full_member_type_id"
-                name="full_member_type_id"
-            >
-                <option value="">
-                    Please select...
-                </option>
-            </select>
-        </div>
+        <div class="page-actions">
 
-        <div>
-            <label for="membership_status_id">
-                Membership status
-            </label>
-
-            <select
-                id="membership_status_id"
-                name="membership_status_id"
-                required
-            >
-                <option value="">
-                    Loading...
-                </option>
-            </select>
-        </div>
-
-        <div>
             <button
                 type="submit"
                 id="patch-member-button"
+                class="btn btn-primary"
             >
                 Save changes
             </button>
 
-            <a href="/members/">
+            <a
+                href="/members/"
+                class="btn btn-secondary"
+            >
                 Cancel
             </a>
+
         </div>
 
     </form>
 
 </div>
 
-<script type="module" src="/js/patch-member.js"></script>
+<script
+    type="module"
+    src="/js/patch-member.js"
+></script>
 
 {{ end }}
