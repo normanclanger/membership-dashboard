@@ -21,7 +21,7 @@ event = {
         }
     },
     "pathParameters": {
-        "id": "1"
+        "id": "3"
     }
 }
 

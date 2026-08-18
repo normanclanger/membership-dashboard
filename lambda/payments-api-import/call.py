@@ -1,12 +1,17 @@
 import json
+import sys
+
+sys.path.insert(0, "lambda/payments-api-import")
 
 from lambda_function import lambda_handler
 
 
 event = {
+    "routeKey": "POST /api/payment-import-lines/{id}/commit",
+
     "requestContext": {
         "http": {
-            "method": "PATCH"
+            "method": "POST"
         },
         "authorizer": {
             "jwt": {
@@ -18,19 +23,13 @@ event = {
         }
     },
 
-    "routeKey": "PATCH /api/payment-import-items/{id}",
-
     "pathParameters": {
         "id": "10"
     },
 
-    "body": json.dumps({
-        "status": "EXCEPTION",
-        "exception_reason": "Waiting for membership decision"
-    })
 }
-
 
 result = lambda_handler(event, None)
 
 print(json.dumps(result, indent=2))
+
