@@ -1748,7 +1748,7 @@ def commit_import_line(event):
         event.get("pathParameters") or {}
     )
 
-    line_id = path_parameters.get("id")
+    line_id = path_parameters.get("line_id")
 
     if not line_id:
         return bad_request({
@@ -2160,13 +2160,13 @@ def lambda_handler(event, context):
 
     # ---------------------------------------------------------
     # Commit payment import line
-    # POST /payment-import-lines/{id}/commit
+    # POST /payment-import-lines/{line_id}/commit
     # ---------------------------------------------------------
 
     if (
         http_method == "POST"
         and route_key
-        == "POST /api/payment-import-lines/{id}/commit"
+        == "POST /api/payment-import-lines/{line_id}/commit"
     ):
         if not can_write_imports(event):
             return forbidden({
