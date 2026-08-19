@@ -47,20 +47,20 @@ def get_user_groups(event):
 
 
 def get_user_id(event):
-    return "LOCAL-TEST-USER"
-#    claims = get_claims(event)
+#    return "LOCAL-TEST-USER"
+    claims = get_claims(event)
 
-#    return claims.get("sub")
+    return claims.get("sub")
 
 
 def can_write_imports(event):
-    return True
+#    return True
 
-#    groups = get_user_groups(event)
+    groups = get_user_groups(event)
 
-#    return bool(
-#        groups.intersection(ALLOWED_WRITE_GROUPS)
-#    )
+    return bool(
+        groups.intersection(ALLOWED_WRITE_GROUPS)
+    )
 
 def import_from_row(row):
     return {

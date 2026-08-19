@@ -1,0 +1,370 @@
+<h1>Payment Import End-to-End Test</h1>
+
+<p>
+    This page runs a complete authenticated payment-import API test.
+</p>
+
+<button id="run-test" type="button">
+    Run End-to-End Test
+</button>
+
+<pre id="test-output"></pre>
+
+<script type="module">
+import { authenticationReady, userManager } from "/js/auth.js";
+
+const API_BASE =
+    "https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com";
+
+const output = document.getElementById("test-output");
+const button = document.getElementById("run-test");
+
+function log(message) {
+    output.textContent += message + "\n";
+}
+
+function separator() {
+    log("--------------------------------------------------");
+}
+
+async function apiCall(method, path, body = null) {
+
+    const user = await userManager.getUser();
+
+    if (!user || user.expired) {
+        throw new Error("No valid authenticated user");
+    }
+
+    const options = {
+        method,
+        headers: {
+            "Authorization": `Bearer ${user.access_token}`,
+            "Content-Type": "application/json"
+        }
+    };
+
+    if (body !== null) {
+        options.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(
+        API_BASE + path,
+        options
+    );
+
+    const text = await response.text();
+
+    let data;
+
+    try {
+        data = JSON.parse(text);
+    } catch {
+        data = text;
+    }
+
+    return {
+        status: response.status,
+        ok: response.ok,
+        data
+    };
+}
+
+async function runStep(number, description, fn) {
+
+    separator();
+    log(`${number}. ${description}`);
+
+    const result = await fn();
+
+    log(`HTTP ${result.status}`);
+    log(JSON.stringify(result.data, null, 2));
+
+    if (!result.ok) {
+        throw new Error(
+            `Step ${number} failed with HTTP ${result.status}`
+        );
+    }
+
+    log(`? Step ${number} passed`);
+
+    return result.data;
+}
+
+button.addEventListener("click", async () => {
+
+    button.disabled = true;
+    output.textContent = "";
+
+    try {
+
+        log("Waiting for authentication...");
+
+        await authenticationReady;
+
+        const user = await userManager.getUser();
+
+        if (!user || user.expired) {
+            throw new Error(
+                "No valid authenticated user"
+            );
+        }
+
+        log("Authenticated user found.");
+        log("");
+
+        // -----------------------------------------------------
+        // 1. Create import
+        // -----------------------------------------------------
+
+        const createImport = await runStep(
+            1,
+            "Create payment import",
+            () =>
+                apiCall(
+                    "POST",
+                    "/api/payment-imports"
+                )
+        );
+
+        const importId =
+            createImport.import.id;
+
+        log(`Import ID: ${importId}`);
+
+        // -----------------------------------------------------
+        // 2. Add statement lines
+        // -----------------------------------------------------
+
+        const addLines = await runStep(
+            2,
+            "Add statement lines",
+            () =>
+                apiCall(
+                    "POST",
+                    `/api/payment-imports/${importId}/lines`,
+                    {
+                        lines: [
+                            {
+                                statement_reference:
+                                    `E2E-TEST-${importId}-001`,
+                                payment_date:
+                                    "2026-08-19",
+                                statement_amount: 48,
+                                statement_type:
+                                    "CREDIT",
+                                description:
+                                    "End-to-end API test payment",
+                                action: "IMPORT"
+                            },
+                            {
+                                statement_reference:
+                                    `E2E-TEST-${importId}-002`,
+                                payment_date:
+                                    "2026-08-19",
+                                statement_amount: 5,
+                                statement_type:
+                                    "CREDIT",
+                                description:
+                                    "End-to-end API test ignored line",
+                                action: "IGNORE"
+                            }
+                        ]
+                    }
+                )
+        );
+
+        const importLines =
+            addLines.lines;
+
+        const lineId =
+            importLines[0].id;
+
+        const ignoredLineId =
+            importLines[1].id;
+
+        log(`Import line ID: ${lineId}`);
+        log(`Ignored line ID: ${ignoredLineId}`);
+
+        // -----------------------------------------------------
+        // 3. Retrieve import
+        // -----------------------------------------------------
+
+        await runStep(
+            3,
+            "Retrieve import",
+            () =>
+                apiCall(
+                    "GET",
+                    `/api/payment-imports/${importId}`
+                )
+        );
+
+        // -----------------------------------------------------
+        // 4. Change statement-line action
+        // -----------------------------------------------------
+
+        await runStep(
+            4,
+            "Change statement-line action",
+            () =>
+                apiCall(
+                    "PATCH",
+                    `/api/payment-import-lines/${lineId}`,
+                    {
+                        action: "IMPORT"
+                    }
+                )
+        );
+
+        // -----------------------------------------------------
+        // 5. Create allocation
+        // -----------------------------------------------------
+
+        const createItem = await runStep(
+            5,
+            "Create allocation",
+            () =>
+                apiCall(
+                    "POST",
+                    `/api/payment-import-lines/${lineId}/items`,
+                    {
+                        member_id: 1,
+                        subscription_amount: 48,
+                        gift_amount: 0,
+                        calendar_year: 2026
+                    }
+                )
+        );
+
+        let itemId =
+            createItem.item.id;
+
+        log(`Allocation item ID: ${itemId}`);
+
+        // -----------------------------------------------------
+        // 6. Amend allocation
+        // -----------------------------------------------------
+
+        await runStep(
+            6,
+            "Amend allocation",
+            () =>
+                apiCall(
+                    "PATCH",
+                    `/api/payment-import-items/${itemId}`,
+                    {
+                        subscription_amount: 47,
+                        gift_amount: 1,
+                        calendar_year: 2026
+                    }
+                )
+        );
+
+        // -----------------------------------------------------
+        // 7. Delete allocation
+        // -----------------------------------------------------
+
+        await runStep(
+            7,
+            "Delete allocation",
+            () =>
+                apiCall(
+                    "DELETE",
+                    `/api/payment-import-items/${itemId}`
+                )
+        );
+
+        // -----------------------------------------------------
+        // 8. Create final allocation
+        // -----------------------------------------------------
+
+        const finalItem = await runStep(
+            8,
+            "Create final allocation",
+            () =>
+                apiCall(
+                    "POST",
+                    `/api/payment-import-lines/${lineId}/items`,
+                    {
+                        member_id: 1,
+                        subscription_amount: 48,
+                        gift_amount: 0,
+                        calendar_year: 2026
+                    }
+                )
+        );
+
+        itemId =
+            finalItem.item.id;
+
+        log(`Final allocation item ID: ${itemId}`);
+
+        // -----------------------------------------------------
+        // 9. Commit line
+        // -----------------------------------------------------
+
+        await runStep(
+            9,
+            "Commit statement line",
+            () =>
+                apiCall(
+                    "POST",
+                    `/api/payment-import-lines/${lineId}/commit`
+                )
+        );
+
+        // -----------------------------------------------------
+        // 10. Complete import
+        // -----------------------------------------------------
+
+        const completeImport = await runStep(
+            10,
+            "Complete payment import",
+            () =>
+                apiCall(
+                    "POST",
+                    `/api/payment-imports/${importId}/complete`
+                )
+        );
+
+        separator();
+
+        log("");
+        log("==================================================");
+        log("END-TO-END TEST PASSED");
+        log("==================================================");
+        log("");
+        log(
+            `Import ${importId} is `
+            + `${completeImport.import.status}.`
+        );
+        log(
+            `Committed line: ${lineId}`
+        );
+        log(
+            `Final allocation: ${itemId}`
+        );
+        log(
+            `Ignored line: ${ignoredLineId}`
+        );
+
+    } catch (error) {
+
+        separator();
+        log("");
+        log("==================================================");
+        log("END-TO-END TEST FAILED");
+        log("==================================================");
+        log("");
+        log(error.message);
+
+        console.error(error);
+
+    } finally {
+
+        button.disabled = false;
+
+    }
+
+});
+</script>

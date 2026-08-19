@@ -1,0 +1,24 @@
+{{ define "main" }}
+
+<h1>Payment Import End-to-End Test</h1>
+
+<p>
+    This page runs the complete authenticated
+    payment-import API test.
+</p>
+
+<button
+    id="run-payment-import-test"
+    type="button"
+>
+    Run End-to-End Test
+</button>
+
+<pre id="payment-import-test-output"></pre>
+
+<script
+    type="module"
+    src="/js/payment-import-test.js">
+</script>
+
+{{ end }}
