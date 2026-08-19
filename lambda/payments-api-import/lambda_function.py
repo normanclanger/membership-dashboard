@@ -2277,7 +2277,7 @@ def lambda_handler(event, context):
     if (
         http_method == "POST"
         and route_key
-        == "POST api/payment-import-lines/{line_id}/items"
+        == "POST /api/payment-import-lines/{line_id}/items"
     ):
         if not can_write_imports(event):
             return forbidden({
