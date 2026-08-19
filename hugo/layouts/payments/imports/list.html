@@ -1,0 +1,42 @@
+{{ define "main" }}
+
+<h1>Payment Imports</h1>
+
+<div id="payment-imports-error" hidden></div>
+
+<p>
+    <button
+        type="button"
+        id="new-payment-import-button"
+        class="btn btn-primary"
+    >
+        New Import
+    </button>
+</p>
+
+<table class="member-detail-table">
+    <thead>
+        <tr>
+            <th>Import</th>
+            <th>Date</th>
+            <th>Created by</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+
+    <tbody id="payment-imports-table-body">
+        <tr>
+            <td colspan="4">
+                Loading...
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+<script
+    type="module"
+    src="/js/payment-imports.js"
+></script>
+
+{{ end }}
+

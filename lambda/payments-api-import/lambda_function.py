@@ -2373,6 +2373,8 @@ def get_exception_items(event):
         conn.close()
 
 
+
+
 def lambda_handler(event, context):
 
     http_method = (
@@ -2521,6 +2523,18 @@ def lambda_handler(event, context):
         == "GET /api/payment-imports/items"
     ):
         return get_exception_items(event)
+
+
+    # ---------------------------------------------------------
+    # List payment imports
+    # GET /payment-imports
+    # ---------------------------------------------------------
+
+    if (
+        http_method == "GET"
+        and not path_parameters.get("import_id")
+    ):
+        return list_imports(event)
 
     # ---------------------------------------------------------
     # Get payment import

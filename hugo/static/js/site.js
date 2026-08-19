@@ -64,17 +64,25 @@ document.addEventListener(
                     user.profile?.email ||
                     "Unknown user";
 
+                const DISPLAY_GROUPS = [
+                    "MembershipAdmin",
+                    "ApplicationAdmin",
+                    "PaymentAdmin",
+                    "MembershipViewer"
+                ];
+
+                const displayedGroups =
+                    userGroups.filter(group =>
+                        DISPLAY_GROUPS.includes(group)
+                    );
+
                 const role =
-                    window.canEditMembers
-                        ? userGroups
-                            .filter(group =>
-                                [
-                                    "MembershipAdmin",
-                                    "ApplicationAdmin"
-                                ].includes(group)
-                            )
-                            .join(", ")
+                    displayedGroups.length > 0
+                        ? displayedGroups.join(", ")
                         : "Read-only";
+
+                console.log("All Cognito groups:", userGroups);
+                console.log("Displayed groups:", displayedGroups);
 
                 signedInUser.textContent =
                     `Signed in as ${email}  (${role})`;
