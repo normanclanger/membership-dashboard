@@ -768,7 +768,7 @@ def amend_import_item(event):
         event.get("pathParameters") or {}
     )
 
-    item_id = path_parameters.get("line_id")
+    item_id = path_parameters.get("item_id")
 
     if not item_id:
         return bad_request({
@@ -2221,13 +2221,13 @@ def lambda_handler(event, context):
 
     # ---------------------------------------------------------
     # Amend payment import item
-    # PATCH /payment-import-items/{line_id}
+    # PATCH /payment-import-items/{item_id}
     # ---------------------------------------------------------
 
     if (
         http_method == "PATCH"
         and route_key
-        == "PATCH /api/payment-import-items/{line_id}"
+        == "PATCH /api/payment-import-items/{item_id}"
     ):
         if not can_write_imports(event):
             return forbidden({
