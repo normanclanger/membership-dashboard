@@ -2140,6 +2140,141 @@ def commit_import_line(event):
     finally:
         conn.close()
 
+def complete_import(event):
+
+    # ---------------------------------------------------------
+    # Get import ID
+    # ---------------------------------------------------------
+
+    path_parameters = (
+        event.get("pathParameters") or {}
+    )
+
+    import_id = path_parameters.get("import_id")
+
+    if not import_id:
+        return bad_request({
+            "error": "Import id is required"
+        })
+
+    try:
+        import_id = int(import_id)
+    except (TypeError, ValueError):
+        return bad_request({
+            "error": "Import id must be a number"
+        })
+
+    conn = get_connection()
+
+    try:
+        with conn.cursor() as cur:
+
+            # -------------------------------------------------
+            # Get import
+            # -------------------------------------------------
+
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    created_at,
+                    created_by,
+                    status
+
+                FROM payment_imports
+
+                WHERE id = %s;
+                """,
+                (import_id,)
+            )
+
+            import_row = cur.fetchone()
+
+            if import_row is None:
+                return not_found({
+                    "error": "Payment import not found"
+                })
+
+            if import_row[3] != "IN_PROGRESS":
+                return bad_request({
+                    "error": "Payment import is not open"
+                })
+
+            # -------------------------------------------------
+            # Find unfinished IMPORT lines
+            # -------------------------------------------------
+
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    status
+
+                FROM payment_import_lines
+
+                WHERE import_id = %s
+                AND action = 'IMPORT'
+                AND status <> 'COMMITTED'
+
+                ORDER BY id;
+                """,
+                (import_id,)
+            )
+
+            unfinished_lines = cur.fetchall()
+
+            if unfinished_lines:
+
+                return bad_request({
+                    "error": (
+                        "Payment import contains "
+                        "uncommitted lines"
+                    ),
+                    "lines": [
+                        {
+                            "id": row[0],
+                            "status": row[1]
+                        }
+                        for row in unfinished_lines
+                    ]
+                })
+
+            # -------------------------------------------------
+            # Mark import as COMPLETED
+            # -------------------------------------------------
+
+            cur.execute(
+                """
+                UPDATE payment_imports
+
+                SET status = 'COMPLETED'
+
+                WHERE id = %s
+
+                RETURNING
+                    id,
+                    created_at,
+                    created_by,
+                    status;
+                """,
+                (import_id,)
+            )
+
+            completed_row = cur.fetchone()
+
+        conn.commit()
+
+        return success({
+            "import": import_from_row(completed_row)
+        })
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+
 
 def lambda_handler(event, context):
 
@@ -2238,6 +2373,26 @@ def lambda_handler(event, context):
             })
 
         return amend_import_item(event)
+
+    # ---------------------------------------------------------
+    # Complete payment import
+    # POST /api/payment-imports/{import_id}/complete
+    # ---------------------------------------------------------
+
+    if (
+        http_method == "POST"
+        and route_key
+        == "POST /api/payment-imports/{import_id}/complete"
+    ):
+        if not can_write_imports(event):
+            return forbidden({
+                "error": (
+                    "You do not have permission "
+                    "to complete payment imports"
+                )
+            })
+
+        return complete_import(event)
 
     # ---------------------------------------------------------
     # Create payment import
