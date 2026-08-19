@@ -2260,12 +2260,12 @@ def lambda_handler(event, context):
 
     # ---------------------------------------------------------
     # Get payment import
-    # GET /payment-imports/{id}
+    # GET /payment-imports/{import_id}
     # ---------------------------------------------------------
 
     if (
         http_method == "GET"
-        and path_parameters.get("id")
+        and path_parameters.get("import_id")
     ):
         return get_import(event)
 
