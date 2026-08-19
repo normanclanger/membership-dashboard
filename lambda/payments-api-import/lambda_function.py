@@ -1318,7 +1318,7 @@ def delete_import_item(event):
         event.get("pathParameters") or {}
     )
 
-    item_id = path_parameters.get("id")
+    item_id = path_parameters.get("item_id")
 
     if not item_id:
         return bad_request({
@@ -2181,13 +2181,13 @@ def lambda_handler(event, context):
 
     # ---------------------------------------------------------
     # Delete payment import item
-    # DELETE /payment-import-items/{id}
+    # DELETE /payment-import-items/{item_id}
     # ---------------------------------------------------------
 
     if (
         http_method == "DELETE"
         and route_key
-        == "DELETE /api/payment-import-items/{id}"
+        == "DELETE /api/payment-import-items/{item_id}"
     ):
         if not can_write_imports(event):
             return forbidden({
