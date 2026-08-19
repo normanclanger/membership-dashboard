@@ -2276,6 +2276,103 @@ def complete_import(event):
         conn.close()
 
 
+def get_exception_items(event):
+
+    query_parameters = (
+        event.get("queryStringParameters") or {}
+    )
+
+    status = query_parameters.get("status")
+
+    if status != "EXCEPTION":
+        return bad_request({
+            "error": (
+                "status=EXCEPTION is required"
+            )
+        })
+
+    conn = get_connection()
+
+    try:
+        with conn.cursor() as cur:
+
+            cur.execute(
+                """
+                SELECT
+                    i.id,
+                    i.import_line_id,
+                    i.member_id,
+                    i.subscription_amount,
+                    i.gift_amount,
+                    i.calendar_year,
+                    i.status,
+                    i.exception_reason,
+
+                    l.import_id,
+                    l.statement_reference,
+                    l.payment_date,
+                    l.statement_amount,
+                    l.statement_type,
+                    l.description
+
+                FROM payment_import_items i
+
+                JOIN payment_import_lines l
+                    ON l.id = i.import_line_id
+
+                WHERE i.status = 'EXCEPTION'
+
+                ORDER BY
+                    l.import_id,
+                    l.id,
+                    i.id;
+                """
+            )
+
+            rows = cur.fetchall()
+
+            items = []
+
+            for row in rows:
+
+                items.append({
+                    "id": row[0],
+                    "import_line_id": row[1],
+                    "member_id": row[2],
+                    "subscription_amount": (
+                        str(row[3])
+                        if row[3] is not None
+                        else None
+                    ),
+                    "gift_amount": (
+                        str(row[4])
+                        if row[4] is not None
+                        else None
+                    ),
+                    "calendar_year": row[5],
+                    "status": row[6],
+                    "exception_reason": row[7],
+
+                    "import_id": row[8],
+                    "statement_reference": row[9],
+                    "payment_date": row[10].isoformat(),
+                    "statement_amount": (
+                        str(row[11])
+                        if row[11] is not None
+                        else None
+                    ),
+                    "statement_type": row[12],
+                    "description": row[13]
+                })
+
+        return success({
+            "items": items
+        })
+
+    finally:
+        conn.close()
+
+
 def lambda_handler(event, context):
 
     http_method = (
@@ -2412,6 +2509,18 @@ def lambda_handler(event, context):
             })
 
         return create_import(event)
+
+    # ---------------------------------------------------------
+    # Get outstanding payment import exceptions
+    # GET /api/payment-imports/items
+    # ---------------------------------------------------------
+
+    if (
+        http_method == "GET"
+        and route_key
+        == "GET /api/payment-imports/items"
+    ):
+        return get_exception_items(event)
 
     # ---------------------------------------------------------
     # Get payment import
