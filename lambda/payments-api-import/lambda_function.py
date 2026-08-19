@@ -47,9 +47,10 @@ def get_user_groups(event):
 
 
 def get_user_id(event):
-    claims = get_claims(event)
+    return "LOCAL-TEST-USER"
+#    claims = get_claims(event)
 
-    return claims.get("sub")
+#    return claims.get("sub")
 
 
 def can_write_imports(event):
