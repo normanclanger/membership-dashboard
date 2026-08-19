@@ -1,0 +1,4 @@
+---
+title: "paymentsDashboard"
+protected: true
+---
