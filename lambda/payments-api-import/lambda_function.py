@@ -1535,7 +1535,7 @@ def amend_import_line(event):
         event.get("pathParameters") or {}
     )
 
-    line_id = path_parameters.get("id")
+    line_id = path_parameters.get("line_id")
 
     if not line_id:
         return bad_request({
@@ -2201,13 +2201,13 @@ def lambda_handler(event, context):
 
     # ---------------------------------------------------------
     # Change payment import line action
-    # PATCH /payment-import-lines/{id}
+    # PATCH /payment-import-lines/{line_id}
     # ---------------------------------------------------------
 
     if (
         http_method == "PATCH"
         and route_key
-        == "PATCH /api/payment-import-lines/{id}"
+        == "PATCH /api/payment-import-lines/{line_id}"
     ):
         if not can_write_imports(event):
             return forbidden({
