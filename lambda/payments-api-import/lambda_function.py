@@ -461,7 +461,7 @@ def create_import_item(event):
         event.get("pathParameters") or {}
     )
 
-    line_id = path_parameters.get("id")
+    line_id = path_parameters.get("line_id")
 
     if not line_id:
         return bad_request({
@@ -2277,7 +2277,7 @@ def lambda_handler(event, context):
     if (
         http_method == "POST"
         and route_key
-        == "POST api/payment-import-lines/{id}/items"
+        == "POST api/payment-import-lines/{line_id}/items"
     ):
         if not can_write_imports(event):
             return forbidden({
