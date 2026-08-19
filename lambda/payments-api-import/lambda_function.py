@@ -2240,14 +2240,14 @@ def complete_import(event):
                 })
 
             # -------------------------------------------------
-            # Mark import as COMPLETED
+            # Mark import as COMPLETE
             # -------------------------------------------------
 
             cur.execute(
                 """
                 UPDATE payment_imports
 
-                SET status = 'COMPLETED'
+                SET status = 'COMPLETE'
 
                 WHERE id = %s
 
