@@ -155,7 +155,7 @@ def get_import(event):
         event.get("pathParameters") or {}
     )
 
-    import_id = path_parameters.get("id")
+    import_id = path_parameters.get("import_id")
 
     if not import_id:
         return bad_request({
