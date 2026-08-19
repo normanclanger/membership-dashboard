@@ -2271,7 +2271,7 @@ def lambda_handler(event, context):
 
     # ---------------------------------------------------------
     # Create payment import item
-    # POST /payment-import-lines/{id}/items
+    # POST /payment-import-lines/{line_id}/items
     # ---------------------------------------------------------
 
     if (
