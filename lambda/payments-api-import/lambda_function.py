@@ -149,6 +149,41 @@ def create_import(event):
         conn.close()
 
 
+def list_imports(event):
+
+    conn = get_connection()
+
+    try:
+        with conn.cursor() as cur:
+
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    created_at,
+                    created_by,
+                    status
+
+                FROM payment_imports
+
+                ORDER BY id DESC;
+                """
+            )
+
+            rows = cur.fetchall()
+
+            imports = [
+                import_from_row(row)
+                for row in rows
+            ]
+
+            return success({
+                "imports": imports
+            })
+
+    finally:
+        conn.close()
+
 def get_import(event):
 
     path_parameters = (
