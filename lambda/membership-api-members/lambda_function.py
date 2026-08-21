@@ -95,9 +95,83 @@ def can_edit_members(event):
         })
     )
 
+def get_member_payment_history(event):
+
+    path_parameters = event.get("pathParameters") or {}
+    member_id = path_parameters.get("id")
+
+    if not member_id:
+        return bad_request({
+            "error": "Member ID is required"
+        })
+
+    try:
+        member_id = int(member_id)
+    except ValueError:
+        return bad_request({
+            "error": "Member ID must be a number"
+        })
+
+    conn = get_connection()
+
+    try:
+        with conn.cursor() as cur:
+
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    payment_date,
+                    statement_reference,
+                    subscription_amount,
+                    gift_amount,
+                    calendar_year
+                FROM payments
+                WHERE member_id = %s
+                ORDER BY
+                    calendar_year DESC,
+                    payment_date DESC,
+                    id DESC;
+                """,
+                (member_id,)
+            )
+
+            rows = cur.fetchall()
+
+            payments = [
+                {
+                    "id": row[0],
+                    "payment_date":
+                        row[1].isoformat()
+                        if row[1] else None,
+                    "statement_reference": row[2],
+                    "subscription_amount": str(row[3]),
+                    "gift_amount": str(row[4]),
+                    "calendar_year": row[5]
+                }
+                for row in rows
+            ]
+
+            return success({
+                "member_id": member_id,
+                "payments": payments
+            })
+
+    finally:
+        conn.close()
+
 
 def lambda_handler(event, context):
     http_method = event.get("requestContext", {}).get("http", {}).get("method")
+
+    route_key = event.get("routeKey")
+
+    # Catch payment history route
+
+    if route_key == "GET /api/members/{id}/payment-history":
+      return get_member_payment_history(event)
+
+    # Otherwise handle older members requests
 
     # ---------------------------------------------------------
     # POST /api/members
