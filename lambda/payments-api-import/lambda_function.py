@@ -41,10 +41,9 @@ def get_user_groups(event):
 
     return {
         group.strip().strip("'\"")
-        for group in groups.split(",")
+        for group in groups.replace(",", " ").split()
         if group.strip()
     }
-
 
 def get_user_id(event):
 #    return "LOCAL-TEST-USER"
