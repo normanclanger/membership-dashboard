@@ -54,9 +54,14 @@ def get_user_id(event):
 
 
 def can_write_imports(event):
-#    return True
+    claims = get_claims(event)
+
+    print("DEBUG CLAIM KEYS:", list(claims.keys()))
+    print("DEBUG COGNITO GROUPS:", claims.get("cognito:groups"))
 
     groups = get_user_groups(event)
+
+    print("DEBUG PARSED GROUPS:", groups)
 
     return bool(
         groups.intersection(ALLOWED_WRITE_GROUPS)
