@@ -509,7 +509,7 @@ def create_import_item(event):
 
     try:
         line_id = int(line_id)
-    except ValueError:
+    except (TypeError, ValueError):
         return bad_request({
             "error": "Import line id must be a number"
         })
@@ -528,21 +528,37 @@ def create_import_item(event):
             "error": "Request body must be valid JSON"
         })
 
+    if not isinstance(payload, dict):
+        return bad_request({
+            "error": "Request body must be an object"
+        })
+
     member_id = payload.get("member_id")
-    subscription_amount = payload.get("subscription_amount")
+    subscription_amount = payload.get(
+        "subscription_amount"
+    )
     gift_amount = payload.get("gift_amount")
     calendar_year = payload.get("calendar_year")
 
-    if member_id is None:
-        return bad_request({
-            "error": "member_id is required"
-        })
+    status = payload.get(
+        "status",
+        "PENDING"
+    )
 
-    try:
-        member_id = int(member_id)
-    except (TypeError, ValueError):
+    exception_reason = payload.get(
+        "exception_reason"
+    )
+
+    if status not in (
+        "PENDING",
+        "EXCEPTION",
+        "RESOLVED_EXTERNALLY"
+    ):
         return bad_request({
-            "error": "member_id must be a number"
+            "error": (
+                "status must be PENDING, EXCEPTION "
+                "or RESOLVED_EXTERNALLY"
+            )
         })
 
     if subscription_amount is None:
@@ -576,12 +592,19 @@ def create_import_item(event):
             ValueError
         ):
             return bad_request({
-                "error": "gift_amount must be a number"
+                "error": (
+                    "gift_amount must be a number"
+                )
             })
 
-    if subscription_amount == 0 and gift_amount == 0:
+    if (
+        subscription_amount == 0
+        and gift_amount == 0
+    ):
         return bad_request({
-            "error": "At least one payment amount is required"
+            "error": (
+                "At least one payment amount is required"
+            )
         })
 
     if calendar_year is None:
@@ -596,10 +619,65 @@ def create_import_item(event):
             "error": "calendar_year must be a number"
         })
 
+    # -------------------------------------------------
+    # Status-specific validation
+    # -------------------------------------------------
+
+    if status == "PENDING":
+
+        if member_id is None:
+            return bad_request({
+                "error": (
+                    "member_id is required for "
+                    "PENDING allocations"
+                )
+            })
+
+        try:
+            member_id = int(member_id)
+        except (TypeError, ValueError):
+            return bad_request({
+                "error": "member_id must be a number"
+            })
+
+        if exception_reason:
+            return bad_request({
+                "error": (
+                    "exception_reason is only valid for "
+                    "EXCEPTION or RESOLVED_EXTERNALLY"
+                )
+            })
+
+        exception_reason = None
+
+    else:
+
+        if member_id is not None:
+            return bad_request({
+                "error": (
+                    "member_id must be null for "
+                    "EXCEPTION or RESOLVED_EXTERNALLY"
+                )
+            })
+
+        member_id = None
+
+        if not exception_reason:
+            return bad_request({
+                "error": (
+                    "exception_reason is required for "
+                    "EXCEPTION or RESOLVED_EXTERNALLY"
+                )
+            })
+
     conn = get_connection()
 
     try:
         with conn.cursor() as cur:
+
+            # -------------------------------------------------
+            # Get statement line
+            # -------------------------------------------------
 
             cur.execute(
                 """
@@ -637,6 +715,10 @@ def create_import_item(event):
                     )
                 })
 
+            # -------------------------------------------------
+            # Check import
+            # -------------------------------------------------
+
             cur.execute(
                 """
                 SELECT status
@@ -660,23 +742,34 @@ def create_import_item(event):
                     "error": "Payment import is not open"
                 })
 
-            cur.execute(
-                """
-                SELECT id
+            # -------------------------------------------------
+            # Validate member for normal allocations
+            # -------------------------------------------------
 
-                FROM members
+            if status == "PENDING":
 
-                WHERE id = %s;
-                """,
-                (member_id,)
-            )
+                cur.execute(
+                    """
+                    SELECT id
 
-            member_row = cur.fetchone()
+                    FROM members
 
-            if member_row is None:
-                return bad_request({
-                    "error": "Member not found"
-                })
+                    WHERE id = %s;
+                    """,
+                    (member_id,)
+                )
+
+                if cur.fetchone() is None:
+                    return bad_request({
+                        "error": "Member not found"
+                    })
+
+            # -------------------------------------------------
+            # Calculate current reconciliation.
+            #
+            # RESOLVED_EXTERNALLY does not count towards
+            # the bank statement amount.
+            # -------------------------------------------------
 
             cur.execute(
                 """
@@ -713,6 +806,7 @@ def create_import_item(event):
             )
 
             if new_total > statement_amount:
+
                 remaining = (
                     statement_amount
                     - allocated_amount
@@ -723,19 +817,27 @@ def create_import_item(event):
                         "Allocation exceeds "
                         "remaining statement amount"
                     ),
-                    "statement_amount": str(
-                        statement_amount
+                    "statement_amount": format(
+                        statement_amount,
+                        ".2f"
                     ),
-                    "already_allocated": str(
-                        allocated_amount
+                    "already_allocated": format(
+                        allocated_amount,
+                        ".2f"
                     ),
-                    "remaining": str(
-                        remaining
+                    "remaining": format(
+                        remaining,
+                        ".2f"
                     ),
-                    "requested": str(
-                        new_amount
+                    "requested": format(
+                        new_amount,
+                        ".2f"
                     )
                 })
+
+            # -------------------------------------------------
+            # Create item
+            # -------------------------------------------------
 
             cur.execute(
                 """
@@ -745,7 +847,8 @@ def create_import_item(event):
                     subscription_amount,
                     gift_amount,
                     calendar_year,
-                    status
+                    status,
+                    exception_reason
                 )
                 VALUES (
                     %s,
@@ -753,7 +856,8 @@ def create_import_item(event):
                     %s,
                     %s,
                     %s,
-                    'PENDING'
+                    %s,
+                    %s
                 )
                 RETURNING
                     id,
@@ -769,7 +873,9 @@ def create_import_item(event):
                     member_id,
                     subscription_amount,
                     gift_amount,
-                    calendar_year
+                    calendar_year,
+                    status,
+                    exception_reason
                 )
             )
 
@@ -799,7 +905,6 @@ def create_import_item(event):
 
     finally:
         conn.close()
-
 
 def amend_import_item(event):
 
@@ -867,10 +972,6 @@ def amend_import_item(event):
     try:
         with conn.cursor() as cur:
 
-            # -------------------------------------------------
-            # Get the existing item and its statement line
-            # -------------------------------------------------
-
             cur.execute(
                 """
                 SELECT
@@ -918,7 +1019,7 @@ def amend_import_item(event):
             ) = row
 
             # -------------------------------------------------
-            # Check import status
+            # Check import
             # -------------------------------------------------
 
             cur.execute(
@@ -939,14 +1040,13 @@ def amend_import_item(event):
                     "error": "Payment import not found"
                 })
 
-            if import_row[0] != "IN_PROGRESS":
-                return bad_request({
-                    "error": "Payment import is not open"
-                })
-
-            # -------------------------------------------------
-            # Check statement-line action
-            # -------------------------------------------------
+            if import_row[0] not in (
+                "IN_PROGRESS",
+                "PARTIALLY_COMMITTED"
+            ):
+              return bad_request({
+                "error": "Payment import is not open"
+              })
 
             if line_action != "IMPORT":
                 return bad_request({
@@ -955,10 +1055,6 @@ def amend_import_item(event):
                         "a line marked IGNORE"
                     )
                 })
-
-            # -------------------------------------------------
-            # Check current item status
-            # -------------------------------------------------
 
             if current_status in (
                 "COMMITTED",
@@ -972,106 +1068,92 @@ def amend_import_item(event):
                 })
 
             # -------------------------------------------------
-            # Determine proposed values
+            # Determine proposed status
             # -------------------------------------------------
 
-            proposed_member_id = current_member_id
+            proposed_status = payload.get(
+                "status",
+                current_status
+            )
 
-            if "member_id" in payload:
-                proposed_member_id = payload["member_id"]
+            valid_transitions = {
+                "PENDING": {
+                    "PENDING",
+                    "EXCEPTION"
+                },
+                "EXCEPTION": {
+                    "EXCEPTION",
+                    "PENDING",
+                    "RESOLVED_EXTERNALLY"
+                }
+            }
 
-                if proposed_member_id is not None:
-                    try:
-                        proposed_member_id = int(
-                            proposed_member_id
-                        )
-                    except (TypeError, ValueError):
-                        return bad_request({
-                            "error": "member_id must be a number"
-                        })
+            allowed_statuses = valid_transitions.get(
+                current_status,
+                set()
+            )
 
-                    cur.execute(
-                        """
-                        SELECT id
-
-                        FROM members
-
-                        WHERE id = %s;
-                        """,
-                        (proposed_member_id,)
+            if proposed_status not in allowed_statuses:
+                return bad_request({
+                    "error": (
+                        f"Invalid status transition "
+                        f"from {current_status} "
+                        f"to {proposed_status}"
                     )
+                })
 
-                    if cur.fetchone() is None:
-                        return bad_request({
-                            "error": "Member not found"
-                        })
+            # -------------------------------------------------
+            # Determine amounts
+            # -------------------------------------------------
 
             proposed_subscription_amount = (
                 current_subscription_amount
+                if "subscription_amount" not in payload
+                else payload["subscription_amount"]
             )
 
-            if "subscription_amount" in payload:
-
-                if payload["subscription_amount"] is None:
-                    proposed_subscription_amount = Decimal(
-                        "0.00"
-                    )
-                else:
-                    try:
-                        proposed_subscription_amount = Decimal(
-                            str(
-                                payload[
-                                    "subscription_amount"
-                                ]
-                            )
-                        )
-                    except (
-                        InvalidOperation,
-                        TypeError,
-                        ValueError
-                    ):
-                        return bad_request({
-                            "error": (
-                                "subscription_amount "
-                                "must be a number"
-                            )
-                        })
-
-            proposed_gift_amount = current_gift_amount
-
-            if "gift_amount" in payload:
-
-                if payload["gift_amount"] is None:
-                    proposed_gift_amount = Decimal(
-                        "0.00"
-                    )
-                else:
-                    try:
-                        proposed_gift_amount = Decimal(
-                            str(
-                                payload["gift_amount"]
-                            )
-                        )
-                    except (
-                        InvalidOperation,
-                        TypeError,
-                        ValueError
-                    ):
-                        return bad_request({
-                            "error": (
-                                "gift_amount must be a number"
-                            )
-                        })
-
             if proposed_subscription_amount is None:
-                proposed_subscription_amount = Decimal(
-                    "0.00"
-                )
+                proposed_subscription_amount = Decimal("0.00")
+            else:
+                try:
+                    proposed_subscription_amount = Decimal(
+                        str(proposed_subscription_amount)
+                    )
+                except (
+                    InvalidOperation,
+                    TypeError,
+                    ValueError
+                ):
+                    return bad_request({
+                        "error": (
+                            "subscription_amount "
+                            "must be a number"
+                        )
+                    })
+
+            proposed_gift_amount = (
+                current_gift_amount
+                if "gift_amount" not in payload
+                else payload["gift_amount"]
+            )
 
             if proposed_gift_amount is None:
-                proposed_gift_amount = Decimal(
-                    "0.00"
-                )
+                proposed_gift_amount = Decimal("0.00")
+            else:
+                try:
+                    proposed_gift_amount = Decimal(
+                        str(proposed_gift_amount)
+                    )
+                except (
+                    InvalidOperation,
+                    TypeError,
+                    ValueError
+                ):
+                    return bad_request({
+                        "error": (
+                            "gift_amount must be a number"
+                        )
+                    })
 
             if (
                 proposed_subscription_amount == 0
@@ -1084,7 +1166,13 @@ def amend_import_item(event):
                     )
                 })
 
-            proposed_calendar_year = current_calendar_year
+            # -------------------------------------------------
+            # Calendar year
+            # -------------------------------------------------
+
+            proposed_calendar_year = (
+                current_calendar_year
+            )
 
             if "calendar_year" in payload:
 
@@ -1104,10 +1192,9 @@ def amend_import_item(event):
                         )
                     })
 
-            proposed_status = current_status
-
-            if "status" in payload:
-                proposed_status = payload["status"]
+            # -------------------------------------------------
+            # Exception reason
+            # -------------------------------------------------
 
             proposed_exception_reason = (
                 current_exception_reason
@@ -1119,74 +1206,72 @@ def amend_import_item(event):
                 )
 
             # -------------------------------------------------
-            # Validate status transitions
+            # Member/status validation
             # -------------------------------------------------
 
-            valid_transitions = {
-                "PENDING": {
-                    "PENDING",
-                    "READY",
-                    "EXCEPTION"
-                },
-                "EXCEPTION": {
-                    "EXCEPTION",
-                    "PENDING",
-                    "RESOLVED_EXTERNALLY"
-                },
-                "READY": {
-                    "READY",
-                    "EXCEPTION"
-                }
-            }
+            if proposed_status == "PENDING":
 
-            allowed_statuses = valid_transitions.get(
-                current_status,
-                set()
-            )
+                proposed_member_id = (
+                    current_member_id
+                )
 
-            if proposed_status not in allowed_statuses:
-                return bad_request({
-                    "error": (
-                        f"Invalid status transition "
-                        f"from {current_status} "
-                        f"to {proposed_status}"
+                if "member_id" in payload:
+                    proposed_member_id = (
+                        payload["member_id"]
                     )
-                })
 
-            # -------------------------------------------------
-            # EXCEPTION requires a reason
-            # -------------------------------------------------
+                if proposed_member_id is None:
+                    return bad_request({
+                        "error": (
+                            "member_id is required for "
+                            "PENDING allocations"
+                        )
+                    })
 
-            if proposed_status == "EXCEPTION":
+                try:
+                    proposed_member_id = int(
+                        proposed_member_id
+                    )
+                except (TypeError, ValueError):
+                    return bad_request({
+                        "error": "member_id must be a number"
+                    })
+
+                cur.execute(
+                    """
+                    SELECT id
+
+                    FROM members
+
+                    WHERE id = %s;
+                    """,
+                    (proposed_member_id,)
+                )
+
+                if cur.fetchone() is None:
+                    return bad_request({
+                        "error": "Member not found"
+                    })
+
+                proposed_exception_reason = None
+
+            else:
+
+                proposed_member_id = None
 
                 if not proposed_exception_reason:
                     return bad_request({
                         "error": (
-                            "exception_reason is required "
-                            "for EXCEPTION status"
+                            "exception_reason is required for "
+                            "EXCEPTION or RESOLVED_EXTERNALLY"
                         )
                     })
 
             # -------------------------------------------------
-            # RESOLVED_EXTERNALLY
-            # -------------------------------------------------
-
-            if proposed_status == "RESOLVED_EXTERNALLY":
-
-                if current_status != "EXCEPTION":
-                    return bad_request({
-                        "error": (
-                            "Only EXCEPTION items can be "
-                            "marked RESOLVED_EXTERNALLY"
-                        )
-                    })
-
-            # -------------------------------------------------
-            # Calculate proposed reconciliation
+            # Calculate reconciliation
             #
-            # IMPORTANT:
-            # Exclude this item's current allocation,
-            # then add its proposed allocation.
+            # Exclude this item, then add its proposed amount
+            # unless it is RESOLVED_EXTERNALLY.
             # -------------------------------------------------
 
             cur.execute(
@@ -1217,10 +1302,13 @@ def amend_import_item(event):
                 str(cur.fetchone()[0])
             )
 
-            proposed_amount = (
-                proposed_subscription_amount
-                + proposed_gift_amount
-            )
+            proposed_amount = Decimal("0.00")
+
+            if proposed_status != "RESOLVED_EXTERNALLY":
+                proposed_amount = (
+                    proposed_subscription_amount
+                    + proposed_gift_amount
+                )
 
             proposed_total = (
                 other_allocations
@@ -1230,39 +1318,6 @@ def amend_import_item(event):
             statement_amount = Decimal(
                 str(statement_amount)
             )
-
-            # -------------------------------------------------
-            # READY requires exact reconciliation
-            # -------------------------------------------------
-
-            if proposed_status == "READY":
-
-                if proposed_total != statement_amount:
-                    return bad_request({
-                        "error": (
-                            "Statement line is not "
-                            "fully reconciled"
-                        ),
-                        "statement_amount": format(
-                            statement_amount,
-                            ".2f"
-                        ),
-                        "allocated_amount": format(
-                            proposed_total,
-                            ".2f"
-                        ),
-                        "remaining_amount": format(
-                            statement_amount
-                            - proposed_total,
-                            ".2f"
-                        )
-                    })
-
-            # -------------------------------------------------
-            # Prevent positive over-allocation.
-            #
-            # Negative allocations are allowed.
-            # -------------------------------------------------
 
             if proposed_total > statement_amount:
                 return bad_request({
@@ -1286,7 +1341,7 @@ def amend_import_item(event):
                 })
 
             # -------------------------------------------------
-            # Update the existing item
+            # Update
             # -------------------------------------------------
 
             cur.execute(
@@ -1557,8 +1612,8 @@ def delete_import_item(event):
                 "remaining_amount": format(
                     statement_amount - allocated_amount,
                     ".2f"
-                ),
-                "ready_items_reset": ready_items_reset
+                )
+
             })
 
     except Exception:
@@ -1766,11 +1821,8 @@ def amend_import_line(event):
         conn.close()
 
 
-def commit_import_line(event):
 
-    # ---------------------------------------------------------
-    # Identify authenticated user
-    # ---------------------------------------------------------
+def commit_import_line(event):
 
     user_id = get_user_id(event)
 
@@ -1778,10 +1830,6 @@ def commit_import_line(event):
         return forbidden({
             "error": "Unable to identify authenticated user"
         })
-
-    # ---------------------------------------------------------
-    # Get line ID
-    # ---------------------------------------------------------
 
     path_parameters = (
         event.get("pathParameters") or {}
@@ -1852,18 +1900,13 @@ def commit_import_line(event):
                 import_status
             ) = line_row
 
-            # -------------------------------------------------
-            # Check parent import
-            # -------------------------------------------------
-
-            if import_status != "IN_PROGRESS":
+            if import_status not in (
+                "IN_PROGRESS",
+                "PARTIALLY_COMMITTED"
+            ):
                 return bad_request({
                     "error": "Payment import is not open"
                 })
-
-            # -------------------------------------------------
-            # Only IMPORT lines can be committed
-            # -------------------------------------------------
 
             if line_action != "IMPORT":
                 return bad_request({
@@ -1872,10 +1915,6 @@ def commit_import_line(event):
                         "can be committed"
                     )
                 })
-
-            # -------------------------------------------------
-            # Prevent double commit
-            # -------------------------------------------------
 
             if line_status == "COMMITTED":
                 return bad_request({
@@ -1886,7 +1925,7 @@ def commit_import_line(event):
                 })
 
             # -------------------------------------------------
-            # Get all items for this line
+            # Get all items
             # -------------------------------------------------
 
             cur.execute(
@@ -1919,21 +1958,23 @@ def commit_import_line(event):
                     )
                 })
 
-            # -------------------------------------------------
-            # Check item statuses
-            # -------------------------------------------------
-
-            blocking_items = []
-
-            ready_items = []
+            pending_items = []
+            committed_items = []
+            exception_items = []
             externally_resolved_items = []
 
             for row in item_rows:
 
                 item = item_from_row(row)
 
-                if item["status"] == "READY":
-                    ready_items.append(item)
+                if item["status"] == "PENDING":
+                    pending_items.append(item)
+
+                elif item["status"] == "COMMITTED":
+                    committed_items.append(item)
+
+                elif item["status"] == "EXCEPTION":
+                    exception_items.append(item)
 
                 elif (
                     item["status"]
@@ -1942,32 +1983,41 @@ def commit_import_line(event):
                     externally_resolved_items.append(item)
 
                 else:
-                    blocking_items.append({
-                        "id": item["id"],
-                        "status": item["status"],
-                        "exception_reason": (
-                            item["exception_reason"]
-                        )
+                    return bad_request({
+                        "error": (
+                            "Statement line contains "
+                            "an item with an invalid status"
+                        ),
+                        "item": {
+                            "id": item["id"],
+                            "status": item["status"]
+                        }
                     })
 
-            if blocking_items:
-                return bad_request({
-                    "error": (
-                        "Statement line contains items "
-                        "that are not ready to commit"
-                    ),
-                    "items": blocking_items
-                })
-
             # -------------------------------------------------
-            # Reconcile READY items.
+            # Calculate amount represented by all allocation
+            # items.
             #
-            # RESOLVED_EXTERNALLY items are excluded.
+            # All statuses count towards reconciliation:
+            #
+            # COMMITTED
+            # PENDING
+            # EXCEPTION
+            # RESOLVED_EXTERNALLY
+            #
+            # RESOLVED_EXTERNALLY is excluded only from payment
+            # creation. It still represents part of the bank
+            # statement amount.
             # -------------------------------------------------
 
-            allocated_amount = Decimal("0.00")
+            represented_amount = Decimal("0.00")
 
-            for item in ready_items:
+            for item in (
+                pending_items
+                + committed_items
+                + exception_items
+                + externally_resolved_items
+            ):
 
                 subscription_amount = Decimal(
                     item["subscription_amount"]
@@ -1979,7 +2029,7 @@ def commit_import_line(event):
                     or "0.00"
                 )
 
-                allocated_amount += (
+                represented_amount += (
                     subscription_amount
                     + gift_amount
                 )
@@ -1988,35 +2038,35 @@ def commit_import_line(event):
                 str(statement_amount)
             )
 
-            if allocated_amount != statement_amount:
+            if represented_amount != statement_amount:
 
                 return bad_request({
                     "error": (
                         "Statement line is not fully "
-                        "reconciled"
+                        "accounted for"
                     ),
                     "statement_amount": format(
                         statement_amount,
                         ".2f"
                     ),
                     "allocated_amount": format(
-                        allocated_amount,
+                        represented_amount,
                         ".2f"
                     ),
                     "remaining_amount": format(
                         statement_amount
-                        - allocated_amount,
+                        - represented_amount,
                         ".2f"
                     )
                 })
 
             # -------------------------------------------------
-            # Create permanent payment records
+            # Create payments for PENDING items only
             # -------------------------------------------------
 
             created_payments = []
 
-            for item in ready_items:
+            for item in pending_items:
 
                 subscription_amount = Decimal(
                     item["subscription_amount"]
@@ -2094,15 +2144,15 @@ def commit_import_line(event):
                 })
 
             # -------------------------------------------------
-            # Mark READY items as COMMITTED
+            # Mark newly committed items
             # -------------------------------------------------
 
-            ready_item_ids = [
+            pending_item_ids = [
                 item["id"]
-                for item in ready_items
+                for item in pending_items
             ]
 
-            if ready_item_ids:
+            if pending_item_ids:
 
                 cur.execute(
                     """
@@ -2114,11 +2164,20 @@ def commit_import_line(event):
 
                     WHERE id = ANY(%s);
                     """,
-                    (ready_item_ids,)
+                    (pending_item_ids,)
                 )
 
             # -------------------------------------------------
-            # Mark statement line as COMMITTED
+            # Determine resulting line status
+            # -------------------------------------------------
+
+            if exception_items:
+                new_line_status = "PARTIALLY_COMMITTED"
+            else:
+                new_line_status = "COMMITTED"
+
+            # -------------------------------------------------
+            # Update statement line
             # -------------------------------------------------
 
             cur.execute(
@@ -2126,7 +2185,7 @@ def commit_import_line(event):
                 UPDATE payment_import_lines
 
                 SET
-                    status = 'COMMITTED',
+                    status = %s,
                     committed_at = now(),
                     committed_by = %s
 
@@ -2139,6 +2198,7 @@ def commit_import_line(event):
                     committed_by;
                 """,
                 (
+                    new_line_status,
                     user_id,
                     line_id
                 )
@@ -2162,10 +2222,14 @@ def commit_import_line(event):
                 ".2f"
             ),
             "allocated_amount": format(
-                allocated_amount,
+                represented_amount,
                 ".2f"
             ),
             "payments_created": created_payments,
+            "exception_item_ids": [
+                item["id"]
+                for item in exception_items
+            ],
             "externally_resolved_item_ids": [
                 item["id"]
                 for item in externally_resolved_items
@@ -2234,52 +2298,159 @@ def complete_import(event):
                     "error": "Payment import not found"
                 })
 
-            if import_row[3] != "IN_PROGRESS":
+            if import_row[3] not in (
+                "IN_PROGRESS",
+                "PARTIALLY_COMMITTED"
+            ):
                 return bad_request({
                     "error": "Payment import is not open"
                 })
 
             # -------------------------------------------------
-            # Find unfinished IMPORT lines
+            # Examine allocation states
+            #
+            # PENDING:
+            #   Still requires normal processing.
+            #
+            # EXCEPTION:
+            #   Remains open and prevents full completion.
+            #
+            # RESOLVED_EXTERNALLY:
+            #   Considered resolved. It does not require
+            #   a payment and remains RESOLVED_EXTERNALLY.
+            #
+            # COMMITTED:
+            #   Successfully processed.
             # -------------------------------------------------
 
             cur.execute(
                 """
                 SELECT
-                    id,
-                    status
+                    i.status,
+                    COUNT(*)
 
-                FROM payment_import_lines
+                FROM payment_import_items i
 
-                WHERE import_id = %s
-                AND action = 'IMPORT'
-                AND status <> 'COMMITTED'
+                JOIN payment_import_lines l
+                    ON l.id = i.import_line_id
 
-                ORDER BY id;
+                WHERE l.import_id = %s
+                AND l.action = 'IMPORT'
+
+                GROUP BY i.status;
                 """,
                 (import_id,)
             )
 
-            unfinished_lines = cur.fetchall()
+            status_counts = {
+                row[0]: row[1]
+                for row in cur.fetchall()
+            }
 
-            if unfinished_lines:
+            pending_count = status_counts.get(
+                "PENDING",
+                0
+            )
+
+            exception_count = status_counts.get(
+                "EXCEPTION",
+                0
+            )
+
+            committed_count = status_counts.get(
+                "COMMITTED",
+                0
+            )
+
+            externally_resolved_count = (
+                status_counts.get(
+                    "RESOLVED_EXTERNALLY",
+                    0
+                )
+            )
+
+            # -------------------------------------------------
+            # PENDING items must be processed first.
+            #
+            # A failed reconciliation therefore leaves the
+            # import open and PENDING.
+            # -------------------------------------------------
+
+            if pending_count > 0:
 
                 return bad_request({
                     "error": (
                         "Payment import contains "
-                        "uncommitted lines"
+                        "pending allocations"
                     ),
-                    "lines": [
-                        {
-                            "id": row[0],
-                            "status": row[1]
-                        }
-                        for row in unfinished_lines
-                    ]
+                    "pending_count": pending_count,
+                    "exception_count": exception_count,
+                    "committed_count": committed_count,
+                    "resolved_externally_count": (
+                        externally_resolved_count
+                    )
                 })
 
             # -------------------------------------------------
-            # Mark import as COMPLETE
+            # Open exceptions mean the import is only
+            # partially committed.
+            #
+            # This is specifically the state:
+            #
+            #   one or more COMMITTED
+            #   one or more EXCEPTION
+            # -------------------------------------------------
+
+            if exception_count > 0:
+
+                if committed_count == 0:
+                    return bad_request({
+                        "error": (
+                            "Payment import contains "
+                            "open exceptions but no "
+                            "committed allocations"
+                        ),
+                        "exception_count": exception_count
+                    })
+
+                cur.execute(
+                    """
+                    UPDATE payment_imports
+
+                    SET status = 'PARTIALLY_COMMITTED'
+
+                    WHERE id = %s
+
+                    RETURNING
+                        id,
+                        created_at,
+                        created_by,
+                        status;
+                    """,
+                    (import_id,)
+                )
+
+                updated_row = cur.fetchone()
+
+                conn.commit()
+
+                return success({
+                    "import": import_from_row(
+                        updated_row
+                    ),
+                    "status": "PARTIALLY_COMMITTED",
+                    "committed_count": committed_count,
+                    "exception_count": exception_count,
+                    "resolved_externally_count": (
+                        externally_resolved_count
+                    )
+                })
+
+            # -------------------------------------------------
+            # No PENDING and no EXCEPTION remain.
+            #
+            # COMMITTED and RESOLVED_EXTERNALLY are both
+            # resolved states.
             # -------------------------------------------------
 
             cur.execute(
@@ -2304,7 +2475,14 @@ def complete_import(event):
         conn.commit()
 
         return success({
-            "import": import_from_row(completed_row)
+            "import": import_from_row(
+                completed_row
+            ),
+            "committed_count": committed_count,
+            "exception_count": exception_count,
+            "resolved_externally_count": (
+                externally_resolved_count
+            )
         })
 
     except Exception:
