@@ -240,3 +240,32 @@ body {
     }
 }
 
+/* ---------------------------------------------------------
+   Payments allocations 
+   --------------------------------------------------------- */
+
+.payment-allocation-details {
+    padding: 0.5rem 0;
+}
+
+.payment-allocation-details summary {
+    cursor: pointer;
+    padding: 0.35rem 0.5rem;
+}
+
+.payment-allocation-details table {
+    font-size: 0.9rem;
+}
+
+.payment-allocation-details thead th {
+    font-weight: 600;
+}
+
+.payment-allocation-details tbody td {
+    vertical-align: middle;
+}
+
+.payment-allocation-cell {
+    background-color: #f8f9fa;
+    padding: 0.5rem 1rem 0.75rem 2rem;
+}

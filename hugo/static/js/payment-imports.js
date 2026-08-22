@@ -141,7 +141,7 @@ function displayImports(data) {
 
         row.innerHTML = `
             <td>
-                <a href="/payments/imports/${paymentImport.id}/">
+                <a href="/payments/import?id=${paymentImport.id}">
                     #${paymentImport.id}
                 </a>
             </td>

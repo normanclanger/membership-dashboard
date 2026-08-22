@@ -1,0 +1,100 @@
+{{ define "main" }}
+
+<h1>Payment History Test</h1>
+
+<div
+    id="payment-history-error"
+    class="alert alert-danger"
+    hidden
+>
+</div>
+
+<div
+    id="payment-history-result"
+    class="table-container"
+>
+    Loading...
+</div>
+
+<script>
+
+document.addEventListener(
+    "authentication-ready",
+    async () => {
+
+        const error =
+            document.querySelector(
+                "#payment-history-error"
+            );
+
+        const result =
+            document.querySelector(
+                "#payment-history-result"
+            );
+
+        try {
+
+            const user =
+                window.currentUser;
+
+            if (
+                !user ||
+                !user.access_token
+            ) {
+                throw new Error(
+                    "No authenticated user"
+                );
+            }
+
+            const response =
+                await fetch(
+                    "https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com/api/members/19/payment-history",
+                    {
+                        headers: {
+                            Authorization:
+                                `Bearer ${user.access_token}`
+                        }
+                    }
+                );
+
+            if (!response.ok) {
+
+                throw new Error(
+                    `HTTP ${response.status}`
+                );
+            }
+
+            const data =
+                await response.json();
+
+            result.innerHTML = `
+
+                <h2>
+                    Member #${data.member_id}
+                </h2>
+
+                <pre>
+${JSON.stringify(data, null, 2)}
+                </pre>
+
+            `;
+
+        } catch (err) {
+
+            console.error(err);
+
+            error.textContent =
+                `Unable to load payment history: ${err.message}`;
+
+            error.hidden = false;
+
+            result.textContent = "";
+        }
+
+    }
+);
+
+</script>
+
+{{ end }}
+
