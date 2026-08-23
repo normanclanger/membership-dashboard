@@ -767,8 +767,6 @@ def create_import_item(event):
             # -------------------------------------------------
             # Calculate current reconciliation.
             #
-            # RESOLVED_EXTERNALLY does not count towards
-            # the bank statement amount.
             # -------------------------------------------------
 
             cur.execute(
@@ -785,8 +783,7 @@ def create_import_item(event):
 
                 FROM payment_import_items
 
-                WHERE import_line_id = %s
-                AND status <> 'RESOLVED_EXTERNALLY';
+                WHERE import_line_id = %s;
                 """,
                 (line_id,)
             )
@@ -1272,7 +1269,6 @@ def amend_import_item(event):
             # Calculate reconciliation
             #
             # Exclude this item, then add its proposed amount
-            # unless it is RESOLVED_EXTERNALLY.
             # -------------------------------------------------
 
             cur.execute(
@@ -1291,7 +1287,7 @@ def amend_import_item(event):
 
                 WHERE import_line_id = %s
                 AND id <> %s
-                AND status <> 'RESOLVED_EXTERNALLY';
+
                 """,
                 (
                     line_id,
@@ -1540,8 +1536,6 @@ def delete_import_item(event):
             # -------------------------------------------------
             # Recalculate the statement line
             #
-            # RESOLVED_EXTERNALLY items are deliberately
-            # excluded from reconciliation.
             # -------------------------------------------------
 
             cur.execute(
@@ -1558,8 +1552,7 @@ def delete_import_item(event):
 
                 FROM payment_import_items
 
-                WHERE import_line_id = %s
-                AND status <> 'RESOLVED_EXTERNALLY';
+                WHERE import_line_id = %s;
                 """,
                 (line_id,)
             )
