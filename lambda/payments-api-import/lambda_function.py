@@ -1085,6 +1085,8 @@ def amend_import_item(event):
                     "EXCEPTION",
                     "PENDING",
                     "RESOLVED_EXTERNALLY"
+                }
+
             }
 
             allowed_statuses = valid_transitions.get(
