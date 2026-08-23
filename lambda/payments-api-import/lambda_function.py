@@ -1502,10 +1502,7 @@ def delete_import_item(event):
             # Cannot delete final items
             # -------------------------------------------------
 
-            if current_status in (
-                "COMMITTED",
-                "RESOLVED_EXTERNALLY"
-            ):
+            if current_status == "COMMITTED":
                 return bad_request({
                     "error": (
                         "This payment import item "
