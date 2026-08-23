@@ -269,3 +269,43 @@ body {
     background-color: #f8f9fa;
     padding: 0.5rem 1rem 0.75rem 2rem;
 }
+
+.allocation-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.allocation-table th:nth-child(1),
+.allocation-table td:nth-child(1) {
+    width: 28%;
+}
+
+.allocation-table th:nth-child(2),
+.allocation-table td:nth-child(2) {
+    width: 12%;
+}
+
+.allocation-table th:nth-child(3),
+.allocation-table td:nth-child(3) {
+    width: 10%;
+}
+
+.allocation-table th:nth-child(4),
+.allocation-table td:nth-child(4) {
+    width: 10%;
+}
+
+.allocation-table th:nth-child(5),
+.allocation-table td:nth-child(5) {
+    width: 15%;
+}
+
+.allocation-table th:nth-child(6),
+.allocation-table td:nth-child(6) {
+    width: 15%;
+}
+
+.allocation-table th:nth-child(7),
+.allocation-table td:nth-child(7) {
+    width: 10%;
+}

@@ -491,6 +491,7 @@ document.addEventListener(
                                             table-sm
                                             table-bordered
                                             mb-2
+                                            allocation-table
                                         "
                                     >
 
@@ -537,8 +538,19 @@ document.addEventListener(
                                                 item => {
 
                                                     const memberDisplay =
-                                                        item.member_id
-                                                            ? `Member #${item.member_id}`
+                                                        item.member
+                                                            ? `
+                                                                <strong>
+                                                                    ${item.member.membership_number}
+                                                                </strong>
+                                                                — ${item.member.first_name}
+                                                                ${item.member.surname}
+                                                                ${
+                                                                    item.member.tower_name
+                                                                        ? ` — ${item.member.tower_name}`
+                                                                        : ""
+                                                                }
+                                                              `
                                                             : "No member";
 
 
@@ -706,6 +718,37 @@ document.addEventListener(
                 }).join("");
 
 
+/*
+ * ====================================================
+ * Scroll expanded allocation tables into view
+ * ====================================================
+ */
+
+linesBody.addEventListener(
+    "toggle",
+    event => {
+
+        const details =
+            event.target.closest(
+                ".payment-allocation-details"
+            );
+
+        if (!details || !details.open) {
+            return;
+        }
+
+        details.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+    },
+    true
+);
+
+
+
+
+
             /*
              * ====================================================
              * Allocation controls
@@ -842,12 +885,10 @@ document.addEventListener(
                                             </label>
 
                                             <input
-                                                type="number"
+                                                type="text"
                                                 class="form-control"
                                                 id="allocation-subscription-${lineId}"
                                                 value="0.00"
-                                                min="0"
-                                                step="0.01"
                                             >
 
                                         </div>
@@ -863,12 +904,10 @@ document.addEventListener(
                                             </label>
 
                                             <input
-                                                type="number"
+                                                type="text"
                                                 class="form-control"
                                                 id="allocation-gift-${lineId}"
                                                 value="0.00"
-                                                min="0"
-                                                step="0.01"
                                             >
 
                                         </div>
@@ -994,6 +1033,10 @@ document.addEventListener(
                             .closest("tr")
                             .after(formRow);
 
+                        formRow.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start"
+                        });
 
                         /*
                          * ------------------------------------------------
@@ -1425,6 +1468,11 @@ document.addEventListener(
                                 .closest("tr")
                                 .after(formRow);
                         }
+
+                        formRow.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start"
+                        });
 
 
                         /*
