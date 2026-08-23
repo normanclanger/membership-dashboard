@@ -151,6 +151,11 @@ document.addEventListener(
             const data =
                 await response.json();
 
+            console.log(
+                "PAYMENT IMPORT DATA:",
+                data
+            );
+
 
             const paymentImport =
                 data.import;
@@ -1885,6 +1890,11 @@ document.addEventListener(
                             error.hidden =
                                 false;
 
+                            error.scrollIntoView({
+                                behavior: "smooth",
+                                block: "center"
+                            });
+
 
                             saveButton.disabled =
                                 false;
@@ -2364,6 +2374,11 @@ document.addEventListener(
 
                             error.hidden =
                                 false;
+
+                            error.scrollIntoView({
+                              behavior: "smooth",
+                              block: "center"
+                            });
 
 
                             updateButton.disabled =

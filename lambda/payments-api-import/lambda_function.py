@@ -265,23 +265,35 @@ def get_import(event):
 
                 cur.execute(
                     """
-                    SELECT
-                        id,
-                        member_id,
-                        subscription_amount,
-                        gift_amount,
-                        calendar_year,
-                        status,
-                        exception_reason
+                      SELECT
+                              i.id,
+                              i.member_id,
+                              i.subscription_amount,
+                              i.gift_amount,
+                              i.calendar_year,
+                              i.status,
+                              i.exception_reason,
 
-                    FROM payment_import_items
+                              m.membership_number,
+                              m.first_name,
+                              m.surname,
 
-                    WHERE import_line_id = %s
+                              t.name AS tower_name
 
-                    ORDER BY id;
-                    """,
-                    (line["id"],)
-                )
+                          FROM payment_import_items i
+
+                          LEFT JOIN members m
+                              ON m.id = i.member_id
+
+                          LEFT JOIN towers t
+                              ON t.id = m.tower_id
+
+                          WHERE i.import_line_id = %s
+
+                          ORDER BY i.id;
+                          """,
+                          (line["id"],)
+                     )
 
                 item_rows = cur.fetchall()
 
