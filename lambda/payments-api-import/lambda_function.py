@@ -298,7 +298,19 @@ def get_import(event):
                 item_rows = cur.fetchall()
 
                 line["items"] = [
-                    item_from_row(row)
+                    {
+                        **item_from_row(row[:7]),
+                        "member": (
+                            {
+                                "membership_number": row[7],
+                                "first_name": row[8],
+                                "surname": row[9],
+                                "tower_name": row[10]
+                            }
+                            if row[7] is not None
+                            else None
+                        )
+                    }
                     for row in item_rows
                 ]
 
