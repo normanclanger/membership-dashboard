@@ -1079,7 +1079,8 @@ def amend_import_item(event):
             valid_transitions = {
                 "PENDING": {
                     "PENDING",
-                    "EXCEPTION"
+                    "EXCEPTION",
+                    "RESOLVED_EXTERNALLY"
                 },
                 "EXCEPTION": {
                     "EXCEPTION",
