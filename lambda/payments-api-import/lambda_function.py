@@ -278,7 +278,7 @@ def get_import(event):
                               m.first_name,
                               m.surname,
 
-                              t.name AS tower_name
+                              t.tower_name AS tower_name
 
                           FROM payment_import_items i
 
