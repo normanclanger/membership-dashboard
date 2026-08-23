@@ -1556,6 +1556,350 @@ document.addEventListener(
 
                     /*
                      * =================================================
+                     * SAVE NEW ALLOCATION
+                     * =================================================
+                     */
+
+                    const saveButton =
+                        event.target.closest(
+                            '[data-action="save-allocation"]'
+                        );
+
+
+                    if (saveButton) {
+
+                        const lineId =
+                            saveButton.dataset.lineId;
+
+
+                        const formRow =
+                            linesBody.querySelector(
+                                `[data-allocation-form="${lineId}"]`
+                            );
+
+
+                        if (!formRow) {
+                            return;
+                        }
+
+
+                        /*
+                         * Read form values.
+                         */
+
+                        const memberId =
+                            document.querySelector(
+                                `#allocation-member-id-${lineId}`
+                            ).value;
+
+
+                        const subscriptionAmount =
+                            parseFloat(
+                                document.querySelector(
+                                    `#allocation-subscription-${lineId}`
+                                ).value || 0
+                            );
+
+
+                        const giftAmount =
+                            parseFloat(
+                                document.querySelector(
+                                    `#allocation-gift-${lineId}`
+                                ).value || 0
+                            );
+
+
+                        const calendarYear =
+                            parseInt(
+                                document.querySelector(
+                                    `#allocation-year-${lineId}`
+                                ).value,
+                                10
+                            );
+
+
+                        const status =
+                            document.querySelector(
+                                `#allocation-status-${lineId}`
+                            ).value;
+
+
+                        const exceptionReason =
+                            document.querySelector(
+                                `#allocation-exception-${lineId}`
+                            ).value.trim();
+
+
+                        /*
+                         * ------------------------------------------------
+                         * Validation
+                         * ------------------------------------------------
+                         */
+
+                        if (
+                            status === "PENDING" &&
+                            !memberId
+                        ) {
+
+                            error.textContent =
+                                "Please select a member for a Pending allocation.";
+
+                            error.hidden =
+                                false;
+
+                            return;
+                        }
+
+
+                        if (
+                            (
+                                status === "EXCEPTION" ||
+                                status === "RESOLVED_EXTERNALLY"
+                            ) &&
+                            memberId
+                        ) {
+
+                            error.textContent =
+                                "A member must not be selected for an Exception or Resolved externally allocation.";
+
+                            error.hidden =
+                                false;
+
+                            return;
+                        }
+
+
+                        if (
+                            !Number.isFinite(
+                                subscriptionAmount
+                            ) ||
+                            subscriptionAmount < 0
+                        ) {
+
+                            error.textContent =
+                                "Please enter a valid subscription amount.";
+
+                            error.hidden =
+                                false;
+
+                            return;
+                        }
+
+
+                        if (
+                            !Number.isFinite(
+                                giftAmount
+                            ) ||
+                            giftAmount < 0
+                        ) {
+
+                            error.textContent =
+                                "Please enter a valid gift amount.";
+
+                            error.hidden =
+                                false;
+
+                            return;
+                        }
+
+
+                        if (
+                            subscriptionAmount +
+                            giftAmount <=
+                            0
+                        ) {
+
+                            error.textContent =
+                                "The allocation must contain a subscription or gift amount.";
+
+                            error.hidden =
+                                false;
+
+                            return;
+                        }
+
+
+                        if (
+                            !Number.isInteger(
+                                calendarYear
+                            )
+                        ) {
+
+                            error.textContent =
+                                "Please enter a valid calendar year.";
+
+                            error.hidden =
+                                false;
+
+                            return;
+                        }
+
+
+                        if (
+                            (
+                                status === "EXCEPTION" ||
+                                status ===
+                                    "RESOLVED_EXTERNALLY"
+                            ) &&
+                            !exceptionReason
+                        ) {
+
+                            error.textContent =
+                                "Please enter details explaining this allocation status.";
+
+                            error.hidden =
+                                false;
+
+                            return;
+                        }
+
+
+                        /*
+                         * Clear previous error.
+                         */
+
+                        error.textContent =
+                            "";
+
+                        error.hidden =
+                            true;
+
+
+                        /*
+                         * Prevent double submission.
+                         */
+
+                        saveButton.disabled =
+                            true;
+
+                        saveButton.textContent =
+                            "Saving...";
+
+
+                        try {
+
+                            /*
+                             * Create the allocation.
+                             */
+
+                            const createResponse =
+                                await fetch(
+                                    `${apiBase}/api/payment-import-lines/${lineId}/items`,
+                                    {
+                                        method: "POST",
+
+                                        headers: {
+                                            Authorization:
+                                                `Bearer ${user.access_token}`,
+
+                                            "Content-Type":
+                                                "application/json"
+                                        },
+
+                                        body: JSON.stringify({
+                                            member_id:
+                                                memberId
+                                                    ? Number(memberId)
+                                                    : null,
+
+                                            subscription_amount:
+                                                subscriptionAmount,
+
+                                            gift_amount:
+                                                giftAmount,
+
+                                            calendar_year:
+                                                calendarYear,
+
+                                            status:
+                                                status,
+
+                                            exception_reason:
+                                                exceptionReason ||
+                                                null
+                                        })
+                                    }
+                                );
+
+
+                            if (!createResponse.ok) {
+
+                                let message =
+                                    `HTTP ${createResponse.status}`;
+
+
+                                try {
+
+                                    const responseData =
+                                        await createResponse.json();
+
+
+                                    if (
+                                        responseData.error
+                                    ) {
+
+                                        message =
+                                            responseData.error;
+                                    }
+
+                                } catch (_) {
+                                    // Keep HTTP error message.
+                                }
+
+
+                                throw new Error(
+                                    message
+                                );
+                            }
+
+
+                            const created =
+                                await createResponse.json();
+
+
+                            console.log(
+                                "Allocation created:",
+                                created
+                            );
+
+
+                            /*
+                             * Reload so reconciliation
+                             * totals and status are recalculated.
+                             */
+
+                            window.location.reload();
+
+
+                        } catch (err) {
+
+                            console.error(
+                                "Save allocation failed:",
+                                err
+                            );
+
+
+                            error.textContent =
+                                `Unable to save allocation: ${err.message}`;
+
+                            error.hidden =
+                                false;
+
+
+                            saveButton.disabled =
+                                false;
+
+                            saveButton.textContent =
+                                "Save allocation";
+                        }
+
+
+                        return;
+                    }
+
+
+                    /*
+                     * =================================================
                      * DELETE ALLOCATION
                      * =================================================
                      */
