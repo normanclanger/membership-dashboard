@@ -59,6 +59,10 @@ document.addEventListener(
             }
 
 
+            const apiBase =
+                "https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com";
+
+
             console.log(
                 "Import ID:",
                 JSON.stringify(importId)
@@ -66,13 +70,13 @@ document.addEventListener(
 
             console.log(
                 "Payment import API URL:",
-                `https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com/api/payment-imports/${importId}`
+                `${apiBase}/api/payment-imports/${importId}`
             );
 
 
             const response =
                 await fetch(
-                    `https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com/api/payment-imports/${importId}`,
+                    `${apiBase}/api/payment-imports/${importId}`,
                     {
                         headers: {
                             Authorization:
@@ -117,13 +121,14 @@ document.addEventListener(
                 <tr>
                     <th>Created</th>
                     <td>
-                        ${paymentImport.created_at
-                            ? new Date(
-                                paymentImport.created_at
-                              ).toLocaleDateString(
-                                "en-GB"
-                              )
-                            : "-"
+                        ${
+                            paymentImport.created_at
+                                ? new Date(
+                                    paymentImport.created_at
+                                  ).toLocaleDateString(
+                                    "en-GB"
+                                  )
+                                : "-"
                         }
                     </td>
                 </tr>
@@ -178,6 +183,9 @@ document.addEventListener(
 
                     /*
                      * Allocation totals
+                     *
+                     * RESOLVED_EXTERNALLY items do not
+                     * count towards reconciliation.
                      */
 
                     const statementAmount =
@@ -217,37 +225,51 @@ document.addEventListener(
                                 let statusText;
                                 let statusClass;
 
+                                const hasOpenException =
+                                    items.some(
+                                        item =>
+                                            item.status === "EXCEPTION"
+                                    );
+
 
                                 if (
-                                    Math.abs(
-                                        outstandingAmount
-                                    ) < 0.005
-                                ) {
+                                   outstandingAmount < -0.005
+                                   ) {
 
-                                    statusText =
-                                        "✓ Ready";
+                                       statusText =
+                                           "⚠ Over-allocated";
 
-                                    statusClass =
-                                        "text-success";
+                                       statusClass =
+                                           "text-danger";
 
-                                } else if (
-                                    outstandingAmount > 0
-                                ) {
+                                   } else if (
+                                       hasOpenException
+                                   ) {
 
-                                    statusText =
-                                        "⚠ Allocation required";
+                                       statusText =
+                                           "⚠ Open exception";
 
-                                    statusClass =
-                                        "text-warning";
+                                       statusClass =
+                                           "text-warning";
 
-                                } else {
+                                   } else if (
+                                       outstandingAmount > 0.005
+                                   ) {
 
-                                    statusText =
-                                        "⚠ Over-allocated";
+                                       statusText =
+                                           "⚠ Allocation required";
 
-                                    statusClass =
-                                        "text-danger";
-                                }
+                                       statusClass =
+                                           "text-warning";
+
+                                   } else {
+
+                                       statusText =
+                                           "✓ Ready";
+
+                                       statusClass =
+                                           "text-success";
+                                   }
 
 
                                 const allocationButton =
@@ -398,6 +420,10 @@ document.addEventListener(
                                                     Exception
                                                 </th>
 
+                                                <th>
+                                                    Actions
+                                                </th>
+
                                             </tr>
 
                                         </thead>
@@ -406,37 +432,100 @@ document.addEventListener(
                                         <tbody>
 
                                             ${items.map(
-                                                item => `
+                                                item => {
 
-                                                    <tr>
+                                                    const
+                                                        memberDisplay =
+                                                        item.member_id
+                                                            ? `Member #${item.member_id}`
+                                                            : "No member";
 
-                                                        <td>
-                                                            Member #${item.member_id}
-                                                        </td>
 
-                                                        <td>
-                                                            £${item.subscription_amount || "0.00"}
-                                                        </td>
+                                                    const
+                                                        statusDisplay =
+                                                        item.status ||
+                                                        "-";
 
-                                                        <td>
-                                                            £${item.gift_amount || "0.00"}
-                                                        </td>
 
-                                                        <td>
-                                                            ${item.calendar_year || "-"}
-                                                        </td>
+                                                    return `
 
-                                                        <td>
-                                                            ${item.status || "-"}
-                                                        </td>
+                                                        <tr>
 
-                                                        <td>
-                                                            ${item.exception_reason || ""}
-                                                        </td>
+                                                            <td>
+                                                                ${memberDisplay}
+                                                            </td>
 
-                                                    </tr>
+                                                            <td>
+                                                                £${parseFloat(
+                                                                    item.subscription_amount ||
+                                                                    0
+                                                                ).toFixed(2)}
+                                                            </td>
 
-                                                `
+                                                            <td>
+                                                                £${parseFloat(
+                                                                    item.gift_amount ||
+                                                                    0
+                                                                ).toFixed(2)}
+                                                            </td>
+
+                                                            <td>
+                                                                ${item.calendar_year || "-"}
+                                                            </td>
+
+                                                            <td>
+                                                                ${statusDisplay}
+                                                            </td>
+
+                                                            <td>
+                                                                ${item.exception_reason || ""}
+                                                            </td>
+
+
+                                                            <td>
+
+                                                                ${
+                                                                    item.status !== "COMMITTED"
+
+                                                                        ? `
+
+                                                                            <button
+                                                                                type="button"
+                                                                                class="btn btn-outline-primary btn-sm"
+                                                                                data-action="amend-allocation"
+                                                                                data-item-id="${item.id}"
+                                                                                data-line-id="${line.id}"
+                                                                            >
+                                                                                Amend
+                                                                            </button>
+
+                                                                            <button
+                                                                                type="button"
+                                                                                class="btn btn-outline-danger btn-sm"
+                                                                                data-action="delete-allocation"
+                                                                                data-item-id="${item.id}"
+                                                                                data-line-id="${line.id}"
+                                                                            >
+                                                                                Delete
+                                                                            </button>
+
+                                                                        `
+
+                                                                        : `
+                                                                            <span class="text-muted">
+                                                                                Committed
+                                                                            </span>
+                                                                        `
+                                                                }
+
+                                                            </td> 
+
+
+                                                        </tr>
+
+                                                    `;
+
+                                                }
                                             ).join("")}
 
                                         </tbody>
@@ -468,7 +557,9 @@ document.addEventListener(
                             </td>
 
                             <td>
-                                £${line.statement_amount || "0.00"}
+                                £${parseFloat(
+                                    line.statement_amount || 0
+                                ).toFixed(2)}
                             </td>
 
                             <td>
@@ -507,283 +598,553 @@ document.addEventListener(
 
 
             /*
-             * Add allocation button
+             * Allocation controls
              */
 
             linesBody.addEventListener(
                 "click",
-                event => {
+                async event => {
 
-                    const button =
+                    /*
+                     * Add allocation
+                     */
+
+                    const addButton =
                         event.target.closest(
                             '[data-action="add-allocation"]'
                         );
 
 
-                    if (!button) {
-                        return;
-                    }
+                    if (addButton) {
+
+                        const lineId =
+                            addButton.dataset.lineId;
 
 
-                    /*
-                     * MembershipViewer check
-                     */
+                        /*
+                         * Don't create two forms
+                         */
 
-                    if (
-                        !userHasGroup(
-                            "MembershipViewer"
-                        )
-                    ) {
-
-                        error.textContent =
-                            "Member lookup is unavailable. " +
-                            "Your account has PaymentAdmin access " +
-                            "but does not have MembershipViewer access. " +
-                            "Please contact an administrator.";
-
-                        error.hidden = false;
-
-                        return;
-                    }
+                        const existingForm =
+                            linesBody.querySelector(
+                                `[data-allocation-form="${lineId}"]`
+                            );
 
 
-                    const lineId =
-                        button.dataset.lineId;
+                        if (existingForm) {
+                            return;
+                        }
 
 
-                    /*
-                     * Don't create two forms
-                     */
+                        /*
+                         * Create allocation form
+                         */
 
-                    const existingForm =
-                        linesBody.querySelector(
-                            `[data-allocation-form="${lineId}"]`
-                        );
+                        const formRow =
+                            document.createElement("tr");
 
 
-                    if (existingForm) {
-                        return;
-                    }
+                        formRow.dataset.allocationForm =
+                            lineId;
 
 
-                    /*
-                     * Create allocation form
-                     */
+                        formRow.innerHTML = `
 
-                    const formRow =
-                        document.createElement("tr");
+                            <td
+                                colspan="6"
+                                class="bg-light"
+                            >
 
+                                <div class="p-3">
 
-                    formRow.dataset.allocationForm =
-                        lineId;
-
-
-                    formRow.innerHTML = `
-
-                        <td
-                            colspan="6"
-                            class="bg-light"
-                        >
-
-                            <div class="p-3">
-
-                                <h5>
-                                    Add allocation
-                                </h5>
+                                    <h5>
+                                        Add allocation
+                                    </h5>
 
 
-                                <div class="mb-3">
+                                    <div class="mb-3">
 
-                                    <label
-                                        class="form-label"
-                                        for="allocation-member-${lineId}"
-                                    >
-                                        Member
-                                    </label>
+                                        <label
+                                            class="form-label"
+                                            for="allocation-member-${lineId}"
+                                        >
+                                            Member
+                                        </label>
 
 
-                                    <input
-                                        type="text"
-                                        class="form-control"
-                                        id="allocation-member-${lineId}"
-                                        placeholder="Search by membership number, first name or surname..."
-                                        autocomplete="off"
-                                    >
+                                        <input
+                                            type="text"
+                                            class="form-control"
+                                            id="allocation-member-${lineId}"
+                                            placeholder="Search by membership number, first name or surname..."
+                                            autocomplete="off"
+                                        >
+
+
+                                        <div
+                                            id="allocation-member-results-${lineId}"
+                                            class="list-group mt-2"
+                                            hidden
+                                        >
+                                        </div>
+
+
+                                        <input
+                                            type="hidden"
+                                            id="allocation-member-id-${lineId}"
+                                        >
+
+                                        <div
+                                            class="form-text"
+                                        >
+                                            A member is required for Pending
+                                            allocations. It is not required
+                                            for Exception or Resolved externally.
+                                        </div>
+
+                                    </div>
 
 
                                     <div
-                                        id="allocation-member-results-${lineId}"
-                                        class="list-group mt-2"
+                                        id="allocation-payment-history-${lineId}"
+                                        class="mt-3"
                                         hidden
                                     >
                                     </div>
 
 
-                                    <input
-                                        type="hidden"
-                                        id="allocation-member-id-${lineId}"
-                                    >
+                                    <div class="row g-3">
 
-                                </div>
+                                        <div class="col-md-4">
+
+                                            <label
+                                                class="form-label"
+                                                for="allocation-subscription-${lineId}"
+                                            >
+                                                Subscription
+                                            </label>
+
+                                            <input
+                                                type="number"
+                                                class="form-control"
+                                                id="allocation-subscription-${lineId}"
+                                                value="0.00"
+                                                min="0"
+                                                step="0.01"
+                                            >
+
+                                        </div>
 
 
-                                <div
-                                    id="allocation-payment-history-${lineId}"
-                                    class="mt-3"
-                                    hidden
-                                >
-                                </div>
+                                        <div class="col-md-4">
+
+                                            <label
+                                                class="form-label"
+                                                for="allocation-gift-${lineId}"
+                                            >
+                                                Gift
+                                            </label>
+
+                                            <input
+                                                type="number"
+                                                class="form-control"
+                                                id="allocation-gift-${lineId}"
+                                                value="0.00"
+                                                min="0"
+                                                step="0.01"
+                                            >
+
+                                        </div>
 
 
-                                <div class="row g-3">
+                                        <div class="col-md-4">
 
-                                    <div class="col-md-4">
+                                            <label
+                                                class="form-label"
+                                                for="allocation-year-${lineId}"
+                                            >
+                                                Calendar year
+                                            </label>
 
-                                        <label
-                                            class="form-label"
-                                            for="allocation-subscription-${lineId}"
-                                        >
-                                            Subscription
-                                        </label>
+                                            <input
+                                                type="number"
+                                                class="form-control"
+                                                id="allocation-year-${lineId}"
+                                                value="${new Date().getFullYear()}"
+                                            >
 
-                                        <input
-                                            type="number"
-                                            class="form-control"
-                                            id="allocation-subscription-${lineId}"
-                                            value="0.00"
-                                            min="0"
-                                            step="0.01"
-                                        >
+                                        </div>
+
+                                    </div>
+
+
+                                    <div class="row g-3 mt-1">
+
+                                        <div class="col-md-4">
+
+                                            <label
+                                                class="form-label"
+                                                for="allocation-status-${lineId}"
+                                            >
+                                                Status
+                                            </label>
+
+                                            <select
+                                                class="form-select"
+                                                id="allocation-status-${lineId}"
+                                            >
+
+                                                <option
+                                                    value="PENDING"
+                                                    selected
+                                                >
+                                                    Pending
+                                                </option>
+
+                                                <option
+                                                    value="EXCEPTION"
+                                                >
+                                                    Exception
+                                                </option>
+
+                                                <option
+                                                    value="RESOLVED_EXTERNALLY"
+                                                >
+                                                    Resolved externally
+                                                </option>
+
+                                            </select>
+
+                                        </div>
 
                                     </div>
 
 
-                                    <div class="col-md-4">
+                                    <div
+                                        id="allocation-exception-container-${lineId}"
+                                        class="mt-3"
+                                        hidden
+                                    >
 
                                         <label
                                             class="form-label"
-                                            for="allocation-gift-${lineId}"
+                                            for="allocation-exception-${lineId}"
                                         >
-                                            Gift
+                                            Exception details
                                         </label>
 
-                                        <input
-                                            type="number"
+                                        <textarea
                                             class="form-control"
-                                            id="allocation-gift-${lineId}"
-                                            value="0.00"
-                                            min="0"
-                                            step="0.01"
-                                        >
+                                            id="allocation-exception-${lineId}"
+                                            rows="3"
+                                            placeholder="Enter details explaining the exception or external resolution..."
+                                        ></textarea>
 
                                     </div>
 
 
-                                    <div class="col-md-4">
+                                    <div class="mt-3">
 
-                                        <label
-                                            class="form-label"
-                                            for="allocation-year-${lineId}"
+                                        <button
+                                            type="button"
+                                            class="btn btn-primary btn-sm"
+                                            data-action="save-allocation"
+                                            data-line-id="${lineId}"
                                         >
-                                            Calendar year
-                                        </label>
+                                            Save allocation
+                                        </button>
 
-                                        <input
-                                            type="number"
-                                            class="form-control"
-                                            id="allocation-year-${lineId}"
-                                            value="${new Date().getFullYear()}"
+
+                                        <button
+                                            type="button"
+                                            class="btn btn-secondary btn-sm"
+                                            data-action="cancel-allocation"
+                                            data-line-id="${lineId}"
                                         >
+                                            Cancel
+                                        </button>
 
                                     </div>
 
                                 </div>
 
+                            </td>
 
-                                <div class="mt-3">
-
-                                    <button
-                                        type="button"
-                                        class="btn btn-primary btn-sm"
-                                        data-action="save-allocation"
-                                        data-line-id="${lineId}"
-                                    >
-                                        Save allocation
-                                    </button>
+                        `;
 
 
-                                    <button
-                                        type="button"
-                                        class="btn btn-secondary btn-sm"
-                                        data-action="cancel-allocation"
-                                        data-line-id="${lineId}"
-                                    >
-                                        Cancel
-                                    </button>
-
-                                </div>
-
-                            </div>
-
-                        </td>
-
-                    `;
+                        addButton
+                            .closest("tr")
+                            .after(formRow);
 
 
-                    button
-                        .closest("tr")
-                        .after(formRow);
+                        /*
+                         * Member search controls
+                         */
 
-
-                    /*
-                     * Member search controls
-                     */
-
-                    const memberInput =
-                        document.querySelector(
-                            `#allocation-member-${lineId}`
-                        );
-
-
-                    const memberResults =
-                        document.querySelector(
-                            `#allocation-member-results-${lineId}`
-                        );
-
-
-                    const memberIdInput =
-                        document.querySelector(
-                            `#allocation-member-id-${lineId}`
-                        );
-
-
-                    let searchTimeout;
-
-
-                    /*
-                     * Member search
-                     */
-
-                    memberInput.addEventListener(
-                        "input",
-                        () => {
-
-                            clearTimeout(
-                                searchTimeout
+                        const memberInput =
+                            document.querySelector(
+                                `#allocation-member-${lineId}`
                             );
 
 
-                            const search =
-                                memberInput.value.trim();
+                        const memberResults =
+                            document.querySelector(
+                                `#allocation-member-results-${lineId}`
+                            );
 
 
-                            memberIdInput.value =
-                                "";
+                        const memberIdInput =
+                            document.querySelector(
+                                `#allocation-member-id-${lineId}`
+                            );
 
 
-                            if (
-                                search.length < 2
-                            ) {
+                        let searchTimeout;
+
+
+                        /*
+                         * Member search
+                         */
+
+                        memberInput.addEventListener(
+                            "input",
+                            () => {
+
+                                clearTimeout(
+                                    searchTimeout
+                                );
+
+
+                                const search =
+                                    memberInput.value.trim();
+
+
+                                memberIdInput.value =
+                                    "";
+
+
+                                if (
+                                    search.length < 2
+                                ) {
+
+                                    memberResults.innerHTML =
+                                        "";
+
+                                    memberResults.hidden =
+                                        true;
+
+                                    return;
+                                }
+
+
+                                /*
+                                 * Member search requires
+                                 * MembershipViewer.
+                                 *
+                                 * Exception and Resolved
+                                 * externally can still be
+                                 * saved without a member.
+                                 */
+
+                                if (
+                                    !userHasGroup(
+                                        "MembershipViewer"
+                                    )
+                                ) {
+
+                                    memberResults.innerHTML = `
+
+                                        <div
+                                            class="
+                                                list-group-item
+                                                text-warning
+                                            "
+                                        >
+                                            Member lookup is unavailable.
+                                            Your account has PaymentAdmin
+                                            access but does not have
+                                            MembershipViewer access.
+                                        </div>
+
+                                    `;
+
+                                    memberResults.hidden =
+                                        false;
+
+                                    return;
+                                }
+
+
+                                searchTimeout =
+                                    setTimeout(
+                                        async () => {
+
+                                            try {
+
+                                                const response =
+                                                    await fetch(
+                                                        `${apiBase}/api/members?search=${encodeURIComponent(search)}`,
+                                                        {
+                                                            headers: {
+                                                                Authorization:
+                                                                    `Bearer ${user.access_token}`
+                                                            }
+                                                        }
+                                                    );
+
+
+                                                if (!response.ok) {
+
+                                                    throw new Error(
+                                                        `HTTP ${response.status}`
+                                                    );
+                                                }
+
+
+                                                const data =
+                                                    await response.json();
+
+
+                                                const members =
+                                                    data.members || [];
+
+
+                                                if (
+                                                    members.length === 0
+                                                ) {
+
+                                                    memberResults.innerHTML = `
+
+                                                        <div
+                                                            class="
+                                                                list-group-item
+                                                                text-muted
+                                                            "
+                                                        >
+                                                            No members found
+                                                        </div>
+
+                                                    `;
+
+                                                    memberResults.hidden =
+                                                        false;
+
+                                                    return;
+                                                }
+
+
+                                                memberResults.innerHTML =
+                                                    members.map(
+                                                        member => `
+
+                                                            <button
+                                                                type="button"
+                                                                class="
+                                                                    list-group-item
+                                                                    list-group-item-action
+                                                                "
+                                                                data-member-id="${member.id}"
+                                                                data-member-name="${member.first_name} ${member.surname}"
+                                                                data-membership-number="${member.membership_number}"
+                                                            >
+
+                                                                <strong>
+                                                                    ${member.membership_number}
+                                                                </strong>
+
+                                                                —
+                                                                ${member.first_name}
+                                                                ${member.surname}
+
+                                                                ${
+                                                                    member.tower?.name
+                                                                        ? ` — ${member.tower.name}`
+                                                                        : ""
+                                                                }
+
+                                                            </button>
+
+                                                        `
+                                                    ).join("");
+
+
+                                                memberResults.hidden =
+                                                    false;
+
+
+                                            } catch (err) {
+
+                                                console.error(
+                                                    "Member search failed:",
+                                                    err
+                                                );
+
+
+                                                memberResults.innerHTML = `
+
+                                                    <div
+                                                        class="
+                                                            list-group-item
+                                                            text-danger
+                                                        "
+                                                    >
+                                                        Unable to search for members
+                                                    </div>
+
+                                                `;
+
+
+                                                memberResults.hidden =
+                                                    false;
+                                            }
+
+                                        },
+                                        300
+                                    );
+
+                            }
+                        );
+
+
+                        /*
+                         * Member selection
+                         */
+
+                        memberResults.addEventListener(
+                            "click",
+                            async event => {
+
+                                const selected =
+                                    event.target.closest(
+                                        "[data-member-id]"
+                                    );
+
+
+                                if (!selected) {
+                                    return;
+                                }
+
+
+                                const memberId =
+                                    selected.dataset.memberId;
+
+                                const memberName =
+                                    selected.dataset.memberName;
+
+                                const membershipNumber =
+                                    selected.dataset.membershipNumber;
+
+
+                                /*
+                                 * Set selected member
+                                 */
+
+                                memberIdInput.value =
+                                    memberId;
+
+                                memberInput.value =
+                                    `${membershipNumber} — ${memberName}`;
 
                                 memberResults.innerHTML =
                                     "";
@@ -791,439 +1152,694 @@ document.addEventListener(
                                 memberResults.hidden =
                                     true;
 
-                                return;
-                            }
+
+                                /*
+                                 * Load payment history
+                                 */
+
+                                const paymentHistory =
+                                    document.querySelector(
+                                        `#allocation-payment-history-${lineId}`
+                                    );
 
 
-                            searchTimeout =
-                                setTimeout(
-                                    async () => {
-
-                                        try {
-
-                                            const response =
-                                                await fetch(
-                                                    "https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com" +
-                                                    `/api/members?search=${encodeURIComponent(search)}`,
-                                                    {
-                                                        headers: {
-                                                            Authorization:
-                                                                `Bearer ${user.access_token}`
-                                                        }
-                                                    }
-                                                );
+                                paymentHistory.hidden =
+                                    false;
 
 
-                                            if (!response.ok) {
+                                paymentHistory.innerHTML = `
+                                    <div class="text-muted">
+                                        Loading payment history...
+                                    </div>
+                                `;
 
-                                                throw new Error(
-                                                    `HTTP ${response.status}`
-                                                );
+
+                                try {
+
+                                    const response =
+                                        await fetch(
+                                            `${apiBase}/api/members/${memberId}/payment-history`,
+                                            {
+                                                headers: {
+                                                    Authorization:
+                                                        `Bearer ${user.access_token}`
+                                                }
                                             }
+                                        );
 
 
-                                            const data =
-                                                await response.json();
+                                    if (!response.ok) {
+
+                                        throw new Error(
+                                            `HTTP ${response.status}`
+                                        );
+                                    }
 
 
-                                            const members =
-                                                data.members || [];
+                                    const data =
+                                        await response.json();
+
+                                    const payments =
+                                        data.payments || [];
 
 
-                                            if (
-                                                members.length === 0
-                                            ) {
+                                    /*
+                                     * No payment history
+                                     */
 
-                                                memberResults.innerHTML = `
+                                    if (
+                                        payments.length === 0
+                                    ) {
 
-                                                    <div
+                                        paymentHistory.innerHTML = `
+
+                                            <div
+                                                class="alert alert-info mb-0"
+                                            >
+                                                <strong>
+                                                    No previous payments found
+                                                </strong>
+                                                <br>
+                                                This appears to be the member's
+                                                first recorded payment.
+                                            </div>
+
+                                        `;
+
+                                        return;
+                                    }
+
+
+                                    /*
+                                     * Display payment history
+                                     */
+
+                                    paymentHistory.innerHTML = `
+
+                                        <div class="card">
+
+                                            <div class="card-header">
+
+                                                <strong>
+                                                    Payment history
+                                                </strong>
+
+                                                —
+                                                ${membershipNumber}
+                                                ${memberName}
+
+                                            </div>
+
+
+                                            <div class="card-body p-0">
+
+                                                <div class="table-responsive">
+
+                                                    <table
                                                         class="
-                                                            list-group-item
-                                                            text-muted
+                                                            table
+                                                            table-sm
+                                                            table-bordered
+                                                            mb-0
                                                         "
                                                     >
-                                                        No members found
-                                                    </div>
 
-                                                `;
+                                                        <thead>
 
-                                                memberResults.hidden =
-                                                    false;
+                                                            <tr>
 
-                                                return;
-                                            }
+                                                                <th>
+                                                                    Payment date
+                                                                </th>
 
+                                                                <th>
+                                                                    Calendar year
+                                                                </th>
 
-                                            memberResults.innerHTML =
-                                                members.map(
-                                                    member => `
+                                                                <th>
+                                                                    Subscription
+                                                                </th>
 
-                                                        <button
-                                                            type="button"
-                                                            class="
-                                                                list-group-item
-                                                                list-group-item-action
-                                                            "
-                                                            data-member-id="${member.id}"
-                                                            data-member-name="${member.first_name} ${member.surname}"
-                                                            data-membership-number="${member.membership_number}"
-                                                        >
+                                                                <th>
+                                                                    Gift
+                                                                </th>
 
-                                                            <strong>
-                                                                ${member.membership_number}
-                                                            </strong>
+                                                                <th>
+                                                                    Total
+                                                                </th>
 
-                                                            —
-                                                            ${member.first_name}
-                                                            ${member.surname}
+                                                                <th>
+                                                                    Reference
+                                                                </th>
 
-                                                            ${
-                                                                  member.tower?.name
-                                                                      ? ` — ${member.tower.name}`
-                                                                      : ""
-                                                              }
+                                                            </tr>
 
-                                                        </button>
-
-                                                    `
-                                                ).join("");
+                                                        </thead>
 
 
-                                            memberResults.hidden =
-                                                false;
+                                                        <tbody>
+
+                                                            ${payments.map(
+                                                                payment => {
+
+                                                                    const
+                                                                        subscription =
+                                                                        parseFloat(
+                                                                            payment.subscription_amount ||
+                                                                            0
+                                                                        );
+
+                                                                    const
+                                                                        gift =
+                                                                        parseFloat(
+                                                                            payment.gift_amount ||
+                                                                            0
+                                                                        );
+
+                                                                    const
+                                                                        total =
+                                                                        subscription +
+                                                                        gift;
 
 
-                                        } catch (err) {
+                                                                    return `
 
-                                            console.error(
-                                                "Member search failed:",
-                                                err
-                                            );
+                                                                        <tr>
 
+                                                                            <td>
+                                                                                ${
+                                                                                    payment.payment_date
+                                                                                        ? new Date(
+                                                                                            payment.payment_date +
+                                                                                            "T00:00:00"
+                                                                                          ).toLocaleDateString(
+                                                                                            "en-GB"
+                                                                                          )
+                                                                                        : "-"
+                                                                                }
+                                                                            </td>
 
-                                            memberResults.innerHTML = `
+                                                                            <td>
+                                                                                <strong>
+                                                                                    ${
+                                                                                        payment.calendar_year ||
+                                                                                        "-"
+                                                                                    }
+                                                                                </strong>
+                                                                            </td>
 
-                                                <div
-                                                    class="
-                                                        list-group-item
-                                                        text-danger
-                                                    "
-                                                >
-                                                    Unable to search for members
+                                                                            <td>
+                                                                                £${subscription.toFixed(2)}
+                                                                            </td>
+
+                                                                            <td>
+                                                                                £${gift.toFixed(2)}
+                                                                            </td>
+
+                                                                            <td>
+                                                                                <strong>
+                                                                                    £${total.toFixed(2)}
+                                                                                </strong>
+                                                                            </td>
+
+                                                                            <td>
+                                                                                ${
+                                                                                    payment.statement_reference ||
+                                                                                    "-"
+                                                                                }
+                                                                            </td>
+
+                                                                        </tr>
+
+                                                                    `;
+
+                                                                }
+                                                            ).join("")}
+
+                                                        </tbody>
+
+                                                    </table>
+
                                                 </div>
 
-                                            `;
+                                            </div>
+
+                                        </div>
+
+                                    `;
 
 
-                                            memberResults.hidden =
-                                                false;
-                                        }
+                                    console.log(
+                                        "Payment history loaded:",
+                                        memberId,
+                                        payments
+                                    );
 
-                                    },
-                                    300
-                                );
 
+                                } catch (err) {
+
+                                    console.error(
+                                        "Payment history failed:",
+                                        err
+                                    );
+
+                                    paymentHistory.innerHTML = `
+
+                                        <div
+                                            class="alert alert-danger mb-0"
+                                        >
+                                            Unable to load payment history.
+                                        </div>
+
+                                    `;
+                                }
+
+                            }
+                        );
+
+
+                        /*
+                         * Allocation status controls
+                         */
+
+                        const statusSelect =
+                            document.querySelector(
+                                `#allocation-status-${lineId}`
+                            );
+
+
+                        const exceptionContainer =
+                            document.querySelector(
+                                `#allocation-exception-container-${lineId}`
+                            );
+
+
+                        const exceptionInput =
+                            document.querySelector(
+                                `#allocation-exception-${lineId}`
+                            );
+
+
+                        function updateExceptionField() {
+
+                            const requiresDetails =
+                                statusSelect.value ===
+                                    "EXCEPTION" ||
+                                statusSelect.value ===
+                                    "RESOLVED_EXTERNALLY";
+
+
+                            exceptionContainer.hidden =
+                                !requiresDetails;
+
+
+                            if (!requiresDetails) {
+
+                                exceptionInput.value =
+                                    "";
+                            }
                         }
-                    );
+
+
+                        statusSelect.addEventListener(
+                            "change",
+                            updateExceptionField
+                        );
+
+
+                        updateExceptionField();
+
+                        return;
+                    }
 
 
                     /*
-                     * Member selection
+                     * Save allocation
                      */
 
+                    const saveButton =
+                        event.target.closest(
+                            '[data-action="save-allocation"]'
+                        );
 
 
-                   memberResults.addEventListener(
-                       "click",
-                       async event => {
+                    if (saveButton) {
 
-                           const selected =
-                               event.target.closest(
-                                   "[data-member-id]"
-                               );
+                        const lineId =
+                            saveButton.dataset.lineId;
 
-                           if (!selected) {
-                               return;
-                           }
 
-                           const memberId =
-                               selected.dataset.memberId;
+                        const formRow =
+                            linesBody.querySelector(
+                                `[data-allocation-form="${lineId}"]`
+                            );
 
-                           const memberName =
-                               selected.dataset.memberName;
 
-                           const membershipNumber =
-                               selected.dataset.membershipNumber;
+                        if (!formRow) {
+                            return;
+                        }
 
-                           /*
-                            * Set selected member
-                            */
 
-                           memberIdInput.value =
-                               memberId;
+                        const memberId =
+                            document.querySelector(
+                                `#allocation-member-id-${lineId}`
+                            ).value;
 
-                           memberInput.value =
-                               `${membershipNumber} — ${memberName}`;
 
-                           memberResults.innerHTML =
-                               "";
+                        const subscriptionAmount =
+                            parseFloat(
+                                document.querySelector(
+                                    `#allocation-subscription-${lineId}`
+                                ).value || 0
+                            );
 
-                           memberResults.hidden =
-                               true;
 
+                        const giftAmount =
+                            parseFloat(
+                                document.querySelector(
+                                    `#allocation-gift-${lineId}`
+                                ).value || 0
+                            );
 
-                           /*
-                            * Load payment history
-                            */
 
-                           const paymentHistory =
-                               document.querySelector(
-                                   `#allocation-payment-history-${lineId}`
-                               );
+                        const calendarYear =
+                            parseInt(
+                                document.querySelector(
+                                    `#allocation-year-${lineId}`
+                                ).value,
+                                10
+                            );
 
-                           paymentHistory.hidden = false;
 
-                           paymentHistory.innerHTML = `
-                               <div class="text-muted">
-                                   Loading payment history...
-                               </div>
-                           `;
+                        const status =
+                            document.querySelector(
+                                `#allocation-status-${lineId}`
+                            ).value;
 
 
-                           try {
+                        const exceptionReason =
+                            document.querySelector(
+                                `#allocation-exception-${lineId}`
+                            ).value.trim();
 
-                               const response =
-                                   await fetch(
-                                       "https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com" +
-                                       `/api/members/${memberId}/payment-history`,
-                                       {
-                                           headers: {
-                                               Authorization:
-                                                   `Bearer ${user.access_token}`
-                                           }
-                                       }
-                                   );
 
+                        /*
+                         * Validation
+                         */
 
-                               if (!response.ok) {
+                        if (
+                            status === "PENDING" &&
+                            !memberId
+                        ) {
 
-                                   throw new Error(
-                                       `HTTP ${response.status}`
-                                   );
-                               }
+                            error.textContent =
+                                "Please select a member for a Pending allocation.";
 
+                            error.hidden =
+                                false;
 
-                               const data =
-                                   await response.json();
+                            return;
+                        }
 
-                               const payments =
-                                   data.payments || [];
 
+                        if (
+                            !Number.isFinite(
+                                subscriptionAmount
+                            ) ||
+                            subscriptionAmount < 0
+                        ) {
 
-                               /*
-                                * No payment history
-                                */
+                            error.textContent =
+                                "Please enter a valid subscription amount.";
 
-                               if (payments.length === 0) {
+                            error.hidden =
+                                false;
 
-                                   paymentHistory.innerHTML = `
+                            return;
+                        }
 
-                                       <div
-                                           class="alert alert-info mb-0"
-                                       >
-                                           <strong>
-                                               No previous payments found
-                                           </strong>
-                                           <br>
-                                           This appears to be the member's
-                                           first recorded payment.
-                                       </div>
 
-                                   `;
+                        if (
+                            !Number.isFinite(
+                                giftAmount
+                            ) ||
+                            giftAmount < 0
+                        ) {
 
-                                   return;
-                               }
+                            error.textContent =
+                                "Please enter a valid gift amount.";
 
+                            error.hidden =
+                                false;
 
-                               /*
-                                * Display payment history
-                                */
+                            return;
+                        }
 
-                               paymentHistory.innerHTML = `
 
-                                   <div class="card">
+                        if (
+                            subscriptionAmount +
+                            giftAmount <=
+                            0
+                        ) {
 
-                                       <div class="card-header">
+                            error.textContent =
+                                "The allocation must contain a subscription or gift amount.";
 
-                                           <strong>
-                                               Payment history
-                                           </strong>
+                            error.hidden =
+                                false;
 
-                                           —
-                                           ${membershipNumber}
-                                           ${memberName}
+                            return;
+                        }
 
-                                       </div>
 
+                        if (
+                            !Number.isInteger(
+                                calendarYear
+                            )
+                        ) {
 
-                                       <div class="card-body p-0">
+                            error.textContent =
+                                "Please enter a valid calendar year.";
 
-                                           <div class="table-responsive">
+                            error.hidden =
+                                false;
 
-                                               <table
-                                                   class="
-                                                       table
-                                                       table-sm
-                                                       table-bordered
-                                                       mb-0
-                                                   "
-                                               >
+                            return;
+                        }
 
-                                                   <thead>
 
-                                                       <tr>
+                        /*
+                         * Exception/resolved externally
+                         * requires explanatory text.
+                         */
 
-                                                           <th>
-                                                               Payment date
-                                                           </th>
+                        if (
+                            (
+                                status === "EXCEPTION" ||
+                                status ===
+                                    "RESOLVED_EXTERNALLY"
+                            ) &&
+                            !exceptionReason
+                        ) {
 
-                                                           <th>
-                                                               Calendar year
-                                                           </th>
+                            error.textContent =
+                                "Please enter details explaining this allocation status.";
 
-                                                           <th>
-                                                               Subscription
-                                                           </th>
+                            error.hidden =
+                                false;
 
-                                                           <th>
-                                                               Gift
-                                                           </th>
+                            return;
+                        }
 
-                                                           <th>
-                                                               Total
-                                                           </th>
 
-                                                           <th>
-                                                               Reference
-                                                           </th>
+                        /*
+                         * Clear any previous error.
+                         */
 
-                                                       </tr>
+                        error.textContent =
+                            "";
 
-                                                   </thead>
+                        error.hidden =
+                            true;
 
 
-                                                   <tbody>
+                        /*
+                         * Prevent double submission.
+                         */
 
-                                                       ${payments.map(
-                                                           payment => {
+                        saveButton.disabled =
+                            true;
 
-                                                               const subscription =
-                                                                   parseFloat(
-                                                                       payment.subscription_amount || 0
-                                                                   );
+                        saveButton.textContent =
+                            "Saving...";
 
-                                                               const gift =
-                                                                   parseFloat(
-                                                                       payment.gift_amount || 0
-                                                                   );
 
-                                                               const total =
-                                                                   subscription +
-                                                                   gift;
+                        try {
 
-                                                               return `
+                            /*
+                             * Create the allocation directly
+                             * with the selected status.
+                             *
+                             * For PENDING:
+                             *     member_id is supplied.
+                             *
+                             * For EXCEPTION and
+                             * RESOLVED_EXTERNALLY:
+                             *     member_id is null.
+                             */
 
-                                                                   <tr>
+                            const createResponse =
+                                await fetch(
+                                    `${apiBase}/api/payment-import-lines/${lineId}/items`,
+                                    {
+                                        method: "POST",
 
-                                                                       <td>
-                                                                           ${
-                                                                               payment.payment_date
-                                                                                   ? new Date(
-                                                                                       payment.payment_date +
-                                                                                       "T00:00:00"
-                                                                                     ).toLocaleDateString(
-                                                                                       "en-GB"
-                                                                                     )
-                                                                                   : "-"
-                                                                           }
-                                                                       </td>
+                                        headers: {
+                                            Authorization:
+                                                `Bearer ${user.access_token}`,
 
-                                                                       <td>
-                                                                           <strong>
-                                                                               ${
-                                                                                   payment.calendar_year ||
-                                                                                   "-"
-                                                                               }
-                                                                           </strong>
-                                                                       </td>
+                                            "Content-Type":
+                                                "application/json"
+                                        },
 
-                                                                       <td>
-                                                                           £${subscription.toFixed(2)}
-                                                                       </td>
+                                        body: JSON.stringify({
+                                            member_id:
+                                                memberId
+                                                    ? Number(memberId)
+                                                    : null,
 
-                                                                       <td>
-                                                                           £${gift.toFixed(2)}
-                                                                       </td>
+                                            subscription_amount:
+                                                subscriptionAmount,
 
-                                                                       <td>
-                                                                           <strong>
-                                                                               £${total.toFixed(2)}
-                                                                           </strong>
-                                                                       </td>
+                                            gift_amount:
+                                                giftAmount,
 
-                                                                       <td>
-                                                                           ${
-                                                                               payment.statement_reference ||
-                                                                               "-"
-                                                                           }
-                                                                       </td>
+                                            calendar_year:
+                                                calendarYear,
 
-                                                                   </tr>
+                                            status:
+                                                status,
 
-                                                               `;
-                                                           }
-                                                       ).join("")}
+                                            exception_reason:
+                                                exceptionReason ||
+                                                null
+                                        })
+                                    }
+                                );
 
-                                                   </tbody>
 
-                                               </table>
+                            if (!createResponse.ok) {
 
-                                           </div>
+                                let message =
+                                    `HTTP ${createResponse.status}`;
 
-                                       </div>
+                                try {
 
-                                   </div>
+                                    const responseData =
+                                        await createResponse.json();
 
-                               `;
+                                    if (
+                                        responseData.error
+                                    ) {
 
+                                        message =
+                                            responseData.error;
+                                    }
 
-                               console.log(
-                                   "Payment history loaded:",
-                                   memberId,
-                                   payments
-                               );
+                                } catch (_) {
+                                    // Keep HTTP error message.
+                                }
 
+                                throw new Error(
+                                    message
+                                );
+                            }
 
-                           } catch (err) {
 
-                               console.error(
-                                   "Payment history failed:",
-                                   err
-                               );
+                            /*
+                             * Allocation has been created.
+                             */
 
-                               paymentHistory.innerHTML = `
+                            const created =
+                                await createResponse.json();
 
-                                   <div
-                                       class="alert alert-danger mb-0"
-                                   >
-                                       Unable to load payment history.
-                                   </div>
 
-                               `;
-                           }
+                            console.log(
+                                "Allocation created:",
+                                created
+                            );
 
-                       }
-                   );
+
+                            /*
+                             * Reload the import so that
+                             * the new allocation and totals
+                             * are displayed from the server.
+                             */
+
+                            window.location.reload();
+
+
+                        } catch (err) {
+
+                            console.error(
+                                "Save allocation failed:",
+                                err
+                            );
+
+
+                            error.textContent =
+                                `Unable to save allocation: ${err.message}`;
+
+                            error.hidden =
+                                false;
+
+
+                            saveButton.disabled =
+                                false;
+
+                            saveButton.textContent =
+                                "Save allocation";
+                        }
+
+
+                        return;
+                    }
+
+
+                    /*
+                     * Cancel allocation
+                     */
+
+                    const cancelButton =
+                        event.target.closest(
+                            '[data-action="cancel-allocation"]'
+                        );
+
+
+                    if (cancelButton) {
+
+                        const lineId =
+                            cancelButton.dataset.lineId;
+
+
+                        const formRow =
+                            linesBody.querySelector(
+                                `[data-allocation-form="${lineId}"]`
+                            );
+
+
+                        if (formRow) {
+
+                            formRow.remove();
+                        }
+
+
+                        error.textContent =
+                            "";
+
+                        error.hidden =
+                            true;
+                    }
 
                 }
             );
@@ -1231,12 +1847,13 @@ document.addEventListener(
 
         } catch (err) {
 
-            console.error(err);
+            console.error(
+                err
+            );
 
 
             error.textContent =
                 "Unable to load payment import.";
-
 
             error.hidden =
                 false;

@@ -1053,10 +1053,7 @@ def amend_import_item(event):
                     )
                 })
 
-            if current_status in (
-                "COMMITTED",
-                "RESOLVED_EXTERNALLY"
-            ):
+            if current_status == "COMMITTED":
                 return bad_request({
                     "error": (
                         "This payment import item "
