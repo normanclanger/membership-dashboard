@@ -244,7 +244,8 @@ def get_import(event):
                     statement_amount,
                     statement_type,
                     description,
-                    action
+                    action,
+                    status
 
                 FROM payment_import_lines
 
