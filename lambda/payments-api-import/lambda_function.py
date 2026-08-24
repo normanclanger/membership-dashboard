@@ -2463,7 +2463,7 @@ def complete_import(event):
     finally:
 
         conn.close()
-}
+
 
 def get_exception_items(event):
 
