@@ -48,6 +48,26 @@ function userHasGroup(groupName) {
     return userGroups.includes(groupName);
 }
 
+/*
+ * ============================================================
+ * Error display helper, with scroll
+ * ============================================================
+ */
+
+function showPaymentImportError(error, message) {
+
+    error.textContent =
+        message;
+
+    error.hidden =
+        false;
+
+    error.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+    });
+}
+
 
 /*
  * ============================================================
@@ -81,10 +101,10 @@ document.addEventListener(
 
         if (!importId) {
 
-            error.textContent =
-                "No payment import ID was supplied.";
-
-            error.hidden = false;
+            showPaymentImportError(
+                error,
+                "No payment import ID was supplied."
+            );
 
             return;
         }
@@ -204,7 +224,48 @@ document.addEventListener(
                 <tr>
                     <th>Status</th>
                     <td>
-                        ${paymentImport.status || "-"}
+
+                    <div
+                      class="
+                          d-flex
+                          align-items-center
+                          gap-3
+                      "
+                  >
+
+                      <span>
+                          ${paymentImport.status || "-"}
+                      </span>
+
+                      ${
+                          (
+                              (
+                                  paymentImport.status === "IN_PROGRESS" ||
+                                  paymentImport.status === "PARTIALLY_COMMITTED"
+                              ) &&
+                              lines.every(
+                                  line =>
+								      line.action === "IGNORE" ||
+                                      line.status === "COMMITTED"
+									  
+                              )
+                          )
+
+                              ? `
+                                  <button
+                                      type="button"
+                                      class="btn btn-success btn-sm"
+                                      id="complete-payment-import"
+                                  >
+                                      Complete import
+                                  </button>
+                                `
+
+                              : ""
+                      }
+
+                  </div>
+
                     </td>
                 </tr>
 
@@ -325,8 +386,16 @@ document.addEventListener(
                                  * 4. Ready
                                  */
 
-                                if (
-                                    outstandingAmount < -0.005
+                                 if (line.status === "COMMITTED") {
+
+                                     statusText =
+                                         "✓ Committed";
+
+                                     statusClass =
+                                         "text-success";
+
+                                 } else if (
+                                     outstandingAmount < -0.005
                                 ) {
 
                                     statusText =
@@ -388,6 +457,23 @@ document.addEventListener(
 
                                         : "";
 
+                                const commitButton =
+                                    outstandingAmount <= 0.005 && 
+                                       line.status !== "COMMITTED"
+
+                                        ? `
+                                            <button
+                                                type="button"
+                                                class="btn btn-success btn-sm"
+                                                data-action="commit-line"
+                                                data-line-id="${line.id}"
+                                            >
+                                                Commit
+                                            </button>
+                                          `
+
+                                        : "";
+
 
                                 return `
 
@@ -417,7 +503,7 @@ document.addEventListener(
                                         </span>
 
                                         <span
-                                            class="${statusClass}"
+                                            class="${statusClass}  payment-line-status"
                                         >
                                             <strong>
                                                 ${statusText}
@@ -425,6 +511,8 @@ document.addEventListener(
                                         </span>
 
                                         ${allocationButton}
+                                        ${commitButton}
+
 
                                     </div>
 
@@ -569,7 +657,8 @@ document.addEventListener(
                                                      */
 
                                                     const actions =
-                                                        item.status !== "COMMITTED"
+                                                        item.status !== "COMMITTED" &&
+                                                        line.status !== "COMMITTED"
 
                                                             ? `
 
@@ -692,7 +781,7 @@ document.addEventListener(
                             </td>
 
                             <td>
-                                ${line.action || "-"}
+                                ${line.status || "PENDING"}
                             </td>
 
                         </tr>
@@ -717,33 +806,146 @@ document.addEventListener(
 
                 }).join("");
 
+			/*
+			 * ====================================================
+			 * Complete payment import
+			 * ====================================================
+			 */
 
-/*
- * ====================================================
- * Scroll expanded allocation tables into view
- * ====================================================
- */
+			const completeButton =
+				document.querySelector(
+					"#complete-payment-import"
+				);
 
-linesBody.addEventListener(
-    "toggle",
-    event => {
+			if (completeButton) {
 
-        const details =
-            event.target.closest(
-                ".payment-allocation-details"
+				completeButton.addEventListener(
+					"click",
+					async () => {
+
+						const confirmed =
+							window.confirm(
+								"Are you sure you want to complete this payment import?"
+							);
+
+						if (!confirmed) {
+							return;
+						}
+
+						completeButton.disabled =
+							true;
+
+						completeButton.textContent =
+							"Completing...";
+
+						error.textContent =
+							"";
+
+						error.hidden =
+							true;
+
+						try {
+
+							const response =
+								await fetch(
+									`${apiBase}/api/payment-imports/${importId}/complete`,
+									{
+										method: "POST",
+
+										headers: {
+											Authorization:
+												`Bearer ${user.access_token}`
+										}
+									}
+								);
+
+
+							if (!response.ok) {
+
+								let message =
+									`HTTP ${response.status}`;
+
+								try {
+
+									const responseData =
+										await response.json();
+
+									if (responseData.error) {
+										message =
+											responseData.error;
+									}
+
+								} catch (_) {
+									// Keep HTTP error message.
+								}
+
+								throw new Error(message);
+							}
+
+
+							await response.json();
+
+							window.location.reload();
+
+
+						} catch (err) {
+
+							console.error(
+								"Complete payment import failed:",
+								err
+							);
+
+							error.textContent =
+								`Unable to complete payment import: ${err.message}`;
+
+							error.hidden =
+								false;
+
+							error.scrollIntoView({
+								behavior: "smooth",
+								block: "center"
+							});
+
+							completeButton.disabled =
+								false;
+
+							completeButton.textContent =
+								"Complete import";
+						}
+
+					}
+				);
+			}
+
+
+
+
+            /*
+             * ====================================================
+             * Scroll expanded allocation tables into view
+             * ====================================================
+             */
+
+            linesBody.addEventListener(
+                "toggle",
+                event => {
+
+                    const details =
+                        event.target.closest(
+                            ".payment-allocation-details"
+                        );
+
+                    if (!details || !details.open) {
+                        return;
+                    }
+
+                    details.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start"
+                    });
+                },
+                true
             );
-
-        if (!details || !details.open) {
-            return;
-        }
-
-        details.scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-        });
-    },
-    true
-);
 
 
 
@@ -758,6 +960,157 @@ linesBody.addEventListener(
             linesBody.addEventListener(
                 "click",
                 async event => {
+
+
+                  /*
+                   * =================================================
+                   * COMMIT STATEMENT LINE
+                   * =================================================
+                   */
+
+                  const commitButton =
+                      event.target.closest(
+                          '[data-action="commit-line"]'
+                      );
+
+
+                  if (commitButton) {
+
+                      const lineId =
+                          commitButton.dataset.lineId;
+
+
+                      const confirmed =
+                          window.confirm(
+                              "Are you sure you want to commit this statement line?"
+                          );
+
+
+                      if (!confirmed) {
+                          return;
+                      }
+
+
+                      /*
+                       * Prevent double submission.
+                       */
+
+                      commitButton.disabled =
+                          true;
+
+                      commitButton.textContent =
+                          "Committing...";
+
+
+                      /*
+                       * Clear previous error.
+                       */
+
+                      error.textContent =
+                          "";
+
+                      error.hidden =
+                          true;
+
+
+                      try {
+
+                          const commitResponse =
+                              await fetch(
+                                  `${apiBase}/api/payment-import-lines/${lineId}/commit`,
+                                  {
+                                      method: "POST",
+
+                                      headers: {
+                                          Authorization:
+                                              `Bearer ${user.access_token}`
+                                      }
+                                  }
+                              );
+
+
+                          if (!commitResponse.ok) {
+
+                              let message =
+                                  `HTTP ${commitResponse.status}`;
+
+
+                              try {
+
+                                  const responseData =
+                                      await commitResponse.json();
+
+
+                                  if (
+                                      responseData.error
+                                  ) {
+
+                                      message =
+                                          responseData.error;
+                                  }
+
+                              } catch (_) {
+                                  // Keep HTTP error message.
+                              }
+
+
+                              throw new Error(
+                                  message
+                              );
+                          }
+
+
+                          const committed =
+                              await commitResponse.json();
+
+
+                          console.log(
+                              "Statement line committed:",
+                              committed
+                          );
+
+
+                          /*
+                           * Reload so the line status,
+                           * allocation statuses and import
+                           * totals are recalculated.
+                           */
+
+                          window.location.reload();
+
+
+                      } catch (err) {
+
+                          console.error(
+                              "Commit statement line failed:",
+                              err
+                          );
+
+
+                         showPaymentImportError(
+                             error,
+                             `Unable to commit statement line: ${err.message}`
+                         );
+
+
+                          error.scrollIntoView({
+                              behavior: "smooth",
+                              block: "center"
+                          });
+
+
+                          commitButton.disabled =
+                              false;
+
+                          commitButton.textContent =
+                              "Commit";
+                      }
+
+
+                      return;
+                  }
+
+
 
 
                     /*
@@ -1090,11 +1443,12 @@ linesBody.addEventListener(
 
                         if (!line) {
 
-                            error.textContent =
-                                "Unable to find the statement line.";
 
-                            error.hidden =
-                                false;
+
+                          showPaymentImportError(
+                             error,
+                             "Unable to find the statement line."
+                             );
 
                             return;
                         }
@@ -1110,11 +1464,10 @@ linesBody.addEventListener(
 
                         if (!item) {
 
-                            error.textContent =
-                                "Unable to find the allocation.";
-
-                            error.hidden =
-                                false;
+                            showPaymentImportError(
+                                error,
+                                "Unable to find the allocation."
+                            );
 
                             return;
                         }
@@ -1128,11 +1481,10 @@ linesBody.addEventListener(
                             item.status === "COMMITTED"
                         ) {
 
-                            error.textContent =
-                                "Committed allocations cannot be amended.";
-
-                            error.hidden =
-                                false;
+                            showPaymentImportError(
+                                error,
+                                "Committed allocations cannot be amended."
+                            );
 
                             return;
                         }
@@ -1694,11 +2046,11 @@ linesBody.addEventListener(
                             !memberId
                         ) {
 
-                            error.textContent =
-                                "Please select a member for a Pending allocation.";
 
-                            error.hidden =
-                                false;
+                            showPaymentImportError(
+                                error,
+                                "Please select a member for a Pending allocation."
+                            );
 
                             return;
                         }
@@ -1712,11 +2064,11 @@ linesBody.addEventListener(
                             memberId
                         ) {
 
-                            error.textContent =
-                                "A member must not be selected for an Exception or Resolved externally allocation.";
 
-                            error.hidden =
-                                false;
+                            showPaymentImportError(
+                                error,
+                                "A member must not be selected for an Exception or Resolved externally allocation."
+                            );
 
                             return;
                         }
@@ -1729,12 +2081,11 @@ linesBody.addEventListener(
                             subscriptionAmount < 0
                         ) {
 
-                            error.textContent =
-                                "Please enter a valid subscription amount.";
 
-                            error.hidden =
-                                false;
-
+                            showPaymentImportError(
+                                error,
+                                "Please enter a valid subscription amount."
+                            );
                             return;
                         }
 
@@ -1746,11 +2097,10 @@ linesBody.addEventListener(
                             giftAmount < 0
                         ) {
 
-                            error.textContent =
-                                "Please enter a valid gift amount.";
-
-                            error.hidden =
-                                false;
+                            showPaymentImportError(
+                                error,
+                                "Please enter a valid gift amount."
+                            );
 
                             return;
                         }
@@ -1762,12 +2112,11 @@ linesBody.addEventListener(
                             0
                         ) {
 
-                            error.textContent =
-                                "The allocation must contain a subscription or gift amount.";
 
-                            error.hidden =
-                                false;
-
+                            showPaymentImportError(
+                                error,
+                                "The allocation must contain a subscription or gift amount."
+                            );
                             return;
                         }
 
@@ -1778,12 +2127,11 @@ linesBody.addEventListener(
                             )
                         ) {
 
-                            error.textContent =
-                                "Please enter a valid calendar year.";
 
-                            error.hidden =
-                                false;
-
+                            showPaymentImportError(
+                                error,
+                                "Please enter a valid calendar year."
+                            );
                             return;
                         }
 
@@ -1797,12 +2145,11 @@ linesBody.addEventListener(
                             !exceptionReason
                         ) {
 
-                            error.textContent =
-                                "Please enter details explaining this allocation status.";
 
-                            error.hidden =
-                                false;
-
+                            showPaymentImportError(
+                                error,
+                                "Please enter details explaining this allocation status."
+                            );
                             return;
                         }
 
@@ -1932,11 +2279,11 @@ linesBody.addEventListener(
                             );
 
 
-                            error.textContent =
-                                `Unable to save allocation: ${err.message}`;
 
-                            error.hidden =
-                                false;
+                            showPaymentImportError(
+                                error,
+                                `Unable to save allocation: ${err.message}`
+                            );
 
                             error.scrollIntoView({
                                 behavior: "smooth",
@@ -2069,11 +2416,10 @@ linesBody.addEventListener(
                             );
 
 
-                            error.textContent =
-                                `Unable to delete allocation: ${err.message}`;
-
-                            error.hidden =
-                                false;
+                            showPaymentImportError(
+                                error,
+                                `Unable to delete allocation: ${err.message}`
+                            );
 
 
                             deleteButton.disabled =
@@ -2179,11 +2525,11 @@ linesBody.addEventListener(
                             !memberId
                         ) {
 
-                            error.textContent =
-                                "Please select a member for a Pending allocation.";
 
-                            error.hidden =
-                                false;
+                            showPaymentImportError(
+                                error,
+                                "Please select a member for a Pending allocation."
+                            );
 
                             return;
                         }
@@ -2197,11 +2543,10 @@ linesBody.addEventListener(
                             memberId
                         ) {
 
-                            error.textContent =
-                                "A member must not be selected for an Exception or Resolved externally allocation.";
-
-                            error.hidden =
-                                false;
+                            showPaymentImportError(
+                                error,
+                                "A member must not be selected for an Exception or Resolved externally allocation."
+                            );
 
                             return;
                         }
@@ -2214,11 +2559,11 @@ linesBody.addEventListener(
                             subscriptionAmount < 0
                         ) {
 
-                            error.textContent =
-                                "Please enter a valid subscription amount.";
 
-                            error.hidden =
-                                false;
+                            showPaymentImportError(
+                                error,
+                                "Please enter a valid subscription amount."
+                            );
 
                             return;
                         }
@@ -2231,11 +2576,11 @@ linesBody.addEventListener(
                             giftAmount < 0
                         ) {
 
-                            error.textContent =
-                                "Please enter a valid gift amount.";
 
-                            error.hidden =
-                                false;
+                            showPaymentImportError(
+                                error,
+                                "Please enter a valid gift amount."
+                            );
 
                             return;
                         }
@@ -2247,11 +2592,11 @@ linesBody.addEventListener(
                             0
                         ) {
 
-                            error.textContent =
-                                "The allocation must contain a subscription or gift amount.";
 
-                            error.hidden =
-                                false;
+                            showPaymentImportError(
+                                error,
+                                "The allocation must contain a subscription or gift amount."
+                            );
 
                             return;
                         }
@@ -2263,11 +2608,11 @@ linesBody.addEventListener(
                             )
                         ) {
 
-                            error.textContent =
-                                "Please enter a valid calendar year.";
 
-                            error.hidden =
-                                false;
+                            showPaymentImportError(
+                                error,
+                                "Please enter a valid calendar year."
+                            );
 
                             return;
                         }
@@ -2282,12 +2627,11 @@ linesBody.addEventListener(
                             !exceptionReason
                         ) {
 
-                            error.textContent =
-                                "Please enter details explaining this allocation status.";
 
-                            error.hidden =
-                                false;
-
+                            showPaymentImportError(
+                                error,
+                                "Please enter details explaining this allocation status."
+                            );
                             return;
                         }
 
@@ -2417,12 +2761,12 @@ linesBody.addEventListener(
                             );
 
 
-                            error.textContent =
-                                `Unable to update allocation: ${err.message}`;
 
-                            error.hidden =
-                                false;
-
+                            showPaymentImportError(
+                                error,
+                                `Unable to update allocation: ${err.message}`
+                            );
+							
                             error.scrollIntoView({
                               behavior: "smooth",
                               block: "center"
@@ -2489,11 +2833,10 @@ linesBody.addEventListener(
             );
 
 
-            error.textContent =
-                "Unable to load payment import.";
-
-            error.hidden =
-                false;
+            showPaymentImportError(
+                error,
+                "Unable to load payment import."
+            );
         }
 
     }

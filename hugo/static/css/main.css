@@ -270,6 +270,10 @@ body {
     padding: 0.5rem 1rem 0.75rem 2rem;
 }
 
+.payment-line-status {
+    width: 180px;
+}
+
 .allocation-table {
     width: 100%;
     table-layout: fixed;

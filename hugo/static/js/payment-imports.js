@@ -8,6 +8,8 @@ const ALLOWED_GROUPS = [
     "ApplicationAdmin"
 ];
 
+let paymentImportsData = null;
+
 
 function getGroups(user) {
 
@@ -118,7 +120,18 @@ function displayImports(data) {
     const imports =
         data.imports || [];
 
-    if (imports.length === 0) {
+    const showCompleted =
+        document.querySelector(
+            "#show-completed-imports"
+        )?.checked;
+
+    const visibleImports =
+        imports.filter(paymentImport =>
+            showCompleted ||
+            paymentImport.status !== "COMPLETE"
+        );
+
+    if (visibleImports.length === 0) {
 
         const row =
             document.createElement("tr");
@@ -134,7 +147,7 @@ function displayImports(data) {
         return;
     }
 
-    imports.forEach(paymentImport => {
+    visibleImports.forEach(paymentImport => {
 
         const row =
             document.createElement("tr");
@@ -167,6 +180,30 @@ function displayImports(data) {
     });
 }
 
+/*
+ * Show/hide completed imports
+ */
+
+const showCompletedImports =
+    document.querySelector(
+        "#show-completed-imports"
+    );
+
+if (showCompletedImports) {
+
+    showCompletedImports.addEventListener(
+        "change",
+        () => {
+
+            if (paymentImportsData) {
+                displayImports(
+                    paymentImportsData
+                );
+            }
+
+        }
+    );
+}
 
 document.addEventListener(
     "DOMContentLoaded",
@@ -193,6 +230,7 @@ document.addEventListener(
             const data =
                 await loadImports(user);
 
+            paymentImportsData = data;
             displayImports(data);
 
             const newImportButton =
