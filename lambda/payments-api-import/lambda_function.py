@@ -487,7 +487,7 @@ def create_import_lines(event):
                         statement_amount,
                         statement_type,
                         description,
-                        action
+                        action,
                         status;
                     """,
                     (
