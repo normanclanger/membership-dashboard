@@ -487,7 +487,8 @@ def create_import_lines(event):
                         statement_amount,
                         statement_type,
                         description,
-                        action;
+                        action
+                        status;
                     """,
                     (
                         import_id,
@@ -2684,7 +2685,7 @@ def lambda_handler(event, context):
 
     # ---------------------------------------------------------
     # Create payment import
-    # POST /payment-imports
+    # POST api/payment-imports
     # ---------------------------------------------------------
 
     if (

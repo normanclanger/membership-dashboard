@@ -1,0 +1,82 @@
+{{ define "main" }}
+
+<h1>New Payment Import</h1>
+
+<div id="payment-import-new-error" hidden></div>
+
+<p>
+    Paste the statement lines from your spreadsheet below.
+</p>
+
+<p>
+    The columns should be:
+    <strong>Reference, Date, Amount, Type, Description</strong>.
+</p>
+
+<textarea
+    id="payment-import-paste"
+    rows="12"
+    style="width: 100%;"
+    placeholder="Paste spreadsheet rows here..."
+></textarea>
+
+<p>
+    <button
+        type="button"
+        id="preview-payment-import"
+        class="btn btn-primary"
+    >
+        Preview
+    </button>
+</p>
+
+<div id="payment-import-preview" hidden>
+
+<h2>Preview</h2>
+
+<div id="payment-import-preview-error" hidden></div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Reference</th>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Type</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+
+    <tbody id="payment-import-preview-body">
+    </tbody>
+</table>
+
+<p id="payment-import-preview-count"></p>
+
+<p>
+    <button
+        type="button"
+        id="create-payment-import"
+        class="btn btn-success"
+    >
+        Import
+    </button>
+
+    <button
+        type="button"
+        id="cancel-payment-import"
+        class="btn btn-secondary"
+    >
+        Cancel
+    </button>
+</p>
+
+</div>
+
+<script
+    type="module"
+    src="/js/payment-imports-new.js"
+></script>
+
+{{ end }}
+
