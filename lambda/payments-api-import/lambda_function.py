@@ -2263,7 +2263,22 @@ def commit_import_line(event):
     finally:
         conn.close()
 
+# Updated `complete_import()` function
+
+
 def complete_import(event):
+
+    # ---------------------------------------------------------
+    # Identify authenticated user
+    # ---------------------------------------------------------
+
+    user_id = get_user_id(event)
+
+    if not user_id:
+        return forbidden({
+            "error": "Unable to identify authenticated user"
+        })
+
 
     # ---------------------------------------------------------
     # Get import ID
@@ -2282,18 +2297,27 @@ def complete_import(event):
 
     try:
         import_id = int(import_id)
+
     except (TypeError, ValueError):
+
         return bad_request({
             "error": "Import id must be a number"
         })
 
+
+    # ---------------------------------------------------------
+    # Database connection
+    # ---------------------------------------------------------
+
     conn = get_connection()
 
     try:
+
         with conn.cursor() as cur:
 
+
             # -------------------------------------------------
-            # Get import
+            # Get payment import
             # -------------------------------------------------
 
             cur.execute(
@@ -2313,164 +2337,86 @@ def complete_import(event):
 
             import_row = cur.fetchone()
 
+
             if import_row is None:
+
                 return not_found({
                     "error": "Payment import not found"
                 })
 
-            if import_row[3] not in (
+
+            # -------------------------------------------------
+            # Import must still be open
+            # -------------------------------------------------
+
+            import_status = import_row[3]
+
+            if import_status not in (
                 "IN_PROGRESS",
                 "PARTIALLY_COMMITTED"
             ):
+
                 return bad_request({
                     "error": "Payment import is not open"
                 })
 
+
             # -------------------------------------------------
-            # Examine allocation states
+            # Check statement line statuses
             #
-            # PENDING:
-            #   Still requires normal processing.
+            # An import can only be completed when every
+            # IMPORT statement line has status COMMITTED.
             #
-            # EXCEPTION:
-            #   Remains open and prevents full completion.
-            #
-            # RESOLVED_EXTERNALLY:
-            #   Considered resolved. It does not require
-            #   a payment and remains RESOLVED_EXTERNALLY.
-            #
-            # COMMITTED:
-            #   Successfully processed.
+            # A line containing unresolved exceptions remains
+            # PARTIALLY_COMMITTED and will therefore prevent
+            # completion of the import.
             # -------------------------------------------------
 
             cur.execute(
                 """
                 SELECT
-                    i.status,
-                    COUNT(*)
+                    id,
+                    statement_reference,
+                    status
 
-                FROM payment_import_items i
+                FROM payment_import_lines
 
-                JOIN payment_import_lines l
-                    ON l.id = i.import_line_id
+                WHERE import_id = %s
+                AND action = 'IMPORT'
+                AND status <> 'COMMITTED'
 
-                WHERE l.import_id = %s
-                AND l.action = 'IMPORT'
-
-                GROUP BY i.status;
+                ORDER BY id;
                 """,
                 (import_id,)
             )
 
-            status_counts = {
-                row[0]: row[1]
-                for row in cur.fetchall()
-            }
+            incomplete_lines = cur.fetchall()
 
-            pending_count = status_counts.get(
-                "PENDING",
-                0
-            )
 
-            exception_count = status_counts.get(
-                "EXCEPTION",
-                0
-            )
-
-            committed_count = status_counts.get(
-                "COMMITTED",
-                0
-            )
-
-            externally_resolved_count = (
-                status_counts.get(
-                    "RESOLVED_EXTERNALLY",
-                    0
-                )
-            )
-
-            # -------------------------------------------------
-            # PENDING items must be processed first.
-            #
-            # A failed reconciliation therefore leaves the
-            # import open and PENDING.
-            # -------------------------------------------------
-
-            if pending_count > 0:
+            if incomplete_lines:
 
                 return bad_request({
                     "error": (
-                        "Payment import contains "
-                        "pending allocations"
+                        "All statement lines must be committed "
+                        "before the payment import can be completed"
                     ),
-                    "pending_count": pending_count,
-                    "exception_count": exception_count,
-                    "committed_count": committed_count,
-                    "resolved_externally_count": (
-                        externally_resolved_count
-                    )
+
+                    "incomplete_lines": [
+                        {
+                            "id": row[0],
+                            "statement_reference": row[1],
+                            "status": row[2]
+                        }
+
+                        for row in incomplete_lines
+                    ]
                 })
 
-            # -------------------------------------------------
-            # Open exceptions mean the import is only
-            # partially committed.
-            #
-            # This is specifically the state:
-            #
-            #   one or more COMMITTED
-            #   one or more EXCEPTION
-            # -------------------------------------------------
-
-            if exception_count > 0:
-
-                if committed_count == 0:
-                    return bad_request({
-                        "error": (
-                            "Payment import contains "
-                            "open exceptions but no "
-                            "committed allocations"
-                        ),
-                        "exception_count": exception_count
-                    })
-
-                cur.execute(
-                    """
-                    UPDATE payment_imports
-
-                    SET status = 'PARTIALLY_COMMITTED'
-
-                    WHERE id = %s
-
-                    RETURNING
-                        id,
-                        created_at,
-                        created_by,
-                        status;
-                    """,
-                    (import_id,)
-                )
-
-                updated_row = cur.fetchone()
-
-                conn.commit()
-
-                return success({
-                    "import": import_from_row(
-                        updated_row
-                    ),
-                    "status": "PARTIALLY_COMMITTED",
-                    "committed_count": committed_count,
-                    "exception_count": exception_count,
-                    "resolved_externally_count": (
-                        externally_resolved_count
-                    )
-                })
 
             # -------------------------------------------------
-            # No PENDING and no EXCEPTION remain.
+            # All IMPORT statement lines are committed.
             #
-            # COMMITTED and RESOLVED_EXTERNALLY are both
-            # resolved states.
+            # The payment import can now be completed.
             # -------------------------------------------------
 
             cur.execute(
@@ -2492,26 +2438,32 @@ def complete_import(event):
 
             completed_row = cur.fetchone()
 
+
         conn.commit()
+
+
+        # -----------------------------------------------------
+        # Return completed import
+        # -----------------------------------------------------
 
         return success({
             "import": import_from_row(
                 completed_row
-            ),
-            "committed_count": committed_count,
-            "exception_count": exception_count,
-            "resolved_externally_count": (
-                externally_resolved_count
             )
         })
 
+
     except Exception:
+
         conn.rollback()
+
         raise
 
-    finally:
-        conn.close()
 
+    finally:
+
+        conn.close()
+}
 
 def get_exception_items(event):
 
