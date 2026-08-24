@@ -87,7 +87,8 @@ def line_from_row(row):
         ),
         "statement_type": row[4],
         "description": row[5],
-        "action": row[6]
+        "action": row[6],
+        "status": row[7]
     }
 
 
