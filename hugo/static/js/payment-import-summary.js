@@ -110,8 +110,9 @@ document.addEventListener(
 
 
             summary.value =
-                data.summary || "";
-
+                (data.lines || [])
+                    .map(line => line.text)
+                    .join("\n");
 
             const copyButton =
                 document.querySelector(
