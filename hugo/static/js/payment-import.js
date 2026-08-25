@@ -245,7 +245,7 @@ document.addEventListener(
                               ) &&
                               lines.every(
                                   line =>
-								      line.action === "IGNORE" ||
+				      line.action === "IGNORE" ||
                                       line.status === "COMMITTED"
 									  
                               )
@@ -261,6 +261,20 @@ document.addEventListener(
                                   </button>
                                 `
 
+                              : ""
+                      }
+
+                      ${
+                          paymentImport.status === "COMPLETE"
+                              ? `
+                                  <button
+                                      type="button"
+                                      class="btn btn-primary btn-sm"
+                                      id="summary-payment-import"
+                                  >
+                                      Summary
+                                  </button>
+                                `
                               : ""
                       }
 
@@ -2822,8 +2836,29 @@ document.addEventListener(
                             true;
                     }
 
+
+
+
+
                 }
             );
+
+            const summaryButton =
+               document.querySelector(
+                    "#summary-payment-import"
+                );
+
+            if (summaryButton) {
+
+                summaryButton.addEventListener(
+                    "click",
+                    () => {
+
+                        window.location.href =
+                            `/payments/imports/summary/?id=${paymentImport.id}`;
+                    }
+                );
+            }
 
 
         } catch (err) {

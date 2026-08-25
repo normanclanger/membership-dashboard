@@ -2566,6 +2566,7 @@ def get_exception_items(event):
 # Create text summary of first allocation in each line of an import for pasting in spreadsheet
 # --------------------------------------------------------------------------------------------
 
+
 def get_import_summary(event):
 
     # ---------------------------------------------------------
@@ -2622,6 +2623,7 @@ def get_import_summary(event):
 
             import_row = cur.fetchone()
 
+
             if import_row is None:
 
                 return not_found({
@@ -2640,44 +2642,79 @@ def get_import_summary(event):
 
 
             # -------------------------------------------------
-            # Get first allocation for each committed
-            # statement line.
+            # Get the first member allocation for each
+            # committed IMPORT statement line.
             #
-            # The lowest allocation ID represents the first
-            # allocation entered by the administrator.
+            # The lowest payment_import_items.id represents
+            # the first allocation entered by the administrator.
+            #
+            # Allocation count only includes items with a
+            # member_id. This excludes externally-resolved
+            # items which do not represent a member payment.
             # -------------------------------------------------
 
             cur.execute(
                 """
-                SELECT DISTINCT ON (l.id)
-
+                SELECT
                     l.id AS line_id,
                     l.statement_reference,
 
-                    i.id AS allocation_id,
-                    i.subscription_amount,
-                    i.gift_amount,
+                    first_item.id AS allocation_id,
+                    first_item.subscription_amount,
+                    first_item.gift_amount,
 
                     m.first_name,
                     m.surname,
 
                     t.tower_name,
 
-                    d.code AS district_code
+                    d.code AS district_code,
+
+                    allocation_counts.allocation_count
 
                 FROM payment_import_lines l
 
-                JOIN payment_import_items i
-                    ON i.import_line_id = l.id
+                JOIN LATERAL (
+                    SELECT
+                        i.id,
+                        i.member_id,
+                        i.subscription_amount,
+                        i.gift_amount
+
+                    FROM payment_import_items i
+
+                    WHERE i.import_line_id = l.id
+
+                    AND i.member_id IS NOT NULL
+
+                    ORDER BY i.id
+
+                    LIMIT 1
+
+                ) first_item
+                    ON TRUE
 
                 JOIN members m
-                    ON m.id = i.member_id
+                    ON m.id = first_item.member_id
 
                 JOIN towers t
                     ON t.id = m.tower_id
 
                 JOIN districts d
                     ON d.id = t.district_id
+
+                JOIN LATERAL (
+                    SELECT
+                        COUNT(*) AS allocation_count
+
+                    FROM payment_import_items i
+
+                    WHERE i.import_line_id = l.id
+
+                    AND i.member_id IS NOT NULL
+
+                ) allocation_counts
+                    ON TRUE
 
                 WHERE l.import_id = %s
 
@@ -2686,8 +2723,7 @@ def get_import_summary(event):
                 AND l.status = 'COMMITTED'
 
                 ORDER BY
-                    l.id,
-                    i.id;
+                    l.id;
                 """,
                 (import_id,)
             )
@@ -2696,20 +2732,21 @@ def get_import_summary(event):
 
 
             # -------------------------------------------------
-            # No eligible lines
+            # No eligible statement lines
             # -------------------------------------------------
 
             if not rows:
 
+                conn.commit()
+
                 return success({
-                    "summary": "",
                     "lines": [],
                     "line_count": 0
                 })
 
 
             # -------------------------------------------------
-            # Build summary entries
+            # Build one summary entry for each statement line
             # -------------------------------------------------
 
             summary_lines = []
@@ -2726,19 +2763,20 @@ def get_import_summary(event):
                     first_name,
                     surname,
                     tower_name,
-                    district_code
+                    district_code,
+                    allocation_count
                 ) = row
 
+
+                # ---------------------------------------------
+                # Subs takes precedence if the first allocation
+                # contains both a subscription and a gift.
+                # ---------------------------------------------
 
                 subscription_amount = Decimal(
                     subscription_amount or 0
                 )
 
-
-                # -------------------------------------------------
-                # Subs takes precedence when an allocation contains
-                # both Subs and Gift.
-                # -------------------------------------------------
 
                 if subscription_amount > 0:
 
@@ -2749,9 +2787,9 @@ def get_import_summary(event):
                     payment_type = "Gift"
 
 
-                # -------------------------------------------------
+                # ---------------------------------------------
                 # First initial
-                # -------------------------------------------------
+                # ---------------------------------------------
 
                 first_initial = (
                     first_name[0].upper()
@@ -2759,6 +2797,10 @@ def get_import_summary(event):
                     else ""
                 )
 
+
+                # ---------------------------------------------
+                # Build base description
+                # ---------------------------------------------
 
                 text = (
                     f"{payment_type} "
@@ -2769,38 +2811,42 @@ def get_import_summary(event):
                 )
 
 
+                # ---------------------------------------------
+                # Add count of other allocations on this
+                # statement line.
+                # ---------------------------------------------
+
+                other_allocation_count = (
+                    allocation_count - 1
+                )
+
+
+                if other_allocation_count > 0:
+
+                    text += (
+                        f" + {other_allocation_count}"
+                    )
+
+
                 summary_lines.append({
                     "line_id": line_id,
-                    "statement_reference": statement_reference,
+                    "statement_reference": (
+                        statement_reference
+                    ),
                     "text": text
                 })
-
-
-            # -------------------------------------------------
-            # Append + N to the first summary line.
-            # -------------------------------------------------
-
-            other_count = len(summary_lines) - 1
-
-
-            summary = summary_lines[0]["text"]
-
-
-            if other_count > 0:
-
-                summary += (
-                    f" + {other_count}"
-                )
 
 
         conn.commit()
 
 
+        # -----------------------------------------------------
+        # Return generated summary
+        # -----------------------------------------------------
+
         return success({
-            "summary": summary,
             "lines": summary_lines,
-            "line_count": len(summary_lines),
-            "other_line_count": other_count
+            "line_count": len(summary_lines)
         })
 
 
@@ -2814,6 +2860,8 @@ def get_import_summary(event):
     finally:
 
         conn.close()
+
+
 
 
 def lambda_handler(event, context):

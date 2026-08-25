@@ -1,0 +1,43 @@
+{{ define "main" }}
+
+<main class="container">
+
+    <h1>Payment Import Summary</h1>
+
+    <div id="payment-import-summary-error" hidden></div>
+
+    <p>
+        <textarea
+            id="payment-import-summary"
+            rows="4"
+            readonly
+            style="width: 100%;"
+        ></textarea>
+    </p>
+
+    <p>
+        <button
+            type="button"
+            id="copy-payment-import-summary"
+            class="btn btn-primary"
+        >
+            Copy
+        </button>
+
+        <button
+            type="button"
+            id="back-payment-import-summary"
+            class="btn btn-secondary"
+        >
+            Back
+        </button>
+    </p>
+
+</main>
+
+<script
+    type="module"
+    src="/js/payment-import-summary.js"
+></script>
+
+{{ end }}
