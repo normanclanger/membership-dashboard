@@ -2562,6 +2562,255 @@ def get_exception_items(event):
     finally:
         conn.close()
 
+# --------------------------------------------------------------------------------------------
+# Create text summary of first allocation in each line of an import for pasting in spreadsheet
+# --------------------------------------------------------------------------------------------
+
+def get_import_summary(event):
+
+    # ---------------------------------------------------------
+    # Get import ID
+    # ---------------------------------------------------------
+
+    path_parameters = (
+        event.get("pathParameters") or {}
+    )
+
+    import_id = path_parameters.get("import_id")
+
+    if not import_id:
+        return bad_request({
+            "error": "Import id is required"
+        })
+
+    try:
+        import_id = int(import_id)
+
+    except (TypeError, ValueError):
+
+        return bad_request({
+            "error": "Import id must be a number"
+        })
+
+
+    # ---------------------------------------------------------
+    # Database connection
+    # ---------------------------------------------------------
+
+    conn = get_connection()
+
+    try:
+
+        with conn.cursor() as cur:
+
+
+            # -------------------------------------------------
+            # Get import
+            # -------------------------------------------------
+
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    status
+
+                FROM payment_imports
+
+                WHERE id = %s;
+                """,
+                (import_id,)
+            )
+
+            import_row = cur.fetchone()
+
+
+            if import_row is None:
+
+                return not_found({
+                    "error": "Payment import not found"
+                })
+
+
+            import_status = import_row[1]
+
+
+            # -------------------------------------------------
+            # Summary is intended for completed imports.
+            # -------------------------------------------------
+
+            if import_status != "COMPLETE":
+
+                return bad_request({
+                    "error": (
+                        "Payment import must be complete "
+                        "before a summary can be generated"
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # Get the first committed allocation for each
+            # committed IMPORT statement line.
+            #
+            # DISTINCT ON selects the first item according
+            # to the order in which allocation items were
+            # created (lowest item id).
+            # -------------------------------------------------
+
+            cur.execute(
+                """
+                SELECT DISTINCT ON (l.id)
+
+                    l.id,
+
+                    i.id,
+
+                    i.subscription_amount,
+
+                    i.gift_amount,
+
+                    m.first_name,
+                    m.surname,
+
+                    t.name,
+
+                    d.code
+
+                FROM payment_import_lines l
+
+                JOIN payment_import_items i
+                    ON i.import_line_id = l.id
+
+                JOIN members m
+                    ON m.id = i.member_id
+
+                JOIN towers t
+                    ON t.id = m.tower_id
+
+                JOIN districts d
+                    ON d.id = t.district_id
+
+                WHERE l.import_id = %s
+
+                AND l.action = 'IMPORT'
+
+                AND l.status = 'COMMITTED'
+
+                AND i.status = 'COMMITTED'
+
+                ORDER BY
+                    l.id,
+                    i.id;
+                """,
+                (import_id,)
+            )
+
+            rows = cur.fetchall()
+
+
+            # -------------------------------------------------
+            # No eligible payment lines
+            # -------------------------------------------------
+
+            if not rows:
+
+                return success({
+                    "summary": None,
+                    "summary_line_count": 0
+                })
+
+
+            # -------------------------------------------------
+            # Build summary entries
+            # -------------------------------------------------
+
+            summaries = []
+
+
+            for row in rows:
+
+                (
+                    line_id,
+                    item_id,
+                    subscription_amount,
+                    gift_amount,
+                    first_name,
+                    surname,
+                    tower_name,
+                    district_code
+                ) = row
+
+
+                # ---------------------------------------------
+                # Subs takes precedence if an allocation
+                # contains both Subs and Gift.
+                # ---------------------------------------------
+
+                subscription_amount = Decimal(
+                    subscription_amount or 0
+                )
+
+
+                if subscription_amount > 0:
+
+                    payment_type = "Subs"
+
+                else:
+
+                    payment_type = "Gift"
+
+
+                # ---------------------------------------------
+                # First initial
+                # ---------------------------------------------
+
+                first_initial = (
+                    first_name[0].upper()
+                    if first_name
+                    else ""
+                )
+
+
+                summaries.append(
+                    f"{payment_type} "
+                    f"{district_code} "
+                    f"{tower_name} "
+                    f"{surname} "
+                    f"{first_initial}"
+                )
+
+
+            # -------------------------------------------------
+            # Append + N
+            #
+            # N represents the number of OTHER eligible
+            # payment lines in this import.
+            # -------------------------------------------------
+
+            other_count = len(summaries) - 1
+
+
+            summary = summaries[0]
+
+
+            if other_count > 0:
+
+                summary += (
+                    f" + {other_count}"
+                )
+
+
+        return success({
+            "summary": summary,
+            "summary_line_count": len(summaries),
+            "other_line_count": other_count
+        })
+
+
+    finally:
+
+        conn.close()
+
 
 
 
@@ -2727,6 +2976,18 @@ def lambda_handler(event, context):
         return list_imports(event)
 
     # ---------------------------------------------------------
+    # Get payment import summary
+    # GET /api/payment-imports/{import_id}/summary
+    # ---------------------------------------------------------
+
+    if (
+        http_method == "GET"
+        and route_key
+        == "GET /api/payment-imports/{import_id}/summary"
+    ):
+        return get_import_summary(event)
+
+    # ---------------------------------------------------------
     # Get payment import
     # GET /payment-imports/{import_id}
     # ---------------------------------------------------------
@@ -2775,6 +3036,7 @@ def lambda_handler(event, context):
             })
 
         return create_import_lines(event)
+
 
     return bad_request({
         "error": "Unsupported request"
