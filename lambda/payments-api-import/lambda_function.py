@@ -2603,9 +2603,8 @@ def get_import_summary(event):
 
         with conn.cursor() as cur:
 
-
             # -------------------------------------------------
-            # Get import
+            # Check payment import
             # -------------------------------------------------
 
             cur.execute(
@@ -2623,7 +2622,6 @@ def get_import_summary(event):
 
             import_row = cur.fetchone()
 
-
             if import_row is None:
 
                 return not_found({
@@ -2631,14 +2629,7 @@ def get_import_summary(event):
                 })
 
 
-            import_status = import_row[1]
-
-
-            # -------------------------------------------------
-            # Summary is intended for completed imports.
-            # -------------------------------------------------
-
-            if import_status != "COMPLETE":
+            if import_row[1] != "COMPLETE":
 
                 return bad_request({
                     "error": (
@@ -2649,32 +2640,30 @@ def get_import_summary(event):
 
 
             # -------------------------------------------------
-            # Get the first committed allocation for each
-            # committed IMPORT statement line.
+            # Get first allocation for each committed
+            # statement line.
             #
-            # DISTINCT ON selects the first item according
-            # to the order in which allocation items were
-            # created (lowest item id).
+            # The lowest allocation ID represents the first
+            # allocation entered by the administrator.
             # -------------------------------------------------
 
             cur.execute(
                 """
                 SELECT DISTINCT ON (l.id)
 
-                    l.id,
+                    l.id AS line_id,
+                    l.statement_reference,
 
-                    i.id,
-
+                    i.id AS allocation_id,
                     i.subscription_amount,
-
                     i.gift_amount,
 
                     m.first_name,
                     m.surname,
 
-                    t.name,
+                    t.tower_name,
 
-                    d.code
+                    d.code AS district_code
 
                 FROM payment_import_lines l
 
@@ -2696,8 +2685,6 @@ def get_import_summary(event):
 
                 AND l.status = 'COMMITTED'
 
-                AND i.status = 'COMMITTED'
-
                 ORDER BY
                     l.id,
                     i.id;
@@ -2709,14 +2696,15 @@ def get_import_summary(event):
 
 
             # -------------------------------------------------
-            # No eligible payment lines
+            # No eligible lines
             # -------------------------------------------------
 
             if not rows:
 
                 return success({
-                    "summary": None,
-                    "summary_line_count": 0
+                    "summary": "",
+                    "lines": [],
+                    "line_count": 0
                 })
 
 
@@ -2724,14 +2712,15 @@ def get_import_summary(event):
             # Build summary entries
             # -------------------------------------------------
 
-            summaries = []
+            summary_lines = []
 
 
             for row in rows:
 
                 (
                     line_id,
-                    item_id,
+                    statement_reference,
+                    allocation_id,
                     subscription_amount,
                     gift_amount,
                     first_name,
@@ -2741,15 +2730,15 @@ def get_import_summary(event):
                 ) = row
 
 
-                # ---------------------------------------------
-                # Subs takes precedence if an allocation
-                # contains both Subs and Gift.
-                # ---------------------------------------------
-
                 subscription_amount = Decimal(
                     subscription_amount or 0
                 )
 
+
+                # -------------------------------------------------
+                # Subs takes precedence when an allocation contains
+                # both Subs and Gift.
+                # -------------------------------------------------
 
                 if subscription_amount > 0:
 
@@ -2760,9 +2749,9 @@ def get_import_summary(event):
                     payment_type = "Gift"
 
 
-                # ---------------------------------------------
+                # -------------------------------------------------
                 # First initial
-                # ---------------------------------------------
+                # -------------------------------------------------
 
                 first_initial = (
                     first_name[0].upper()
@@ -2771,7 +2760,7 @@ def get_import_summary(event):
                 )
 
 
-                summaries.append(
+                text = (
                     f"{payment_type} "
                     f"{district_code} "
                     f"{tower_name} "
@@ -2780,17 +2769,21 @@ def get_import_summary(event):
                 )
 
 
+                summary_lines.append({
+                    "line_id": line_id,
+                    "statement_reference": statement_reference,
+                    "text": text
+                })
+
+
             # -------------------------------------------------
-            # Append + N
-            #
-            # N represents the number of OTHER eligible
-            # payment lines in this import.
+            # Append + N to the first summary line.
             # -------------------------------------------------
 
-            other_count = len(summaries) - 1
+            other_count = len(summary_lines) - 1
 
 
-            summary = summaries[0]
+            summary = summary_lines[0]["text"]
 
 
             if other_count > 0:
@@ -2800,18 +2793,27 @@ def get_import_summary(event):
                 )
 
 
+        conn.commit()
+
+
         return success({
             "summary": summary,
-            "summary_line_count": len(summaries),
+            "lines": summary_lines,
+            "line_count": len(summary_lines),
             "other_line_count": other_count
         })
+
+
+    except Exception:
+
+        conn.rollback()
+
+        raise
 
 
     finally:
 
         conn.close()
-
-
 
 
 def lambda_handler(event, context):
