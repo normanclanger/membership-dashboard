@@ -624,15 +624,6 @@ def create_import_item(event):
                 )
             })
 
-    if (
-        subscription_amount == 0
-        and gift_amount == 0
-    ):
-        return bad_request({
-            "error": (
-                "At least one payment amount is required"
-            )
-        })
 
     if calendar_year is None:
         return bad_request({

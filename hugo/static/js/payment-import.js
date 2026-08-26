@@ -1340,6 +1340,34 @@ document.addEventListener(
 
                                         </div>
 
+
+                                         <div class="col-md-4">
+
+                                                <label
+                                                    class="form-label d-block"
+                                                >
+                                                    A New Member Subscription covering 2 years requires a 0 entry for the second year
+                                                </label>
+
+                                                <div class="form-check">
+
+                                                    <input
+                                                        class="form-check-input"
+                                                        type="checkbox"
+                                                        id="allocation-submit-zero-${lineId}"
+                                                    >
+
+                                                    <label
+                                                        class="form-check-label"
+                                                        for="allocation-submit-zero-${lineId}"
+                                                    >
+                                                        Submit zero subscription
+                                                    </label>
+
+                                                </div>
+
+                                            </div>
+
                                     </div>
 
 
@@ -2119,11 +2147,17 @@ document.addEventListener(
                             return;
                         }
 
+			// only allow 0 amount entries if checkbox ticked
+
+                        const submitZeroSubscription =
+                            document.querySelector(
+                                `#allocation-submit-zero-${lineId}`
+                            ).checked;
 
                         if (
-                            subscriptionAmount +
-                            giftAmount <=
-                            0
+                          subscriptionAmount === 0 &&
+                          giftAmount === 0 &&
+                          !submitZeroSubscription
                         ) {
 
 
