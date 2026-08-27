@@ -143,6 +143,182 @@ def get_payment_summary(event):
         conn.close()
 
 
+#**************************************
+# Get payment list for year &/or district
+#**************************************
+
+def get_payment_list(event):
+
+    query_parameters = (
+        event.get("queryStringParameters") or {}
+    )
+
+    year = query_parameters.get("year")
+    district = query_parameters.get("district")
+
+
+    if not year:
+
+        return bad_request({
+            "error": "Payment year is required"
+        })
+
+
+    try:
+
+        year = int(year)
+
+    except (TypeError, ValueError):
+
+        return bad_request({
+            "error": (
+                "Payment year must be a number"
+            )
+        })
+
+
+    if year < 1900 or year > 2100:
+
+        return bad_request({
+            "error": "Payment year is invalid"
+        })
+
+
+    if district:
+
+        district = district.upper()
+
+
+    conn = get_connection()
+
+
+    try:
+
+        with conn.cursor() as cur:
+
+            cur.execute(
+                """
+                SELECT
+                    p.id,
+                    p.payment_date,
+                    p.statement_reference,
+
+                    m.membership_number,
+                    m.first_name,
+                    m.surname,
+
+                    t.tower_name,
+
+                    d.code AS district_code,
+
+                    p.subscription_amount,
+                    p.gift_amount,
+                    p.calendar_year,
+
+                    (
+                        p.subscription_amount
+                        + p.gift_amount
+                    ) AS total
+
+                FROM payments p
+
+                JOIN members m
+                    ON m.id = p.member_id
+
+                JOIN towers t
+                    ON t.id = m.tower_id
+
+                JOIN districts d
+                    ON d.id = t.district_id
+
+                WHERE EXTRACT(
+                    YEAR FROM p.payment_date
+                ) = %s
+
+                AND (
+                    %s IS NULL
+                    OR d.code = %s
+                )
+
+                ORDER BY
+                    p.payment_date,
+                    m.surname,
+                    m.first_name,
+                    p.id;
+                """,
+                (
+                    year,
+                    district,
+                    district
+                )
+            )
+
+
+            rows = cur.fetchall()
+
+
+        payments = []
+
+
+        for row in rows:
+
+            payments.append({
+
+                "id": row[0],
+
+                "payment_date":
+                    row[1].isoformat(),
+
+                "statement_reference":
+                    row[2],
+
+                "membership_number":
+                    row[3],
+
+                "first_name":
+                    row[4],
+
+                "surname":
+                    row[5],
+
+                "tower_name":
+                    row[6],
+
+                "district_code":
+                    row[7],
+
+                "subscription_amount":
+                    str(row[8]),
+
+                "gift_amount":
+                    str(row[9]),
+
+                "calendar_year":
+                    row[10],
+
+                "total":
+                    str(row[11])
+
+            })
+
+
+        return success({
+
+            "year": year,
+
+            "district": district,
+
+            "payments": payments
+
+        })
+
+
+    finally:
+
+        conn.close()
+
+
+
 def lambda_handler(event, context):
 
     http_method = (
@@ -164,6 +340,11 @@ def lambda_handler(event, context):
         route_key
     )
 
+    # ---------------------------------------------------------
+    # Payment report summary 
+    # GET /api/reports/payments/summary
+    # ---------------------------------------------------------
+
 
     if (
         http_method == "GET"
@@ -172,6 +353,20 @@ def lambda_handler(event, context):
     ):
 
         return get_payment_summary(event)
+
+
+    # ---------------------------------------------------------
+    # Payment list report
+    # GET /api/reports/payments/list
+    # ---------------------------------------------------------
+
+    if (
+        http_method == "GET"
+        and route_key
+        == "GET /api/reports/payments/list"
+    ):
+
+        return get_payment_list(event)
 
 
     return bad_request({
