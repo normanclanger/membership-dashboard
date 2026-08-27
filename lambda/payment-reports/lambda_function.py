@@ -1,4 +1,3 @@
-```python
 from database import get_connection
 from responses import (
     success,
@@ -178,5 +177,4 @@ def lambda_handler(event, context):
     return bad_request({
         "error": "Unsupported request"
     })
-```
 
