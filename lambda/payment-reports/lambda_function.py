@@ -147,6 +147,7 @@ def get_payment_summary(event):
 # Get payment list for year &/or district
 #**************************************
 
+
 def get_payment_list(event):
 
     query_parameters = (
@@ -156,6 +157,10 @@ def get_payment_list(event):
     year = query_parameters.get("year")
     district = query_parameters.get("district")
 
+
+    # ---------------------------------------------------------
+    # Validate payment year
+    # ---------------------------------------------------------
 
     if not year:
 
@@ -184,10 +189,18 @@ def get_payment_list(event):
         })
 
 
+    # ---------------------------------------------------------
+    # Normalise optional district
+    # ---------------------------------------------------------
+
     if district:
 
-        district = district.upper()
+        district = district.strip().upper()
 
+
+    # ---------------------------------------------------------
+    # Connect to database
+    # ---------------------------------------------------------
 
     conn = get_connection()
 
@@ -196,8 +209,7 @@ def get_payment_list(event):
 
         with conn.cursor() as cur:
 
-            cur.execute(
-                """
+            sql = """
                 SELECT
                     p.id,
                     p.payment_date,
@@ -234,28 +246,53 @@ def get_payment_list(event):
                 WHERE EXTRACT(
                     YEAR FROM p.payment_date
                 ) = %s
+            """
 
-                AND (
-                    %s IS NULL
-                    OR d.code = %s
+            parameters = [
+                year
+            ]
+
+
+            # -------------------------------------------------
+            # Optional district filter
+            # -------------------------------------------------
+
+            if district:
+
+                sql += """
+                    AND d.code = %s
+                """
+
+                parameters.append(
+                    district
                 )
 
+
+            # -------------------------------------------------
+            # Default database ordering
+            # -------------------------------------------------
+
+            sql += """
                 ORDER BY
                     p.payment_date,
                     m.surname,
                     m.first_name,
                     p.id;
-                """,
-                (
-                    year,
-                    district,
-                    district
-                )
+            """
+
+
+            cur.execute(
+                sql,
+                parameters
             )
 
 
             rows = cur.fetchall()
 
+
+        # -----------------------------------------------------
+        # Build response
+        # -----------------------------------------------------
 
         payments = []
 
@@ -264,7 +301,8 @@ def get_payment_list(event):
 
             payments.append({
 
-                "id": row[0],
+                "id":
+                    row[0],
 
                 "payment_date":
                     row[1].isoformat(),
@@ -288,27 +326,36 @@ def get_payment_list(event):
                     row[7],
 
                 "subscription_amount":
-                    str(row[8]),
+                    str(
+                        row[8]
+                    ),
 
                 "gift_amount":
-                    str(row[9]),
+                    str(
+                        row[9]
+                    ),
 
                 "calendar_year":
                     row[10],
 
                 "total":
-                    str(row[11])
+                    str(
+                        row[11]
+                    )
 
             })
 
 
         return success({
 
-            "year": year,
+            "year":
+                year,
 
-            "district": district,
+            "district":
+                district,
 
-            "payments": payments
+            "payments":
+                payments
 
         })
 
