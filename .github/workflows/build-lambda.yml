@@ -9,6 +9,7 @@ on:
       - 'lambda/member-lookups/**'
       - 'lambda/payments-api-payments/**'
       - 'lambda/payments-api-import/**'
+      - 'lambda/payment-reports/**'
       - '.github/workflows/build-lambda.yml'
 
 permissions:
@@ -128,6 +129,32 @@ jobs:
           cd lambda/payments-api-import/package
           zip -r ../lambda.zip .
 
+      # ---------------------------------------------------------
+      # Build payment-reports
+      # ---------------------------------------------------------
+
+      - name: Build member-lookups Lambda package
+        run: |
+          cd lambda/payment-reports
+          rm -rf package
+          mkdir package
+
+          pip install \
+            --platform manylinux2014_x86_64 \
+            --target package \
+            --implementation cp \
+            --python-version 3.13 \
+            --only-binary=:all: \
+            -r requirements.txt
+
+          cp lambda_function.py database.py responses.py package/
+
+      - name: Create member-lookups deployment ZIP
+        run: |
+          cd lambda/member-lookups/package
+          zip -r ../lambda.zip .
+
+
 
       # ---------------------------------------------------------
       # AWS credentials
@@ -178,3 +205,14 @@ jobs:
           aws lambda update-function-code \
             --function-name payments-api-import \
             --zip-file fileb://lambda/payments-api-import/lambda.zip
+
+      # ---------------------------------------------------------
+      # Deploy payment-reports Lambda
+      # ---------------------------------------------------------
+
+      - name: Deploy payment-reports Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name payment-reports \
+            --zip-file fileb://lambda/payment-reports/lambda.zip
+
