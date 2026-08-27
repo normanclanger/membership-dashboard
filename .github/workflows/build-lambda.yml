@@ -149,9 +149,9 @@ jobs:
 
           cp lambda_function.py database.py responses.py package/
 
-      - name: Create member-lookups deployment ZIP
+      - name: Create payment-reports deployment ZIP
         run: |
-          cd lambda/member-lookups/package
+          cd lambda/payment-reports/package
           zip -r ../lambda.zip .
 
 
