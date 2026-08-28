@@ -154,38 +154,48 @@ def get_payment_list(event):
         event.get("queryStringParameters") or {}
     )
 
-    year = query_parameters.get("year")
-    district = query_parameters.get("district")
+    calendar_year = query_parameters.get(
+        "calendar_year"
+    )
+
+    district = query_parameters.get(
+        "district"
+    )
 
 
     # ---------------------------------------------------------
-    # Validate payment year
+    # Validate calendar year
     # ---------------------------------------------------------
 
-    if not year:
+    if not calendar_year:
 
         return bad_request({
-            "error": "Payment year is required"
+            "error": "Calendar year is required"
         })
 
 
     try:
 
-        year = int(year)
+        calendar_year = int(
+            calendar_year
+        )
 
     except (TypeError, ValueError):
 
         return bad_request({
             "error": (
-                "Payment year must be a number"
+                "Calendar year must be a number"
             )
         })
 
 
-    if year < 1900 or year > 2100:
+    if (
+        calendar_year < 1900
+        or calendar_year > 2100
+    ):
 
         return bad_request({
-            "error": "Payment year is invalid"
+            "error": "Calendar year is invalid"
         })
 
 
@@ -243,13 +253,11 @@ def get_payment_list(event):
                 JOIN districts d
                     ON d.id = t.district_id
 
-                WHERE EXTRACT(
-                    YEAR FROM p.payment_date
-                ) = %s
+                WHERE p.calendar_year = %s
             """
 
             parameters = [
-                year
+                calendar_year
             ]
 
 
@@ -269,7 +277,7 @@ def get_payment_list(event):
 
 
             # -------------------------------------------------
-            # Default database ordering
+            # Order by payment date
             # -------------------------------------------------
 
             sql += """
@@ -348,8 +356,8 @@ def get_payment_list(event):
 
         return success({
 
-            "year":
-                year,
+            "calendar_year":
+                calendar_year,
 
             "district":
                 district,
