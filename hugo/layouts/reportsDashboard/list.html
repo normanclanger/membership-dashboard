@@ -1,0 +1,155 @@
+{{ define "main" }}
+
+<div class="container mt-4">
+
+    <h1>
+        {{ .Title }}
+    </h1>
+
+
+    <div
+        id="reports-dashboard-error"
+        class="alert alert-danger"
+        hidden
+    >
+    </div>
+
+
+    <div class="row mb-4">
+
+        <div class="col-md-4">
+
+            <label
+                for="payment-year"
+                class="form-label"
+            >
+                Payment year
+            </label>
+
+            <select
+                id="payment-year"
+                class="form-select"
+            >
+            </select>
+
+        </div>
+
+    </div>
+
+
+    <h2>
+        Payment summary by district
+    </h2>
+
+
+    <div class="table-responsive">
+
+        <table
+            class="table table-striped"
+        >
+
+            <thead>
+
+                <tr>
+
+                    <th>
+                        District
+                    </th>
+
+                    <th class="text-end">
+                        Subscriptions
+                    </th>
+
+                    <th class="text-end">
+                        Gifts
+                    </th>
+
+                    <th class="text-end">
+                        Total
+                    </th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody
+                id="payment-summary-body"
+            >
+            </tbody>
+
+
+            <tfoot>
+
+                <tr
+                    class="fw-bold"
+                >
+
+                    <td>
+                        Total
+                    </td>
+
+                    <td
+                        id="payment-summary-subscriptions-total"
+                        class="text-end"
+                    >
+                    </td>
+
+                    <td
+                        id="payment-summary-gifts-total"
+                        class="text-end"
+                    >
+                    </td>
+
+                    <td
+                        id="payment-summary-total"
+                        class="text-end"
+                    >
+                    </td>
+
+                </tr>
+
+            </tfoot>
+
+        </table>
+
+    </div>
+
+
+    <hr class="my-5">
+
+
+    <h2>
+        Payment reports
+    </h2>
+
+
+    <div class="list-group">
+
+        <a
+            href="#"
+            class="list-group-item list-group-item-action"
+        >
+            Full payment list
+        </a>
+
+
+        <a
+            href="#"
+            class="list-group-item list-group-item-action"
+        >
+            District payment list
+        </a>
+
+    </div>
+
+</div>
+
+
+<script
+    type="module"
+    src="/js/reports-dashboard.js"
+></script>
+
+{{ end }}
+

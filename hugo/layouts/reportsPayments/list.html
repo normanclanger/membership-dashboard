@@ -1,0 +1,247 @@
+
+{{ define "main" }}
+
+<div class="container mt-4">
+
+    <h1>
+        Payment List
+    </h1>
+
+
+    <div
+        id="reports-payments-error"
+        class="alert alert-danger"
+        hidden
+    >
+    </div>
+
+
+    <div class="row mb-4">
+
+        <div class="col-md-3">
+
+            <label
+                for="payment-year"
+                class="form-label"
+            >
+                Payment year
+            </label>
+
+            <select
+                id="payment-year"
+                class="form-select"
+            >
+            </select>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <label
+                for="payment-district"
+                class="form-label"
+            >
+                District
+            </label>
+
+            <select
+                id="payment-district"
+                class="form-select"
+            >
+
+                <option value="">
+                    All districts
+                </option>
+
+                <option value="NE">
+                    NE
+                </option>
+
+                <option value="NW">
+                    NW
+                </option>
+
+                <option value="SE">
+                    SE
+                </option>
+
+                <option value="SW">
+                    SW
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div class="col-md-3 d-flex align-items-end">
+
+            <button
+                type="button"
+                id="load-payment-report"
+                class="btn btn-primary"
+            >
+                View report
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <div
+        id="payment-report-heading"
+        class="mb-3"
+        hidden
+    >
+    </div>
+
+
+    <div class="table-responsive">
+
+        <table
+            class="table table-striped"
+            id="payment-report-table"
+        >
+
+            <thead>
+
+                <tr>
+
+                    <th
+                        scope="col"
+                        data-sort="payment_date"
+                        role="button"
+                    >
+                        Payment date
+                    </th>
+
+                    <th
+                        scope="col"
+                        data-sort="name"
+                        role="button"
+                    >
+                        Member
+                    </th>
+
+                    <th
+                        scope="col"
+                        data-sort="tower"
+                        role="button"
+                    >
+                        Tower
+                    </th>
+
+                    <th
+                        scope="col"
+                        data-sort="district"
+                        role="button"
+                    >
+                        District
+                    </th>
+
+                    <th
+                        scope="col"
+                        data-sort="subscription"
+                        role="button"
+                        class="text-end"
+                    >
+                        Subscription
+                    </th>
+
+                    <th
+                        scope="col"
+                        data-sort="gift"
+                        role="button"
+                        class="text-end"
+                    >
+                        Gift
+                    </th>
+
+                    <th
+                        scope="col"
+                        data-sort="total"
+                        role="button"
+                        class="text-end"
+                    >
+                        Total
+                    </th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody
+                id="payment-report-body"
+            >
+            </tbody>
+
+
+            <tfoot>
+
+                <tr
+                    class="fw-bold"
+                >
+
+                    <td colspan="4">
+                        Total
+                    </td>
+
+                    <td
+                        id="payment-report-subscriptions-total"
+                        class="text-end"
+                    >
+                    </td>
+
+                    <td
+                        id="payment-report-gifts-total"
+                        class="text-end"
+                    >
+                    </td>
+
+                    <td
+                        id="payment-report-total"
+                        class="text-end"
+                    >
+                    </td>
+
+                </tr>
+
+            </tfoot>
+
+        </table>
+
+    </div>
+
+
+    <div
+        id="payment-report-empty"
+        class="alert alert-info"
+        hidden
+    >
+        No payments found.
+    </div>
+
+
+    <div class="mt-4">
+
+        <a
+            href="/reportsDashboard/"
+            class="btn btn-secondary"
+        >
+            Back to reports
+        </a>
+
+    </div>
+
+</div>
+
+
+<script
+    type="module"
+    src="/js/reports-payments.js"
+></script>
+
+{{ end }}
