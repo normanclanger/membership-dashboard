@@ -1,4 +1,4 @@
 ---
-title: "paymentsDashboard"
+title: "Payments Dashboard"
 protected: true
 ---

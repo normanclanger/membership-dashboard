@@ -7,149 +7,116 @@
     </h1>
 
 
-    <div
-        id="reports-dashboard-error"
-        class="alert alert-danger"
-        hidden
+<div class="list-group">
+
+    <a
+        id="full-payment-list-link"
+        href="#"
+        class="list-group-item list-group-item-action"
     >
-    </div>
+        Full payment list
+    </a>
 
 
-    <div class="row mb-4">
-
-        <div class="col-md-4">
-
-            <label
-                for="payment-year"
-                class="form-label"
-            >
-                Payment year
-            </label>
-
-            <select
-                id="payment-year"
-                class="form-select"
-            >
-            </select>
-
-        </div>
-
-    </div>
+    <a
+        id="ne-payment-list-link"
+        href="#"
+        class="list-group-item list-group-item-action"
+    >
+        NE payment list
+    </a>
 
 
-    <h2>
-        Payment summary by district
-    </h2>
+    <a
+        id="nw-payment-list-link"
+        href="#"
+        class="list-group-item list-group-item-action"
+    >
+        NW payment list
+    </a>
 
 
-    <div class="table-responsive">
-
-        <table
-            class="table table-striped"
-        >
-
-            <thead>
-
-                <tr>
-
-                    <th>
-                        District
-                    </th>
-
-                    <th class="text-end">
-                        Subscriptions
-                    </th>
-
-                    <th class="text-end">
-                        Gifts
-                    </th>
-
-                    <th class="text-end">
-                        Total
-                    </th>
-
-                </tr>
-
-            </thead>
+    <a
+        id="se-payment-list-link"
+        href="#"
+        class="list-group-item list-group-item-action"
+    >
+        SE payment list
+    </a>
 
 
-            <tbody
-                id="payment-summary-body"
-            >
-            </tbody>
-
-
-            <tfoot>
-
-                <tr
-                    class="fw-bold"
-                >
-
-                    <td>
-                        Total
-                    </td>
-
-                    <td
-                        id="payment-summary-subscriptions-total"
-                        class="text-end"
-                    >
-                    </td>
-
-                    <td
-                        id="payment-summary-gifts-total"
-                        class="text-end"
-                    >
-                    </td>
-
-                    <td
-                        id="payment-summary-total"
-                        class="text-end"
-                    >
-                    </td>
-
-                </tr>
-
-            </tfoot>
-
-        </table>
-
-    </div>
-
-
-    <hr class="my-5">
-
-
-    <h2>
-        Payment reports
-    </h2>
-
-
-    <div class="list-group">
-
-        <a
-            href="#"
-            class="list-group-item list-group-item-action"
-        >
-            Full payment list
-        </a>
-
-
-        <a
-            href="#"
-            class="list-group-item list-group-item-action"
-        >
-            District payment list
-        </a>
-
-    </div>
+    <a
+        id="sw-payment-list-link"
+        href="#"
+        class="list-group-item list-group-item-action"
+    >
+        SW payment list
+    </a>
 
 </div>
 
 
-<script
-    type="module"
-    src="/js/reports-dashboard.js"
-></script>
+<script>
+
+    const currentYear =
+        new Date().getFullYear();
+
+
+    const reportLinks = {
+
+        "full-payment-list-link":
+            "",
+
+        "ne-payment-list-link":
+            "NE",
+
+        "nw-payment-list-link":
+            "NW",
+
+        "se-payment-list-link":
+            "SE",
+
+        "sw-payment-list-link":
+            "SW"
+
+    };
+
+
+    Object.entries(
+        reportLinks
+    ).forEach(
+        ([id, district]) => {
+
+            const link =
+                document.getElementById(
+                    id
+                );
+
+
+            if (!link) {
+
+                return;
+            }
+
+
+            let href =
+                `/reportspayments/?calendar_year=${currentYear}`;
+
+
+            if (district) {
+
+                href +=
+                    `&district=${district}`;
+            }
+
+
+            link.href =
+                href;
+        }
+    );
+
+</script>
+
 
 {{ end }}
 

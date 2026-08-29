@@ -1,19 +1,39 @@
 {{ define "main" }}
 
 <main>
-    <h1>Suffolk Guild of Ringers - Membership</h1>
+    <h1>{{ .Title }}</h1>
 
-    <h2>Dashboard</h2>
+    <h2>For the use of authorised officers of the Guild only.  <p>Please logout immediately if you are not authorised to view Suffolk Guild of Ringers records.</h2>
 
-    <ul>
-        <li>
-            <a href="/members/">List, search and edit existing members</a>
-        </li>
+    <div class="list-group">
 
-        <li>
-            <a href="/create-member/">Create a new member</a>
-        </li>
-    </ul>
+        <a
+            href="/membersdashboard"
+
+            class="list-group-item list-group-item-action"
+        >
+            Manage membership lists 
+        </a>
+
+        <a
+            href="/paymentsdashboard"
+
+            class="list-group-item list-group-item-action"
+        >
+            Manage subscription and gift payments 
+        </a>
+
+        <a
+            href="/reportsdashboard"
+
+            class="list-group-item list-group-item-action"
+        >
+            View Guild wide and District specific reports
+        </a>
+
+
+
+
 
 
 

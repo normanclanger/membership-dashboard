@@ -1,19 +1,144 @@
 {{ define "main" }}
 
-<main>
-    <h1>Suffolk Guild of Ringers - Payments</h1>
+<div class="container mt-4">
 
-    <h2>Dashboard</h2>
-
-    <ul>
-        <li>
-            <a href="/payments/imports/">Manage payment imports</a>
-        </li>
-
-    </ul>
+    <h1>
+        {{ .Title }}
+    </h1>
 
 
+    <div
+        id="reports-dashboard-error"
+        class="alert alert-danger"
+        hidden
+    >
+    </div>
 
-</main>
+
+    <div class="row mb-4">
+
+        <div class="col-md-4">
+
+            <label
+                for="payment-year"
+                class="form-label"
+            >
+                Payment year
+            </label>
+
+            <select
+                id="payment-year"
+                class="form-select"
+            >
+            </select>
+
+        </div>
+
+    </div>
+
+
+    <h2>
+        Payment summary by district
+    </h2>
+
+
+    <div class="table-responsive">
+
+        <table
+            class="table table-striped"
+        >
+
+            <thead>
+
+                <tr>
+
+                    <th>
+                        District
+                    </th>
+
+                    <th class="text-end">
+                        Subscriptions
+                    </th>
+
+                    <th class="text-end">
+                        Gifts
+                    </th>
+
+                    <th class="text-end">
+                        Total
+                    </th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody
+                id="payment-summary-body"
+            >
+            </tbody>
+
+
+            <tfoot>
+
+                <tr
+                    class="fw-bold"
+                >
+
+                    <td>
+                        Total
+                    </td>
+
+                    <td
+                        id="payment-summary-subscriptions-total"
+                        class="text-end"
+                    >
+                    </td>
+
+                    <td
+                        id="payment-summary-gifts-total"
+                        class="text-end"
+                    >
+                    </td>
+
+                    <td
+                        id="payment-summary-total"
+                        class="text-end"
+                    >
+                    </td>
+
+                </tr>
+
+            </tfoot>
+
+        </table>
+
+    </div>
+
+
+
+
+    <div class="list-group">
+
+        <a
+            href="/payments/imports/"
+
+            class="list-group-item list-group-item-action"
+        >
+            Manage payment imports 
+        </a>
+
+
+
+    </div>
+
+</div>
+
+
+<script
+    type="module"
+    src="/js/reports-dashboard.js"
+></script>
 
 {{ end }}
+
