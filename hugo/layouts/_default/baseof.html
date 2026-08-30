@@ -47,6 +47,18 @@
 
     {{ partial "footer.html" . }}
 
+    <script>
+        window.API_MODE = "{{ getenv "HUGO_API_MODE" | default "PRODUCTION" }}";
+
+        window.API_BASE_URL =
+            window.API_MODE === "LOCAL"
+                ? "http://127.0.0.1:5000"
+                : "https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com";
+
+        console.log("API_MODE:", window.API_MODE);
+        console.log("API_BASE_URL:", window.API_BASE_URL);
+</script>
+
     <script
         type="module"
         src="/js/site.js"
@@ -55,3 +67,5 @@
 </body>
 
 </html>
+
+

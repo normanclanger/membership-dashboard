@@ -47,8 +47,8 @@ async function loadMembers() {
     const search = searchInput.value.trim();
 
     const url = search
-        ? `https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com/api/members?search=${encodeURIComponent(search)}`
-        : "https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com/api/members";
+        ? `${window.API_BASE_URL}/api/members?search=${encodeURIComponent(search)}`
+        : `${window.API_BASE_URL}/api/members`;
 
     try {
         const user = window.currentUser;
