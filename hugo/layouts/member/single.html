@@ -83,7 +83,7 @@ document.addEventListener(
 
         const response =
             await fetch(
-                `https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com/api/members/${memberId}`,
+                `${window.API_BASE_URL}/api/members/${memberId}`,
                 {
                     headers: {
                         Authorization:

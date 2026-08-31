@@ -12,8 +12,10 @@ source .venv/bin/activate
 source ~/.membership-dashboard/supabase.env
 
 export HUGO_API_MODE=LOCAL
+export API_MODE=LOCAL
 
 echo "API_MODE: $API_MODE"
+echo "HUGO_API_MODE: $HUGO_API_MODE"
 echo
 echo "Starting Flask DR proxy..."
 echo

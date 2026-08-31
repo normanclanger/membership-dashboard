@@ -1,7 +1,6 @@
 import { requireLogin } from "/js/auth.js";
 
-const API_BASE =
-"https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com/api";
+const API_BASE = `${window.API_BASE_URL}/api`;
 
 let parsedLines = [];
 
