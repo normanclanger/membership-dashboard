@@ -12,6 +12,7 @@ source .venv/bin/activate
 source ~/.membership-dashboard/supabase.env
 
 export HUGO_API_MODE=REMOTE
+export API_MODE=REMOTE
 
 echo "API_MODE: $API_MODE"
 echo "API calls will use the remote API Gateway."

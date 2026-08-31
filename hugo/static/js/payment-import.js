@@ -127,8 +127,7 @@ document.addEventListener(
             }
 
 
-            const apiBase =
-                "https://ns6zyyxykl.execute-api.eu-north-1.amazonaws.com";
+            const apiBase = `${window.API_BASE_URL}`;
 
 
             /*
