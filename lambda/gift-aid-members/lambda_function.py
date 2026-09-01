@@ -8,6 +8,31 @@ ALLOWED_WRITE_GROUPS = {
     "MembershipAdmin",
 }
 
+def get_user_groups(event):
+    claims = (
+        event.get("requestContext", {})
+        .get("authorizer", {})
+        .get("jwt", {})
+        .get("claims", {})
+    )
+
+    groups = claims.get("cognito:groups", "")
+
+    if not groups:
+        return set()
+
+    groups = groups.strip("[]")
+
+    if not groups:
+        return set()
+
+    return {
+        group.strip().strip("'\"")
+        for group in groups.split(",")
+        if group.strip()
+    }
+
+
 def can_write(event):
     groups = get_user_groups(event)
 
