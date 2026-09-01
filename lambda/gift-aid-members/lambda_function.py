@@ -2,6 +2,19 @@ from database import get_connection
 from responses import success, bad_request, not_found, conflict
 
 
+ALLOWED_WRITE_GROUPS = {
+    "PaymentAdmin",
+    "ApplicationAdmin",
+    "MembershipAdmin",
+}
+
+def can_write(event):
+    groups = get_user_groups(event)
+
+    return bool(
+        groups.intersection(ALLOWED_WRITE_GROUPS)
+    )
+
 def lambda_handler(event, context):
 
     route = event.get("routeKey")
@@ -126,6 +139,11 @@ def lambda_handler(event, context):
             # =====================================================
 
             if route == "POST /api/gift-aid":
+            
+                if not can_write(event):
+                    return forbidden({
+                        "error": "Write access required"
+                    })
 
                 body = event.get("body")
 
@@ -267,6 +285,12 @@ def lambda_handler(event, context):
             # =====================================================
 
             if route == "DELETE /api/gift-aid/{id}":
+            
+                if not can_write(event):
+                    return forbidden({
+                        "error": "Write access required"
+                    })
+
 
                 path_parameters = (
                     event.get("pathParameters") or {}
