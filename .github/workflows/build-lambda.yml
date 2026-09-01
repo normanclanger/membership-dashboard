@@ -10,6 +10,7 @@ on:
       - 'lambda/payments-api-payments/**'
       - 'lambda/payments-api-import/**'
       - 'lambda/payment-reports/**'
+      - 'lambda/gift-aid-members/**'
       - '.github/workflows/build-lambda.yml'
 
 permissions:
@@ -133,7 +134,7 @@ jobs:
       # Build payment-reports
       # ---------------------------------------------------------
 
-      - name: Build member-lookups Lambda package
+      - name: Build payment-reports Lambda package
         run: |
           cd lambda/payment-reports
           rm -rf package
@@ -153,6 +154,32 @@ jobs:
         run: |
           cd lambda/payment-reports/package
           zip -r ../lambda.zip .
+
+      # ---------------------------------------------------------
+      # Build gift-aid-members
+      # ---------------------------------------------------------
+
+      - name: Build gift-aid-members Lambda package
+        run: |
+          cd lambda/gift-aid-members
+          rm -rf package
+          mkdir package
+
+          pip install \
+            --platform manylinux2014_x86_64 \
+            --target package \
+            --implementation cp \
+            --python-version 3.13 \
+            --only-binary=:all: \
+            -r requirements.txt
+
+          cp lambda_function.py database.py responses.py package/
+
+      - name: Create gift-aid-members deployment ZIP
+        run: |
+          cd lambda/gift-aid-members/package
+          zip -r ../lambda.zip .
+
 
 
 
@@ -215,4 +242,14 @@ jobs:
           aws lambda update-function-code \
             --function-name payment-reports \
             --zip-file fileb://lambda/payment-reports/lambda.zip
+
+      # ---------------------------------------------------------
+      # Deploy gift-aid-members Lambda
+      # ---------------------------------------------------------
+
+      - name: Deploy gift-aid-members Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name gift-aid-members \
+            --zip-file fileb://lambda/gift-aid-members/lambda.zip
 
