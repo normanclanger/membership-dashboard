@@ -8,6 +8,7 @@ ALLOWED_WRITE_GROUPS = {
     "MembershipAdmin",
 }
 
+
 def get_user_groups(event):
     claims = (
         event.get("requestContext", {})
@@ -40,6 +41,7 @@ def can_write(event):
         groups.intersection(ALLOWED_WRITE_GROUPS)
     )
 
+
 def lambda_handler(event, context):
 
     route = event.get("routeKey")
@@ -53,6 +55,7 @@ def lambda_handler(event, context):
             # GET /api/gift-aid
             #
             # Query by member_id OR gift_aid_reference
+            # If neither is supplied, return all relationships.
             # =====================================================
 
             if route == "GET /api/gift-aid":
@@ -69,14 +72,6 @@ def lambda_handler(event, context):
                         "error": (
                             "Specify either member_id or "
                             "gift_aid_reference, not both"
-                        )
-                    })
-
-                if not member_id and not gift_aid_reference:
-                    return bad_request({
-                        "error": (
-                            "member_id or gift_aid_reference "
-                            "is required"
                         )
                     })
 
@@ -110,7 +105,7 @@ def lambda_handler(event, context):
                         (member_id,)
                     )
 
-                else:
+                elif gift_aid_reference:
 
                     try:
                         gift_aid_reference = int(
@@ -142,6 +137,30 @@ def lambda_handler(event, context):
                         (gift_aid_reference,)
                     )
 
+                else:
+
+                    cur.execute(
+                        """
+                        SELECT
+                            ga.id,
+                            ga.member_id,
+                            m.membership_number,
+                            m.first_name,
+                            m.surname,
+                            t.tower_name,
+                            ga.gift_aid_reference
+                        FROM gift_aid_members ga
+                        JOIN members m
+                            ON ga.member_id = m.id
+                        LEFT JOIN towers t
+                            ON m.tower_id = t.id
+                        ORDER BY
+                            ga.gift_aid_reference,
+                            m.surname,
+                            m.first_name;
+                        """
+                    )
+
                 rows = cur.fetchall()
 
                 return success({
@@ -164,7 +183,7 @@ def lambda_handler(event, context):
             # =====================================================
 
             if route == "POST /api/gift-aid":
-            
+
                 if not can_write(event):
                     return forbidden({
                         "error": "Write access required"
@@ -310,12 +329,11 @@ def lambda_handler(event, context):
             # =====================================================
 
             if route == "DELETE /api/gift-aid/{id}":
-            
+
                 if not can_write(event):
                     return forbidden({
                         "error": "Write access required"
                     })
-
 
                 path_parameters = (
                     event.get("pathParameters") or {}
