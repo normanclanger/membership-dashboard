@@ -36,6 +36,8 @@ def get_user_groups(event):
 
 def can_write(event):
     groups = get_user_groups(event)
+    
+    print("Gift Aid user groups:", groups)
 
     return bool(
         groups.intersection(ALLOWED_WRITE_GROUPS)
