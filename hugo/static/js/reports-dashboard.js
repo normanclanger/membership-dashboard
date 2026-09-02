@@ -127,7 +127,7 @@ async function loadSummary() {
 
         const response =
             await fetch(
-                `${API_BASE_URL}/api/reports/payments/summary?year=${year}`,
+                `${API_BASE}/api/reports/payments/summary?year=${year}`,
                 {
                     headers: {
                         Authorization:

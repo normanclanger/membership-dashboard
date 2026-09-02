@@ -1,0 +1,75 @@
+{{ define "main" }}
+
+<div class="container">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Gift Aid reference search</h1>
+
+        <a href="/gift-aid/new/" class="btn btn-success">
+            Add Gift Aid relationship
+        </a>
+    </div>
+
+
+    <!-- =====================================================
+         Search by Gift Aid reference
+         ===================================================== -->
+
+    <div class="card mb-4">
+
+        <div class="card-body">
+
+            <h2 class="card-title h4">
+                Search by Gift Aid reference
+            </h2>
+
+            <div class="row align-items-end">
+
+                <div class="col-md-6">
+
+                    <label
+                        for="gift-aid-reference-search"
+                        class="form-label">
+                        Gift Aid reference
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="gift-aid-reference-search"
+                        placeholder="Enter Gift Aid reference..."
+                        autocomplete="off">
+
+                </div>
+
+                <div class="col-md-auto">
+
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        id="gift-aid-reference-search-button">
+                        Search
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div
+                id="gift-aid-reference-results"
+                class="mt-4">
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script
+    type="module"
+    src="/js/gift-aid.js"
+></script>
+
+{{ end }}

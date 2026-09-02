@@ -1,0 +1,71 @@
+{{ define "main" }}
+
+<div class="container">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Member Gift Aid Search</h1>
+
+        <a href="/gift-aid/new/" class="btn btn-success">
+            Add Gift Aid relationship
+        </a>
+    </div>
+
+
+
+
+    <!-- =====================================================
+         Search by member
+         ===================================================== -->
+
+    <div class="card mb-4">
+
+        <div class="card-body">
+
+            <h2 class="card-title h4">
+                Search by member
+            </h2>
+
+            <div class="row align-items-end">
+
+                <div class="col-md-6">
+
+                    <label
+                        for="gift-aid-member-search"
+                        class="form-label">
+                        Membership number or name
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="gift-aid-member-search"
+                        placeholder="Search by membership number, first name or surname..."
+                        autocomplete="off">
+
+                    <div
+                        id="gift-aid-member-results"
+                        class="list-group mt-2"
+                        hidden>
+                    </div>
+
+                </div>
+
+
+            </div>
+
+            <div
+                id="gift-aid-member-details"
+                class="mt-4">
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script
+    type="module"
+    src="/js/gift-aid.js"
+></script>
+{{ end }}

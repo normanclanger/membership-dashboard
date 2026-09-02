@@ -1,0 +1,106 @@
+{{ define "main" }}
+
+<div class="container">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <h1>Add Gift Aid relationship</h1>
+
+        <a
+            href="/gift-aid/member/"
+            class="btn btn-secondary">
+            Back to Gift Aid
+        </a>
+
+    </div>
+
+
+    <div class="card">
+
+        <div class="card-body">
+
+            <h2 class="card-title h4">
+                Select member
+            </h2>
+
+
+            <div class="mb-4">
+
+                <label
+                    for="gift-aid-new-member-search"
+                    class="form-label">
+                    Membership number or name
+                </label>
+
+                <input
+                    type="text"
+                    class="form-control"
+                    id="gift-aid-new-member-search"
+                    placeholder="Search by membership number, first name or surname..."
+                    autocomplete="off">
+
+                <div
+                    id="gift-aid-new-member-results"
+                    class="list-group mt-2"
+                    hidden>
+                </div>
+
+            </div>
+
+
+            <div
+                id="gift-aid-new-member-details">
+            </div>
+
+
+            <div
+                id="gift-aid-new-form"
+                class="mt-4"
+                hidden>
+
+                <div class="mb-3">
+
+                    <label
+                        for="gift-aid-new-reference"
+                        class="form-label">
+                        Gift Aid reference
+                    </label>
+
+                    <input
+                        type="number"
+                        class="form-control"
+                        id="gift-aid-new-reference"
+                        placeholder="Enter Gift Aid reference..."
+                        min="1">
+
+                </div>
+
+
+                <button
+                    type="button"
+                    class="btn btn-success"
+                    id="gift-aid-new-submit">
+                    Add Gift Aid relationship
+                </button>
+
+            </div>
+
+
+            <div
+                id="gift-aid-new-message"
+                class="mt-4">
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script
+    type="module"
+    src="/js/gift-aid-new.js"
+></script>
+
+{{ end }}
