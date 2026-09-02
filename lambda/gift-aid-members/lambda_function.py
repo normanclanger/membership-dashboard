@@ -1,5 +1,11 @@
 from database import get_connection
-from responses import success, bad_request, not_found, conflict, forbidden
+from responses import (
+    success,
+    bad_request,
+    not_found,
+    conflict,
+    forbidden
+)
 
 
 ALLOWED_WRITE_GROUPS = {
@@ -10,6 +16,7 @@ ALLOWED_WRITE_GROUPS = {
 
 
 def get_user_groups(event):
+
     claims = (
         event.get("requestContext", {})
         .get("authorizer", {})
@@ -35,12 +42,18 @@ def get_user_groups(event):
 
 
 def can_write(event):
+
     groups = get_user_groups(event)
-    
-    print("Gift Aid user groups:", groups)
+
+    print(
+        "Gift Aid user groups:",
+        groups
+    )
 
     return bool(
-        groups.intersection(ALLOWED_WRITE_GROUPS)
+        groups.intersection(
+            ALLOWED_WRITE_GROUPS
+        )
     )
 
 
@@ -51,40 +64,58 @@ def lambda_handler(event, context):
     conn = get_connection()
 
     try:
+
         with conn.cursor() as cur:
 
-            # =====================================================
-            # GET /api/gift-aid
-            #
-            # Query by member_id OR gift_aid_reference
-            # If neither is supplied, return all relationships.
-            # =====================================================
+            # =================================================
+            # GET Gift Aid relationships
+            # =================================================
 
             if route == "GET /api/gift-aid":
 
-                params = event.get("queryStringParameters") or {}
+                params = (
+                    event.get(
+                        "queryStringParameters"
+                    ) or {}
+                )
 
-                member_id = params.get("member_id")
+                member_id = params.get(
+                    "member_id"
+                )
+
                 gift_aid_reference = params.get(
                     "gift_aid_reference"
                 )
 
-                if member_id and gift_aid_reference:
+                if (
+                    member_id
+                    and gift_aid_reference
+                ):
+
                     return bad_request({
                         "error": (
-                            "Specify either member_id or "
-                            "gift_aid_reference, not both"
+                            "Specify either member_id "
+                            "or gift_aid_reference, "
+                            "not both"
                         )
                     })
+
 
                 if member_id:
 
                     try:
-                        member_id = int(member_id)
+
+                        member_id = int(
+                            member_id
+                        )
+
                     except ValueError:
+
                         return bad_request({
-                            "error": "Invalid member_id"
+                            "error":
+                                "Invalid member_id"
                         })
+
 
                     cur.execute(
                         """
@@ -95,28 +126,36 @@ def lambda_handler(event, context):
                             m.first_name,
                             m.surname,
                             t.tower_name,
-                            ga.gift_aid_reference
+                            ga.gift_aid_reference,
+                            ga.valid_until
                         FROM gift_aid_members ga
                         JOIN members m
                             ON ga.member_id = m.id
                         LEFT JOIN towers t
                             ON m.tower_id = t.id
                         WHERE ga.member_id = %s
-                        ORDER BY ga.gift_aid_reference DESC;
+                        ORDER BY
+                            ga.gift_aid_reference DESC;
                         """,
                         (member_id,)
                     )
 
+
                 elif gift_aid_reference:
 
                     try:
+
                         gift_aid_reference = int(
                             gift_aid_reference
                         )
+
                     except ValueError:
+
                         return bad_request({
-                            "error": "Invalid gift_aid_reference"
+                            "error":
+                                "Invalid gift_aid_reference"
                         })
+
 
                     cur.execute(
                         """
@@ -127,17 +166,21 @@ def lambda_handler(event, context):
                             m.first_name,
                             m.surname,
                             t.tower_name,
-                            ga.gift_aid_reference
+                            ga.gift_aid_reference,
+                            ga.valid_until
                         FROM gift_aid_members ga
                         JOIN members m
                             ON ga.member_id = m.id
                         LEFT JOIN towers t
                             ON m.tower_id = t.id
                         WHERE ga.gift_aid_reference = %s
-                        ORDER BY m.surname, m.first_name;
+                        ORDER BY
+                            m.surname,
+                            m.first_name;
                         """,
                         (gift_aid_reference,)
                     )
+
 
                 else:
 
@@ -150,7 +193,8 @@ def lambda_handler(event, context):
                             m.first_name,
                             m.surname,
                             t.tower_name,
-                            ga.gift_aid_reference
+                            ga.gift_aid_reference,
+                            ga.valid_until
                         FROM gift_aid_members ga
                         JOIN members m
                             ON ga.member_id = m.id
@@ -163,7 +207,9 @@ def lambda_handler(event, context):
                         """
                     )
 
+
                 rows = cur.fetchall()
+
 
                 return success({
                     "relationships": [
@@ -174,79 +220,125 @@ def lambda_handler(event, context):
                             "first_name": row[3],
                             "surname": row[4],
                             "tower": row[5],
-                            "gift_aid_reference": row[6]
+                            "gift_aid_reference": row[6],
+                            "valid_until": (
+                                row[7].isoformat()
+                                if row[7]
+                                else None
+                            )
                         }
                         for row in rows
                     ]
                 })
 
-            # =====================================================
-            # POST /api/gift-aid
-            # =====================================================
+
+            # =================================================
+            # POST Gift Aid relationship
+            # =================================================
 
             if route == "POST /api/gift-aid":
 
                 if not can_write(event):
+
                     return forbidden({
-                        "error": "Write access required"
+                        "error":
+                            "Write access required"
                     })
+
 
                 body = event.get("body")
 
+
                 if not body:
+
                     return bad_request({
-                        "error": "Request body is required"
+                        "error":
+                            "Request body is required"
                     })
+
 
                 import json
 
+
                 try:
+
                     data = json.loads(body)
-                except (TypeError, json.JSONDecodeError):
+
+                except (
+                    TypeError,
+                    json.JSONDecodeError
+                ):
+
                     return bad_request({
-                        "error": "Invalid JSON"
+                        "error":
+                            "Invalid JSON"
                     })
 
-                member_id = data.get("member_id")
+
+                member_id = data.get(
+                    "member_id"
+                )
+
                 gift_aid_reference = data.get(
                     "gift_aid_reference"
                 )
 
+
                 if member_id is None:
+
                     return bad_request({
-                        "error": "member_id is required"
+                        "error":
+                            "member_id is required"
                     })
+
 
                 if gift_aid_reference is None:
+
                     return bad_request({
-                        "error": "gift_aid_reference is required"
+                        "error":
+                            "gift_aid_reference is required"
                     })
 
+
                 try:
-                    member_id = int(member_id)
+
+                    member_id = int(
+                        member_id
+                    )
+
                     gift_aid_reference = int(
                         gift_aid_reference
                     )
-                except (TypeError, ValueError):
+
+                except (
+                    TypeError,
+                    ValueError
+                ):
+
                     return bad_request({
                         "error": (
-                            "member_id and gift_aid_reference "
+                            "member_id and "
+                            "gift_aid_reference "
                             "must be numbers"
                         )
                     })
 
+
                 if member_id <= 0:
+
                     return bad_request({
-                        "error": "Invalid member_id"
+                        "error":
+                            "Invalid member_id"
                     })
+
 
                 if gift_aid_reference <= 0:
+
                     return bad_request({
-                        "error": "Invalid gift_aid_reference"
+                        "error":
+                            "Invalid gift_aid_reference"
                     })
 
-                # Confirm that the member exists and obtain
-                # the information needed by the UI.
 
                 cur.execute(
                     """
@@ -264,14 +356,17 @@ def lambda_handler(event, context):
                     (member_id,)
                 )
 
+
                 member = cur.fetchone()
 
+
                 if member is None:
+
                     return not_found({
-                        "error": "Member not found"
+                        "error":
+                            "Member not found"
                     })
 
-                # Prevent duplicate relationships.
 
                 cur.execute(
                     """
@@ -286,16 +381,22 @@ def lambda_handler(event, context):
                     )
                 )
 
+
                 existing = cur.fetchone()
 
+
                 if existing is not None:
+
                     return conflict({
                         "error": (
-                            "This Gift Aid relationship "
+                            "This Gift Aid "
+                            "relationship "
                             "already exists"
                         ),
-                        "id": existing[0]
+                        "id":
+                            existing[0]
                     })
+
 
                 cur.execute(
                     """
@@ -312,50 +413,169 @@ def lambda_handler(event, context):
                     )
                 )
 
-                relationship_id = cur.fetchone()[0]
+
+                relationship_id = (
+                    cur.fetchone()[0]
+                )
+
 
                 conn.commit()
 
+
                 return success({
-                    "id": relationship_id,
-                    "member_id": member[0],
-                    "membership_number": member[1],
-                    "first_name": member[2],
-                    "surname": member[3],
-                    "tower": member[4],
-                    "gift_aid_reference": gift_aid_reference
+                    "id":
+                        relationship_id,
+
+                    "member_id":
+                        member[0],
+
+                    "membership_number":
+                        member[1],
+
+                    "first_name":
+                        member[2],
+
+                    "surname":
+                        member[3],
+
+                    "tower":
+                        member[4],
+
+                    "gift_aid_reference":
+                        gift_aid_reference,
+
+                    "valid_until":
+                        None
                 })
 
-            # =====================================================
+
+            # =================================================
+            # End Gift Aid status
             # DELETE /api/gift-aid/{id}
-            # =====================================================
+            # =================================================
 
             if route == "DELETE /api/gift-aid/{id}":
 
                 if not can_write(event):
+
                     return forbidden({
-                        "error": "Write access required"
+                        "error":
+                            "Write access required"
                     })
+
 
                 path_parameters = (
-                    event.get("pathParameters") or {}
+                    event.get(
+                        "pathParameters"
+                    ) or {}
                 )
 
-                relationship_id = path_parameters.get("id")
+
+                relationship_id = (
+                    path_parameters.get("id")
+                )
+
 
                 if not relationship_id:
+
                     return bad_request({
-                        "error": "Gift Aid relationship id is required"
+                        "error": (
+                            "Gift Aid relationship "
+                            "id is required"
+                        )
                     })
 
+
                 try:
+
                     relationship_id = int(
                         relationship_id
                     )
+
                 except ValueError:
+
                     return bad_request({
-                        "error": "Invalid Gift Aid relationship id"
+                        "error":
+                            "Invalid Gift Aid relationship id"
                     })
+
+
+                # ---------------------------------------------
+                # Read request body
+                # ---------------------------------------------
+
+                body = event.get("body")
+
+
+                if not body:
+
+                    return bad_request({
+                        "error": (
+                            "Request body is required"
+                        )
+                    })
+
+
+                import json
+
+
+                try:
+
+                    data = json.loads(body)
+
+                except (
+                    TypeError,
+                    json.JSONDecodeError
+                ):
+
+                    return bad_request({
+                        "error":
+                            "Invalid JSON"
+                    })
+
+
+                valid_until = data.get(
+                    "valid_until"
+                )
+
+
+                if not valid_until:
+
+                    return bad_request({
+                        "error":
+                            "valid_until is required"
+                    })
+
+
+                # ---------------------------------------------
+                # Validate date
+                # ---------------------------------------------
+
+                from datetime import date
+
+
+                try:
+
+                    valid_until_date = date.fromisoformat(
+                        valid_until
+                    )
+
+                except (
+                    TypeError,
+                    ValueError
+                ):
+
+                    return bad_request({
+                        "error": (
+                            "valid_until must be a "
+                            "valid date in YYYY-MM-DD format"
+                        )
+                    })
+
+
+                # ---------------------------------------------
+                # Get existing relationship
+                # ---------------------------------------------
 
                 cur.execute(
                     """
@@ -366,7 +586,8 @@ def lambda_handler(event, context):
                         m.first_name,
                         m.surname,
                         t.tower_name,
-                        ga.gift_aid_reference
+                        ga.gift_aid_reference,
+                        ga.valid_until
                     FROM gift_aid_members ga
                     JOIN members m
                         ON ga.member_id = m.id
@@ -377,37 +598,89 @@ def lambda_handler(event, context):
                     (relationship_id,)
                 )
 
+
                 relationship = cur.fetchone()
 
+
                 if relationship is None:
+
                     return not_found({
-                        "error": "Gift Aid relationship not found"
+                        "error":
+                            "Gift Aid relationship not found"
                     })
+
+
+                # ---------------------------------------------
+                # Don't end an already-ended status
+                # ---------------------------------------------
+
+                if relationship[7] is not None:
+
+                    return conflict({
+                        "error": (
+                            "This Gift Aid status "
+                            "has already ended"
+                        ),
+                        "valid_until":
+                            relationship[7].isoformat()
+                    })
+
+
+                # ---------------------------------------------
+                # End Gift Aid status
+                # ---------------------------------------------
 
                 cur.execute(
                     """
-                    DELETE FROM gift_aid_members
+                    UPDATE gift_aid_members
+                    SET valid_until = %s
                     WHERE id = %s;
                     """,
-                    (relationship_id,)
+                    (
+                        valid_until_date,
+                        relationship_id
+                    )
                 )
+
 
                 conn.commit()
 
+
                 return success({
-                    "deleted": True,
-                    "id": relationship[0],
-                    "member_id": relationship[1],
-                    "membership_number": relationship[2],
-                    "first_name": relationship[3],
-                    "surname": relationship[4],
-                    "tower": relationship[5],
-                    "gift_aid_reference": relationship[6]
+                    "ended":
+                        True,
+
+                    "id":
+                        relationship[0],
+
+                    "member_id":
+                        relationship[1],
+
+                    "membership_number":
+                        relationship[2],
+
+                    "first_name":
+                        relationship[3],
+
+                    "surname":
+                        relationship[4],
+
+                    "tower":
+                        relationship[5],
+
+                    "gift_aid_reference":
+                        relationship[6],
+
+                    "valid_until":
+                        valid_until_date.isoformat()
                 })
 
+
             return bad_request({
-                "error": "Unknown route"
+                "error":
+                    "Unknown route"
             })
 
     finally:
+
         conn.close()
