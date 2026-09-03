@@ -5,6 +5,10 @@ from responses import (
 )
 
 
+#**************************************
+# Get payment summary for payments dashboard
+#**************************************
+
 def get_payment_summary(event):
 
     query_parameters = (
@@ -56,6 +60,66 @@ def get_payment_summary(event):
 
                     COALESCE(
                         SUM(
+                            CASE
+                                WHEN EXISTS (
+                                    SELECT 1
+                                    FROM gift_aid_members ga
+                                    WHERE ga.member_id = m.id
+                                      AND (
+                                          ga.valid_until IS NULL
+                                          OR p.payment_date <= ga.valid_until
+                                      )
+                                )
+                                THEN p.subscription_amount
+                                ELSE 0
+                            END
+                        ),
+                        0
+                    ) AS subscriptions_gift_aid_eligible,
+
+                    COALESCE(
+                        SUM(
+                            CASE
+                                WHEN EXISTS (
+                                    SELECT 1
+                                    FROM gift_aid_members ga
+                                    WHERE ga.member_id = m.id
+                                      AND (
+                                          ga.valid_until IS NULL
+                                          OR p.payment_date <= ga.valid_until
+                                      )
+                                )
+                                THEN p.gift_amount
+                                ELSE 0
+                            END
+                        ),
+                        0
+                    ) AS gifts_gift_aid_eligible,
+
+                    COALESCE(
+                        SUM(
+                            CASE
+                                WHEN EXISTS (
+                                    SELECT 1
+                                    FROM gift_aid_members ga
+                                    WHERE ga.member_id = m.id
+                                      AND (
+                                          ga.valid_until IS NULL
+                                          OR p.payment_date <= ga.valid_until
+                                      )
+                                )
+                                THEN (
+                                    p.subscription_amount
+                                    + p.gift_amount
+                                )
+                                ELSE 0
+                            END
+                        ),
+                        0
+                    ) AS total_gift_aid_eligible,
+
+                    COALESCE(
+                        SUM(
                             p.subscription_amount
                             + p.gift_amount
                         ),
@@ -93,6 +157,9 @@ def get_payment_summary(event):
 
         total_subscriptions = 0
         total_gifts = 0
+        total_subscriptions_gift_aid_eligible = 0
+        total_gifts_gift_aid_eligible = 0
+        total_gift_aid_eligible = 0
         total_amount = 0
 
 
@@ -100,17 +167,35 @@ def get_payment_summary(event):
 
             subscriptions = row[1] or 0
             gifts = row[2] or 0
-            total = row[3] or 0
+            subscriptions_gift_aid_eligible = row[3] or 0
+            gifts_gift_aid_eligible = row[4] or 0
+            gift_aid_eligible = row[5] or 0
+            total = row[6] or 0
 
 
             districts.append({
                 "district_code": row[0],
+
                 "subscriptions": str(
                     subscriptions
                 ),
+
                 "gifts": str(
                     gifts
                 ),
+
+                "subscriptions_gift_aid_eligible": str(
+                    subscriptions_gift_aid_eligible
+                ),
+
+                "gifts_gift_aid_eligible": str(
+                    gifts_gift_aid_eligible
+                ),
+
+                "total_gift_aid_eligible": str(
+                    gift_aid_eligible
+                ),
+
                 "total": str(
                     total
                 )
@@ -119,19 +204,45 @@ def get_payment_summary(event):
 
             total_subscriptions += subscriptions
             total_gifts += gifts
+            total_subscriptions_gift_aid_eligible += (
+                subscriptions_gift_aid_eligible
+            )
+            total_gifts_gift_aid_eligible += (
+                gifts_gift_aid_eligible
+            )
+            total_gift_aid_eligible += (
+                gift_aid_eligible
+            )
             total_amount += total
 
 
         return success({
             "year": year,
+
             "districts": districts,
+
             "totals": {
+
                 "subscriptions": str(
                     total_subscriptions
                 ),
+
                 "gifts": str(
                     total_gifts
                 ),
+
+                "subscriptions_gift_aid_eligible": str(
+                    total_subscriptions_gift_aid_eligible
+                ),
+
+                "gifts_gift_aid_eligible": str(
+                    total_gifts_gift_aid_eligible
+                ),
+
+                "total_gift_aid_eligible": str(
+                    total_gift_aid_eligible
+                ),
+
                 "total": str(
                     total_amount
                 )
