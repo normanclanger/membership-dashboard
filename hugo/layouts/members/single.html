@@ -1,6 +1,20 @@
 {{ define "main" }}
 
-<h1>Members</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+
+    <h1>
+        Members
+    </h1>
+
+    <button
+        type="button"
+        class="btn btn-secondary"
+        id="members-download"
+    >
+        Download CSV
+    </button>
+
+</div>
 
 <div class="members-page">
 
@@ -23,6 +37,7 @@
                 <th>First name</th>
                 <th>Surname</th>
                 <th>Tower</th>
+				<th>District</th>
 		<th>Actions</th>
             </tr>
         </thead>
@@ -39,7 +54,12 @@
 
 </div>
 
-<script>
+<script type="module">
+
+import {
+    downloadTableAsCsv
+} from "/js/csv.js";
+
 const searchInput = document.querySelector("#member-search");
 
 async function loadMembers() {
@@ -85,7 +105,10 @@ async function loadMembers() {
                 <td>${member.first_name}</td>
                 <td>${member.surname}</td>
                 <td>
-                    ${member.tower ? `${member.tower.name} (${member.district?.code || "-"})` : "-"}
+                    ${member.tower?.name || "-"}
+                </td>
+                <td>
+                    ${member.district?.code || "-"}
                 </td>
 		<td>
                     <a class="btn btn-primary btn-sm"
@@ -125,6 +148,52 @@ document.addEventListener("authentication-ready", () => {
 });
 
 searchInput.addEventListener("search", loadMembers);
+
+const downloadButton =
+    document.querySelector(
+        "#members-download"
+    );
+
+
+if (downloadButton) {
+
+    downloadButton.addEventListener(
+        "click",
+        () => {
+
+            const table =
+                document.querySelector(
+                    "#members"
+                );
+
+
+            try {
+
+                downloadTableAsCsv(
+                    table,
+                    "members.csv",
+                    {
+                        excludeColumns: [
+                            "Actions"
+                        ]
+                    }
+                );
+
+            } catch (err) {
+
+                console.error(
+                    "Members CSV export error:",
+                    err
+                );
+
+                window.alert(
+                    err.message ||
+                    "Unable to download members."
+                );
+            }
+        }
+    );
+}
 
 </script>
 

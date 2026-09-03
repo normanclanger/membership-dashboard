@@ -2,6 +2,10 @@ import {
     requireLogin
 } from "/js/auth.js";
 
+import {
+    downloadTableAsCsv
+} from "/js/csv.js";
+
 const ALLOWED_GROUPS = [
     "MembershipAdmin",
     "ApplicationAdmin",
@@ -228,6 +232,9 @@ function displayGiftAidRelationships(
         document.createElement(
             "table"
         );
+		
+    table.id =
+        "gift-aid-reference-table";
 
     table.className =
         "table table-striped table-hover";
@@ -1485,6 +1492,62 @@ if (referenceButton) {
     referenceButton.addEventListener(
         "click",
         searchByGiftAidReference
+    );
+}
+
+const referenceDownloadButton =
+    document.querySelector(
+        "#gift-aid-reference-download"
+    );
+
+
+if (referenceDownloadButton) {
+
+    referenceDownloadButton.addEventListener(
+        "click",
+        () => {
+
+            const table =
+                document.querySelector(
+                    "#gift-aid-reference-table"
+                );
+
+
+            if (!table) {
+
+                window.alert(
+                    "There is no Gift-Aid data to download."
+                );
+
+                return;
+            }
+
+
+            try {
+
+                downloadTableAsCsv(
+                    table,
+                    "gift-aid-reference.csv",
+                    {
+                        excludeColumns: [
+                            "Actions"
+                        ]
+                    }
+                );
+
+            } catch (err) {
+
+                console.error(
+                    "Gift Aid CSV export error:",
+                    err
+                );
+
+                window.alert(
+                    err.message ||
+                    "Unable to download Gift-Aid data."
+                );
+            }
+        }
     );
 }
 

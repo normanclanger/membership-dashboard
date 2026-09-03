@@ -3,6 +3,9 @@ import {
     requireLogin
 } from "/js/auth.js";
 
+import {
+    downloadTableAsCsv
+} from "/js/csv.js";
 
 const API_BASE = `${window.API_BASE_URL}`;
 
@@ -231,6 +234,12 @@ function getSortValue(
             return (
                 `${payment.surname} ${payment.first_name}`
             ).toLowerCase();
+			
+		case "membership_number":
+
+            return (
+                payment.membership_number || ""
+				).toLowerCase();	
 
 
         case "tower":
@@ -479,7 +488,11 @@ function renderPayments() {
                 </td>
 
                 <td>
-                    ${member}
+                    ${payment.membership_number}
+                </td>
+
+                <td>
+                    ${payment.first_name} ${payment.surname}
                 </td>
 
                 <td>
@@ -490,19 +503,28 @@ function renderPayments() {
                     ${payment.district_code}
                 </td>
 
-                <td class="text-end">
+                <td
+                    class="text-end"
+                    data-csv-value="${Number(payment.subscription_amount).toFixed(2)}"
+                >
                     ${formatCurrency(
                         payment.subscription_amount
                     )}
                 </td>
 
-                <td class="text-end">
+                <td
+                    class="text-end"
+                    data-csv-value="${Number(payment.gift_amount).toFixed(2)}"
+                >
                     ${formatCurrency(
                         payment.gift_amount
                     )}
                 </td>
 
-                <td class="text-end">
+                <td
+                    class="text-end"
+                    data-csv-value="${Number(payment.total).toFixed(2)}"
+                >
                     ${formatCurrency(
                         payment.total
                     )}
@@ -576,7 +598,7 @@ async function loadReport() {
 
 
         let url =
-            `${API_BASE_URL}/api/reports/payments/list?calendar_year=${encodeURIComponent(year)}`;
+            `${API_BASE}/api/reports/payments/list?calendar_year=${encodeURIComponent(year)}`;
 
 
         if (district) {
@@ -701,6 +723,47 @@ loadButton.addEventListener(
     "click",
     loadReport
 );
+
+const downloadButton =
+    document.querySelector(
+        "#payment-report-download"
+    );
+
+
+if (downloadButton) {
+
+    downloadButton.addEventListener(
+        "click",
+        () => {
+
+            const table =
+                document.querySelector(
+                    "#payment-report-table"
+                );
+
+
+            try {
+
+                downloadTableAsCsv(
+                    table,
+                    "payment-report.csv"
+                );
+
+            } catch (err) {
+
+                console.error(
+                    "Payment report CSV export error:",
+                    err
+                );
+
+                window.alert(
+                    err.message ||
+                    "Unable to download payment report."
+                );
+            }
+        }
+    );
+}
 
 
 populateYears();
