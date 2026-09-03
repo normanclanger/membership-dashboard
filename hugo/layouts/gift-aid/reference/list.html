@@ -2,53 +2,176 @@
 
 <div class="container">
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Gift Aid reference search</h1>
+```
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Gift Aid reference search</h1>
 
-        <a href="/gift-aid/new/" class="btn btn-success">
-            Add Gift Aid relationship
-        </a>
+    <a href="/gift-aid/new/" class="btn btn-success">
+        Add Gift Aid relationship
+    </a>
+</div>
+
+
+<!-- =====================================================
+     Search by Gift Aid reference
+     ===================================================== -->
+
+<div class="card mb-4">
+
+    <div class="card-body">
+
+        <h2 class="card-title h4">
+            Search by Gift Aid reference
+        </h2>
+
+        <div class="row align-items-end">
+
+            <div class="col-md-6">
+
+                <label
+                    for="gift-aid-reference-search"
+                    class="form-label">
+                    Gift Aid reference
+                </label>
+
+                <input
+                    type="text"
+                    class="form-control"
+                    id="gift-aid-reference-search"
+                    placeholder="Enter Gift Aid reference..."
+                    autocomplete="off">
+
+            </div>
+
+            <div class="col-md-auto">
+
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    id="gift-aid-reference-search-button">
+                    Search
+                </button>
+
+            </div>
+
+        </div>
+
+        <div
+            id="gift-aid-reference-results"
+            class="mt-4">
+        </div>
+
     </div>
 
+</div>
+```
 
-    <!-- =====================================================
-         Search by Gift Aid reference
-         ===================================================== -->
+</div>
 
-    <div class="card mb-4">
+<!-- =====================================================
+     End Gift-Aid status modal
+     ===================================================== -->
 
-        <div class="card-body">
+<div
+    class="modal fade"
+    id="end-gift-aid-modal"
+    tabindex="-1"
+    aria-labelledby="end-gift-aid-modal-label"
+    aria-hidden="true">
 
-            <h2 class="card-title h4">
-                Search by Gift Aid reference
+```
+<div class="modal-dialog">
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <h2
+                class="modal-title fs-5"
+                id="end-gift-aid-modal-label">
+                End Gift-Aid status
             </h2>
 
-            <div class="row align-items-end">
+            <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close">
+            </button>
 
-                <div class="col-md-6">
+        </div>
+
+        <div class="modal-body">
+
+            <div
+                id="end-gift-aid-member-details"
+                class="mb-3">
+            </div>
+
+            <p>
+                How should this Gift-Aid status be ended?
+            </p>
+
+            <div
+                class="d-grid gap-2"
+                id="end-gift-aid-options">
+
+                <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    id="end-gift-aid-member-only">
+                    This member only
+                </button>
+
+                <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    id="end-gift-aid-entire-form">
+                    Entire Gift-Aid form
+                </button>
+
+            </div>
+
+            <div
+                id="end-gift-aid-form"
+                class="mt-4"
+                hidden>
+
+                <div class="mb-3">
 
                     <label
-                        for="gift-aid-reference-search"
+                        for="end-gift-aid-date"
                         class="form-label">
-                        Gift Aid reference
+                        Gift-Aid status ended
                     </label>
 
                     <input
-                        type="text"
+                        type="date"
                         class="form-control"
-                        id="gift-aid-reference-search"
-                        placeholder="Enter Gift Aid reference..."
-                        autocomplete="off">
+                        id="end-gift-aid-date">
 
                 </div>
 
-                <div class="col-md-auto">
+                <div
+                    id="end-gift-aid-confirmation"
+                    class="alert alert-warning"
+                    hidden>
+                </div>
+
+                <div class="d-flex gap-2">
 
                     <button
                         type="button"
-                        class="btn btn-primary"
-                        id="gift-aid-reference-search-button">
-                        Search
+                        class="btn btn-secondary"
+                        id="end-gift-aid-back">
+                        Back
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn btn-danger"
+                        id="end-gift-aid-confirm">
+                        End Gift-Aid status
                     </button>
 
                 </div>
@@ -56,8 +179,9 @@
             </div>
 
             <div
-                id="gift-aid-reference-results"
-                class="mt-4">
+                id="end-gift-aid-error"
+                class="alert alert-danger mt-3"
+                hidden>
             </div>
 
         </div>
@@ -65,7 +189,9 @@
     </div>
 
 </div>
+```
 
+</div>
 
 <script
     type="module"

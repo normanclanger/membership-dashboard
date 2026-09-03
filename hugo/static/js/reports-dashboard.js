@@ -1,4 +1,3 @@
-
 import {
     requireLogin
 } from "/js/auth.js";
@@ -25,15 +24,36 @@ const subscriptionsTotal =
     );
 
 
+
+
 const giftsTotal =
     document.querySelector(
         "#payment-summary-gifts-total"
     );
 
 
+
 const totalAmount =
     document.querySelector(
         "#payment-summary-total"
+    );
+	
+
+const subscriptionsGiftAidEligibleTotal =
+    document.querySelector(
+        "#payment-summary-gift-aid-subs-total"
+    );
+
+
+const giftsGiftAidEligibleTotal =
+    document.querySelector(
+        "#payment-summary-gift-aid-gifts-total"
+    );
+
+
+const totalGiftAidEligibleTotal =
+    document.querySelector(
+        "#payment-summary-gift-aid-total"
     );
 
 
@@ -106,8 +126,13 @@ async function loadSummary() {
     summaryBody.innerHTML = "";
 
     subscriptionsTotal.textContent = "";
+    subscriptionsGiftAidEligibleTotal.textContent = "";
+
     giftsTotal.textContent = "";
+    giftsGiftAidEligibleTotal.textContent = "";
+
     totalAmount.textContent = "";
+    totalGiftAidEligibleTotal.textContent = "";
 
 
     try {
@@ -172,6 +197,7 @@ async function loadSummary() {
                     )}
                 </td>
 
+
                 <td class="text-end">
                     ${formatCurrency(
                         district.gifts
@@ -181,6 +207,27 @@ async function loadSummary() {
                 <td class="text-end">
                     ${formatCurrency(
                         district.total
+                    )}
+                </td>
+				
+				
+				<td class="text-end">
+                    ${formatCurrency(
+                        district.subscriptions_gift_aid_eligible
+                    )}
+                </td>
+
+                <td class="text-end">
+                    ${formatCurrency(
+                        district.gifts_gift_aid_eligible
+                    )}
+                </td>
+
+
+
+                <td class="text-end">
+                    ${formatCurrency(
+                        district.total_gift_aid_eligible
                     )}
                 </td>
             `;
@@ -198,15 +245,33 @@ async function loadSummary() {
             );
 
 
+        subscriptionsGiftAidEligibleTotal.textContent =
+            formatCurrency(
+                data.totals.subscriptions_gift_aid_eligible
+            );
+
+
         giftsTotal.textContent =
             formatCurrency(
                 data.totals.gifts
             );
 
 
+        giftsGiftAidEligibleTotal.textContent =
+            formatCurrency(
+                data.totals.gifts_gift_aid_eligible
+            );
+
+
         totalAmount.textContent =
             formatCurrency(
                 data.totals.total
+            );
+
+
+        totalGiftAidEligibleTotal.textContent =
+            formatCurrency(
+                data.totals.total_gift_aid_eligible
             );
 
     } catch (err) {
@@ -234,4 +299,3 @@ yearSelect.addEventListener(
 
 
 loadSummary();
-

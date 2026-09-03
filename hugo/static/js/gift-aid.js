@@ -14,11 +14,9 @@ function getGroups(user) {
     const groups =
         user?.profile?.["cognito:groups"];
 
-
     if (!groups) {
         return [];
     }
-
 
     return Array.isArray(groups)
         ? groups
@@ -30,7 +28,6 @@ function userCanEdit(user) {
 
     const groups =
         getGroups(user);
-
 
     return groups.some(group =>
         ALLOWED_GROUPS.includes(group)
@@ -80,6 +77,118 @@ const referenceResults =
         "#gift-aid-reference-results"
     );
 
+
+/* =====================================================
+   End Gift-Aid status modal elements
+   ===================================================== */
+
+const endGiftAidModalElement =
+    document.querySelector(
+        "#end-gift-aid-modal"
+    );
+
+
+const endGiftAidMemberDetails =
+    document.querySelector(
+        "#end-gift-aid-member-details"
+    );
+
+
+const endGiftAidOptions =
+    document.querySelector(
+        "#end-gift-aid-options"
+    );
+
+
+const endGiftAidMemberOnlyButton =
+    document.querySelector(
+        "#end-gift-aid-member-only"
+    );
+
+
+const endGiftAidEntireFormButton =
+    document.querySelector(
+        "#end-gift-aid-entire-form"
+    );
+
+
+const endGiftAidForm =
+    document.querySelector(
+        "#end-gift-aid-form"
+    );
+
+
+const endGiftAidDate =
+    document.querySelector(
+        "#end-gift-aid-date"
+    );
+
+
+const endGiftAidConfirmation =
+    document.querySelector(
+        "#end-gift-aid-confirmation"
+    );
+
+
+const endGiftAidBackButton =
+    document.querySelector(
+        "#end-gift-aid-back"
+    );
+
+
+const endGiftAidConfirmButton =
+    document.querySelector(
+        "#end-gift-aid-confirm"
+    );
+
+
+const endGiftAidError =
+    document.querySelector(
+        "#end-gift-aid-error"
+    );
+
+
+let endGiftAidModal = null;
+let endGiftAidRelationship = null;
+let endGiftAidMode = null;
+let endGiftAidTargetRelationships = [];
+
+
+/* =====================================================
+   Initialise Bootstrap modal
+   ===================================================== */
+
+if (
+    endGiftAidModalElement &&
+    window.bootstrap
+) {
+
+    endGiftAidModal =
+        new bootstrap.Modal(
+            endGiftAidModalElement
+        );
+}
+
+
+/* =====================================================
+   Format a stored date for display
+   ===================================================== */
+
+function formatDate(dateString) {
+
+    if (!dateString) {
+        return "—";
+    }
+
+    const parts =
+        dateString.split("-");
+
+    if (parts.length !== 3) {
+        return dateString;
+    }
+
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
 
 
 /* =====================================================
@@ -135,6 +244,7 @@ function displayGiftAidRelationships(
                 <th>Membership</th>
                 <th>Name</th>
                 <th>Tower</th>
+                <th>Valid until</th>
                 ${canEdit ? "<th>Actions</th>" : ""}
             </tr>
         </thead>
@@ -177,10 +287,19 @@ function displayGiftAidRelationships(
             <td>
                 ${relationship.tower || "—"}
             </td>
+
+            <td>
+                ${formatDate(
+                    relationship.valid_until
+                )}
+            </td>
         `;
 
 
-        if (canEdit) {
+        if (
+            canEdit &&
+            !relationship.valid_until
+        ) {
 
             const actionsCell =
                 document.createElement(
@@ -188,38 +307,52 @@ function displayGiftAidRelationships(
                 );
 
 
-            const deleteButton =
+            const endButton =
                 document.createElement(
                     "button"
                 );
 
 
-            deleteButton.type =
+            endButton.type =
                 "button";
 
 
-            deleteButton.className =
+            endButton.className =
                 "btn btn-sm btn-danger";
 
 
-            deleteButton.textContent =
-                "Delete";
+            endButton.textContent =
+                "End Gift-Aid status";
 
 
-            deleteButton.addEventListener(
+            endButton.addEventListener(
                 "click",
                 () =>
-                    deleteGiftAidRelationship(
-                        relationship.id,
+                    openEndGiftAidModal(
+                        relationship,
                         user
                     )
             );
 
 
             actionsCell.appendChild(
-                deleteButton
+                endButton
             );
 
+
+            row.appendChild(
+                actionsCell
+            );
+
+        } else if (canEdit) {
+
+            const actionsCell =
+                document.createElement(
+                    "td"
+                );
+
+            actionsCell.textContent =
+                "—";
 
             row.appendChild(
                 actionsCell
@@ -298,6 +431,7 @@ function displayMemberGiftAidRelationships(
                 <th>Name</th>
                 <th>Tower</th>
                 <th>Gift Aid reference</th>
+                <th>Valid until</th>
                 ${canEdit ? "<th>Actions</th>" : ""}
             </tr>
         </thead>
@@ -340,10 +474,19 @@ function displayMemberGiftAidRelationships(
             <td>
                 ${relationship.gift_aid_reference}
             </td>
+
+            <td>
+                ${formatDate(
+                    relationship.valid_until
+                )}
+            </td>
         `;
 
 
-        if (canEdit) {
+        if (
+            canEdit &&
+            !relationship.valid_until
+        ) {
 
             const actionsCell =
                 document.createElement(
@@ -351,38 +494,52 @@ function displayMemberGiftAidRelationships(
                 );
 
 
-            const deleteButton =
+            const endButton =
                 document.createElement(
                     "button"
                 );
 
 
-            deleteButton.type =
+            endButton.type =
                 "button";
 
 
-            deleteButton.className =
+            endButton.className =
                 "btn btn-sm btn-danger";
 
 
-            deleteButton.textContent =
-                "Delete";
+            endButton.textContent =
+                "End Gift-Aid status";
 
 
-            deleteButton.addEventListener(
+            endButton.addEventListener(
                 "click",
                 () =>
-                    deleteGiftAidRelationship(
-                        relationship.id,
+                    openEndGiftAidModal(
+                        relationship,
                         user
                     )
             );
 
 
             actionsCell.appendChild(
-                deleteButton
+                endButton
             );
 
+
+            row.appendChild(
+                actionsCell
+            );
+
+        } else if (canEdit) {
+
+            const actionsCell =
+                document.createElement(
+                    "td"
+                );
+
+            actionsCell.textContent =
+                "—";
 
             row.appendChild(
                 actionsCell
@@ -409,33 +566,136 @@ function displayMemberGiftAidRelationships(
 
 
 /* =====================================================
-   Delete Gift Aid relationship
+   Open End Gift-Aid status modal
    ===================================================== */
 
-async function deleteGiftAidRelationship(
-    relationshipId,
+function openEndGiftAidModal(
+    relationship,
     user
 ) {
 
-    const confirmed =
-        window.confirm(
-            "Are you sure you want to delete this Gift Aid relationship?"
+    if (!endGiftAidModal) {
+
+        window.alert(
+            "Unable to open the End Gift-Aid status dialog."
         );
 
-
-    if (!confirmed) {
         return;
     }
 
 
+    endGiftAidRelationship =
+        relationship;
+
+    endGiftAidMode = null;
+
+    endGiftAidTargetRelationships = [];
+
+
+    endGiftAidMemberDetails.innerHTML = `
+        <strong>
+            ${relationship.first_name}
+            ${relationship.surname}
+        </strong>
+        <br>
+        Membership:
+        ${relationship.membership_number}
+        <br>
+        Gift-Aid reference:
+        ${relationship.gift_aid_reference}
+    `;
+
+
+    endGiftAidOptions.hidden =
+        false;
+
+    endGiftAidForm.hidden =
+        true;
+
+    endGiftAidConfirmation.hidden =
+        true;
+
+    endGiftAidConfirmation.textContent =
+        "";
+
+    endGiftAidError.hidden =
+        true;
+
+    endGiftAidError.textContent =
+        "";
+
+    endGiftAidDate.value =
+        "";
+
+
+    endGiftAidEntireFormButton.disabled =
+        false;
+
+
+    endGiftAidModal.show();
+}
+
+
+
+/* =====================================================
+   Select "This member only"
+   ===================================================== */
+
+function selectMemberOnly() {
+
+    endGiftAidMode =
+        "member";
+
+    endGiftAidTargetRelationships = [
+        endGiftAidRelationship
+    ];
+
+    showEndGiftAidDateForm();
+
+}
+
+
+
+/* =====================================================
+   Select "Entire Gift-Aid form"
+   ===================================================== */
+
+async function selectEntireForm() {
+
+    endGiftAidMode =
+        "form";
+
+
+    endGiftAidError.hidden =
+        true;
+
+    endGiftAidError.textContent =
+        "";
+
+
+    endGiftAidEntireFormButton.disabled =
+        true;
+
+
     try {
+
+        const user =
+            await requireLogin();
+
+
+        if (!user) {
+            return;
+        }
+
+
+        const reference =
+            endGiftAidRelationship.gift_aid_reference;
+
 
         const response =
             await fetch(
-                `${API_BASE}/api/gift-aid/${relationshipId}`,
+                `${API_BASE}/api/gift-aid?gift_aid_reference=${encodeURIComponent(reference)}`,
                 {
-                    method: "DELETE",
-
                     headers: {
                         Authorization:
                             `Bearer ${user.access_token}`
@@ -452,92 +712,458 @@ async function deleteGiftAidRelationship(
 
             throw new Error(
                 data.error ||
-                "Unable to delete Gift Aid relationship."
+                "Unable to load the Gift-Aid form relationships."
             );
         }
 
 
-        /*
-         * Refresh the current view.
-         *
-         * Reference page:
-         * reload the current reference or full list.
-         *
-         * Member page:
-         * reload the selected member.
-         */
-
-        if (memberDetails) {
-
-            const selectedMember =
-                memberSearchInput?.dataset.memberId;
+        const relationships =
+            data.relationships || [];
 
 
-            if (selectedMember) {
-
-                await loadMemberGiftAidRelationships(
-                    selectedMember,
-                    user
-                );
-
-            } else {
-
-                await loadAllMemberGiftAidRelationships();
-
-            }
-
-        } else {
-
-            const reference =
-                referenceInput?.value.trim();
+        endGiftAidTargetRelationships =
+            relationships.filter(
+                relationship =>
+                    !relationship.valid_until
+            );
 
 
-            if (reference) {
+        if (
+            !endGiftAidTargetRelationships.some(
+                relationship =>
+                    relationship.id ===
+                    endGiftAidRelationship.id
+            )
+        ) {
 
-                await searchByGiftAidReference();
-
-            } else {
-
-                await loadAllGiftAidRelationships();
-
-            }
+            endGiftAidTargetRelationships.unshift(
+                endGiftAidRelationship
+            );
         }
+
+
+        showEndGiftAidDateForm();
+
 
     } catch (err) {
 
         console.error(
-            "Gift Aid delete error:",
+            "Gift Aid form lookup error:",
             err
         );
 
 
-        const error =
-            document.createElement(
-                "div"
-            );
-
-
-        error.className =
-            "alert alert-danger mt-3";
-
-
-        error.textContent =
+        endGiftAidError.textContent =
             err.message ||
-            "Unable to delete Gift Aid relationship.";
+            "Unable to load the Gift-Aid form relationships.";
+
+        endGiftAidError.hidden =
+            false;
+
+        endGiftAidMode =
+            null;
+
+    } finally {
+
+        endGiftAidEntireFormButton.disabled =
+            false;
+    }
+}
 
 
-        if (memberDetails) {
 
-            memberDetails.prepend(
-                error
+/* =====================================================
+   Show date and confirmation section
+   ===================================================== */
+
+function showEndGiftAidDateForm() {
+
+    endGiftAidOptions.hidden =
+        true;
+
+    endGiftAidForm.hidden =
+        false;
+
+    endGiftAidDate.focus();
+
+
+    const count =
+        endGiftAidTargetRelationships.length;
+
+
+    if (endGiftAidMode === "member") {
+
+        endGiftAidConfirmation.textContent =
+            `This will end Gift-Aid status for ` +
+            `${endGiftAidRelationship.first_name} ` +
+            `${endGiftAidRelationship.surname} only.`;
+
+    } else {
+
+        endGiftAidConfirmation.textContent =
+            `This will end Gift-Aid status for ` +
+            `${count} active member` +
+            `${count === 1 ? "" : "s"} ` +
+            `attached to Gift-Aid reference ` +
+            `${endGiftAidRelationship.gift_aid_reference}.`;
+    }
+
+
+    endGiftAidConfirmation.hidden =
+        false;
+}
+
+
+
+/* =====================================================
+   Return to member/form choice
+   ===================================================== */
+
+function backToEndGiftAidOptions() {
+
+    endGiftAidMode =
+        null;
+
+    endGiftAidTargetRelationships =
+        [];
+
+    endGiftAidForm.hidden =
+        true;
+
+    endGiftAidOptions.hidden =
+        false;
+
+    endGiftAidConfirmation.hidden =
+        true;
+
+    endGiftAidError.hidden =
+        true;
+
+    endGiftAidDate.value =
+        "";
+}
+
+
+
+/* =====================================================
+   End one or more Gift-Aid relationships
+   ===================================================== */
+
+async function confirmEndGiftAid() {
+
+    const validUntil =
+        endGiftAidDate.value;
+
+
+    if (!validUntil) {
+
+        endGiftAidError.textContent =
+            "Please enter the date the Gift-Aid status ended.";
+
+        endGiftAidError.hidden =
+            false;
+
+        return;
+    }
+
+
+    if (
+        !endGiftAidTargetRelationships.length
+    ) {
+
+        endGiftAidError.textContent =
+            "No Gift-Aid relationships were selected.";
+
+        endGiftAidError.hidden =
+            false;
+
+        return;
+    }
+
+
+    endGiftAidError.hidden =
+        true;
+
+    endGiftAidConfirmation.hidden =
+        false;
+
+
+    const confirmationDate =
+        formatDate(validUntil);
+
+
+    if (endGiftAidMode === "member") {
+
+        endGiftAidConfirmation.textContent =
+            `This will end Gift-Aid status for ` +
+            `${endGiftAidRelationship.first_name} ` +
+            `${endGiftAidRelationship.surname} ` +
+            `on ${confirmationDate}.`;
+
+    } else {
+
+        endGiftAidConfirmation.textContent =
+            `This will end Gift-Aid status for ` +
+            `${endGiftAidTargetRelationships.length} active member` +
+            `${endGiftAidTargetRelationships.length === 1 ? "" : "s"} ` +
+            `attached to Gift-Aid reference ` +
+            `${endGiftAidRelationship.gift_aid_reference} ` +
+            `on ${confirmationDate}.`;
+    }
+
+
+    const confirmed =
+        window.confirm(
+            endGiftAidConfirmation.textContent +
+            "\n\nAre you sure?"
+        );
+
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    endGiftAidConfirmButton.disabled =
+        true;
+
+
+    const succeeded = [];
+    const failed = [];
+
+
+    try {
+
+        const user =
+            await requireLogin();
+
+
+        if (!user) {
+            return;
+        }
+
+
+        for (
+            const relationship
+            of endGiftAidTargetRelationships
+        ) {
+
+            try {
+
+                const response =
+                    await fetch(
+                        `${API_BASE}/api/gift-aid/${relationship.id}`,
+                        {
+                            method: "DELETE",
+
+                            headers: {
+                                Authorization:
+                                    `Bearer ${user.access_token}`,
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body: JSON.stringify({
+                                valid_until:
+                                    validUntil
+                            })
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        data.error ||
+                        "Unable to end Gift-Aid status."
+                    );
+                }
+
+
+                succeeded.push(
+                    relationship
+                );
+
+            } catch (err) {
+
+                failed.push({
+                    relationship,
+                    error:
+                        err.message ||
+                        "Unable to end Gift-Aid status."
+                });
+            }
+        }
+
+
+        if (endGiftAidModal) {
+            endGiftAidModal.hide();
+        }
+
+
+        await refreshCurrentGiftAidView(
+            user
+        );
+
+
+        if (failed.length) {
+
+            showGiftAidOperationError(
+                `Gift-Aid status was ended for ` +
+                `${succeeded.length} relationship` +
+                `${succeeded.length === 1 ? "" : "s"}, ` +
+                `but ${failed.length} could not be ended.`
             );
 
-        } else if (referenceResults) {
+        } else {
 
-            referenceResults.prepend(
-                error
+            showGiftAidOperationSuccess(
+                `Gift-Aid status ended successfully for ` +
+                `${succeeded.length} relationship` +
+                `${succeeded.length === 1 ? "" : "s"}.`
             );
         }
+
+
+    } catch (err) {
+
+        console.error(
+            "Gift Aid end status error:",
+            err
+        );
+
+
+        showGiftAidOperationError(
+            err.message ||
+            "Unable to end Gift-Aid status."
+        );
+
+    } finally {
+
+        endGiftAidConfirmButton.disabled =
+            false;
+    }
+}
+
+
+
+/* =====================================================
+   Refresh whichever Gift Aid page is being viewed
+   ===================================================== */
+
+async function refreshCurrentGiftAidView(
+    user
+) {
+
+    if (memberDetails) {
+
+        const selectedMember =
+            memberSearchInput?.dataset.memberId;
+
+
+        if (selectedMember) {
+
+            await loadMemberGiftAidRelationships(
+                selectedMember,
+                user
+            );
+
+        } else {
+
+            await loadAllMemberGiftAidRelationships();
+        }
+
+
+    } else {
+
+        const reference =
+            referenceInput?.value.trim();
+
+
+        if (reference) {
+
+            await searchByGiftAidReference();
+
+        } else {
+
+            await loadAllGiftAidRelationships();
+        }
+    }
+}
+
+
+
+/* =====================================================
+   Show successful operation message
+   ===================================================== */
+
+function showGiftAidOperationSuccess(
+    message
+) {
+
+    const alert =
+        document.createElement(
+            "div"
+        );
+
+    alert.className =
+        "alert alert-success mt-3";
+
+    alert.textContent =
+        message;
+
+
+    if (memberDetails) {
+
+        memberDetails.prepend(
+            alert
+        );
+
+    } else if (referenceResults) {
+
+        referenceResults.prepend(
+            alert
+        );
+    }
+}
+
+
+
+/* =====================================================
+   Show operation error message
+   ===================================================== */
+
+function showGiftAidOperationError(
+    message
+) {
+
+    const alert =
+        document.createElement(
+            "div"
+        );
+
+    alert.className =
+        "alert alert-danger mt-3";
+
+    alert.textContent =
+        message;
+
+
+    if (memberDetails) {
+
+        memberDetails.prepend(
+            alert
+        );
+
+    } else if (referenceResults) {
+
+        referenceResults.prepend(
+            alert
+        );
     }
 }
 
@@ -931,7 +1557,8 @@ async function searchMembers() {
                 </div>
             `;
 
-            memberSearchResults.hidden = false;
+            memberSearchResults.hidden =
+                false;
 
             return;
         }
@@ -948,7 +1575,9 @@ async function searchMembers() {
                 );
 
 
-            item.type = "button";
+            item.type =
+                "button";
+
 
             item.className =
                 "list-group-item list-group-item-action";
@@ -974,7 +1603,8 @@ async function searchMembers() {
         }
 
 
-        memberSearchResults.hidden = false;
+        memberSearchResults.hidden =
+            false;
 
     } catch (err) {
 
@@ -991,7 +1621,8 @@ async function searchMembers() {
             </div>
         `;
 
-        memberSearchResults.hidden = false;
+        memberSearchResults.hidden =
+            false;
     }
 }
 
@@ -1096,6 +1727,47 @@ if (memberSearchInput) {
                     300
                 );
         }
+    );
+}
+
+
+
+/* =====================================================
+   End Gift-Aid modal event handlers
+   ===================================================== */
+
+if (endGiftAidMemberOnlyButton) {
+
+    endGiftAidMemberOnlyButton.addEventListener(
+        "click",
+        selectMemberOnly
+    );
+}
+
+
+if (endGiftAidEntireFormButton) {
+
+    endGiftAidEntireFormButton.addEventListener(
+        "click",
+        selectEntireForm
+    );
+}
+
+
+if (endGiftAidBackButton) {
+
+    endGiftAidBackButton.addEventListener(
+        "click",
+        backToEndGiftAidOptions
+    );
+}
+
+
+if (endGiftAidConfirmButton) {
+
+    endGiftAidConfirmButton.addEventListener(
+        "click",
+        confirmEndGiftAid
     );
 }
 

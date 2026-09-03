@@ -1,61 +1,185 @@
 {{ define "main" }}
 
-<div class="container">
+<div class="container"> 
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Member Gift Aid Search</h1>
+```
+<div class="d-flex justify-content-between align-items-center mb-4"> 
+    <h1>Member Gift Aid Search</h1> 
 
-        <a href="/gift-aid/new/" class="btn btn-success">
-            Add Gift Aid relationship
-        </a>
-    </div>
+    <a href="/gift-aid/new/" class="btn btn-success"> 
+        Add Gift Aid relationship 
+    </a> 
+</div> 
 
 
 
 
-    <!-- =====================================================
-         Search by member
-         ===================================================== -->
+<!-- ===================================================== 
+     Search by member 
+     ===================================================== --> 
 
-    <div class="card mb-4">
+<div class="card mb-4"> 
 
-        <div class="card-body">
+    <div class="card-body"> 
 
-            <h2 class="card-title h4">
-                Search by member
+        <h2 class="card-title h4"> 
+            Search by member 
+        </h2> 
+
+        <div class="row align-items-end"> 
+
+            <div class="col-md-6"> 
+
+                <label 
+                    for="gift-aid-member-search" 
+                    class="form-label"> 
+                    Membership number or name 
+                </label> 
+
+                <input 
+                    type="text" 
+                    class="form-control" 
+                    id="gift-aid-member-search" 
+                    placeholder="Search by membership number, first name or surname..." 
+                    autocomplete="off"> 
+
+                <div 
+                    id="gift-aid-member-results" 
+                    class="list-group mt-2" 
+                    hidden> 
+                </div> 
+
+            </div> 
+
+
+        </div> 
+
+        <div 
+            id="gift-aid-member-details" 
+            class="mt-4"> 
+        </div> 
+
+    </div> 
+
+</div> 
+```
+
+</div> 
+
+<!-- =====================================================
+     End Gift-Aid status modal
+     ===================================================== -->
+
+<div
+    class="modal fade"
+    id="end-gift-aid-modal"
+    tabindex="-1"
+    aria-labelledby="end-gift-aid-modal-label"
+    aria-hidden="true">
+
+```
+<div class="modal-dialog">
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <h2
+                class="modal-title fs-5"
+                id="end-gift-aid-modal-label">
+                End Gift-Aid status
             </h2>
 
-            <div class="row align-items-end">
+            <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close">
+            </button>
 
-                <div class="col-md-6">
+        </div>
 
-                    <label
-                        for="gift-aid-member-search"
-                        class="form-label">
-                        Membership number or name
-                    </label>
+        <div class="modal-body">
 
-                    <input
-                        type="text"
-                        class="form-control"
-                        id="gift-aid-member-search"
-                        placeholder="Search by membership number, first name or surname..."
-                        autocomplete="off">
+            <div
+                id="end-gift-aid-member-details"
+                class="mb-3">
+            </div>
 
-                    <div
-                        id="gift-aid-member-results"
-                        class="list-group mt-2"
-                        hidden>
-                    </div>
+            <p>
+                How should this Gift-Aid status be ended?
+            </p>
 
-                </div>
+            <div
+                class="d-grid gap-2"
+                id="end-gift-aid-options">
 
+                <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    id="end-gift-aid-member-only">
+                    This member only
+                </button>
+
+                <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    id="end-gift-aid-entire-form">
+                    Entire Gift-Aid form
+                </button>
 
             </div>
 
             <div
-                id="gift-aid-member-details"
-                class="mt-4">
+                id="end-gift-aid-form"
+                class="mt-4"
+                hidden>
+
+                <div class="mb-3">
+
+                    <label
+                        for="end-gift-aid-date"
+                        class="form-label">
+                        Gift-Aid status ended
+                    </label>
+
+                    <input
+                        type="date"
+                        class="form-control"
+                        id="end-gift-aid-date">
+
+                </div>
+
+                <div
+                    id="end-gift-aid-confirmation"
+                    class="alert alert-warning"
+                    hidden>
+                </div>
+
+                <div class="d-flex gap-2">
+
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        id="end-gift-aid-back">
+                        Back
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn btn-danger"
+                        id="end-gift-aid-confirm">
+                        End Gift-Aid status
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div
+                id="end-gift-aid-error"
+                class="alert alert-danger mt-3"
+                hidden>
             </div>
 
         </div>
@@ -63,9 +187,13 @@
     </div>
 
 </div>
+```
 
-<script
-    type="module"
-    src="/js/gift-aid.js"
-></script>
+</div>
+
+<script 
+    type="module" 
+    src="/js/gift-aid.js" 
+></script> 
+
 {{ end }}
