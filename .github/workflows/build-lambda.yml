@@ -11,6 +11,7 @@ on:
       - 'lambda/payments-api-import/**'
       - 'lambda/payment-reports/**'
       - 'lambda/gift-aid-members/**'
+      - 'lambda/gift-aid/**'
       - '.github/workflows/build-lambda.yml'
 
 permissions:
@@ -180,6 +181,30 @@ jobs:
           cd lambda/gift-aid-members/package
           zip -r ../lambda.zip .
 
+      # ---------------------------------------------------------
+      # Build gift-aid
+      # ---------------------------------------------------------
+
+      - name: Build gift-aid Lambda package
+        run: |
+          cd lambda/gift-aid
+          rm -rf package
+          mkdir package
+
+          pip install \
+            --platform manylinux2014_x86_64 \
+            --target package \
+            --implementation cp \
+            --python-version 3.13 \
+            --only-binary=:all: \
+            -r requirements.txt
+
+          cp lambda_function.py database.py responses.py package/
+
+      - name: Create gift-aid deployment ZIP
+        run: |
+          cd lambda/gift-aid/package
+          zip -r ../lambda.zip .
 
 
 
@@ -252,4 +277,15 @@ jobs:
           aws lambda update-function-code \
             --function-name gift-aid-members \
             --zip-file fileb://lambda/gift-aid-members/lambda.zip
+
+      # ---------------------------------------------------------
+      # Deploy gift-aid Lambda
+      # ---------------------------------------------------------
+
+      - name: Deploy gift-aid Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name gift-aid \
+            --zip-file fileb://lambda/gift-aid/lambda.zip
+
 
