@@ -372,6 +372,52 @@ def handle_get(event):
                     }
 
             # ----------------------------------------------------
+            # Get current Gift Aid wording
+            # ----------------------------------------------------
+
+            cur.execute("""
+                SELECT
+                    id,
+                    version,
+                    wording,
+                    effective_from,
+                    effective_until
+                FROM gift_aid_wording_versions
+                WHERE effective_from <= CURRENT_DATE
+                  AND (
+                      effective_until IS NULL
+                      OR effective_until >= CURRENT_DATE
+                  )
+                ORDER BY
+                    effective_from DESC,
+                    id DESC
+                LIMIT 1;
+            """)
+
+            wording_row = cur.fetchone()
+
+            if wording_row is None:
+                return not_found({
+                    "error": "No current Gift Aid wording is available"
+                })
+
+            wording = {
+                "wording_version_id": wording_row[0],
+                "version": wording_row[1],
+                "wording": wording_row[2],
+                "effective_from": (
+                    wording_row[3].isoformat()
+                    if wording_row[3]
+                    else None
+                ),
+                "effective_until": (
+                    wording_row[4].isoformat()
+                    if wording_row[4]
+                    else None
+                ),
+            }
+
+            # ----------------------------------------------------
             # Return declaration
             # ----------------------------------------------------
 
@@ -388,6 +434,7 @@ def handle_get(event):
                 },
                 "members": members,
                 "declaration": declaration,
+                "wording": wording,
             })
 
     finally:
