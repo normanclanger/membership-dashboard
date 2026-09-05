@@ -865,11 +865,9 @@ def handle_post(event):
                         gift_aid_reference,
                         valid_until
                     )
-                    VALUES (
-                        %s,
-                        %s,
-                        NULL
-                    )
+                    VALUES (%s, %s, NULL)
+                    ON CONFLICT (member_id, gift_aid_reference)
+                    DO UPDATE SET valid_until = NULL;
                 """, (
                     new_member_id,
                     gift_aid_reference,
