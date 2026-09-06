@@ -21,6 +21,8 @@ VALID_ACTIONS = {
     "AFFIRMED",
     "UPDATED",
     "CANCELLED",
+    "DECLINED",
+    "COVERED_ELSEWHERE",
 }
 
 
@@ -128,8 +130,7 @@ def lambda_handler(event, context):
     print("Gift Aid declaration request:", method, path)
 
     # ------------------------------------------------------------
-    # Confirm that the request came through one of the two
-    # expected API Gateway routes.
+    # Confirm expected API route
     # ------------------------------------------------------------
 
     if path not in {
@@ -141,10 +142,7 @@ def lambda_handler(event, context):
         })
 
     # ------------------------------------------------------------
-    # Public route
-    #
-    # Must use an invitation token.
-    # API Gateway deliberately has no JWT authoriser here.
+    # Public token route
     # ------------------------------------------------------------
 
     if path == PUBLIC_DECLARATION_PATH:
@@ -173,9 +171,6 @@ def lambda_handler(event, context):
 
     # ------------------------------------------------------------
     # Admin route
-    #
-    # API Gateway requires the Cognito JWT authoriser here.
-    # Lambda additionally checks the user's admin group.
     # ------------------------------------------------------------
 
     elif path == ADMIN_DECLARATION_PATH:
@@ -246,7 +241,7 @@ def handle_get(event, path):
         member_id = None
 
     # ------------------------------------------------------------
-    # Authenticated member ID path
+    # Authenticated admin path
     # ------------------------------------------------------------
 
     elif path == ADMIN_DECLARATION_PATH:
@@ -279,19 +274,18 @@ def handle_get(event, path):
             "error": "Invalid Gift Aid declaration route"
         })
 
-    # ------------------------------------------------------------
-    # Database
-    # ------------------------------------------------------------
-
     conn = get_connection()
 
     try:
 
         with conn.cursor() as cur:
 
-            # ----------------------------------------------------
-            # Token path
-            # ----------------------------------------------------
+            invitation_id = None
+            gift_aid_reference = None
+
+            # ====================================================
+            # TOKEN PATH
+            # ====================================================
 
             if path == PUBLIC_DECLARATION_PATH:
 
@@ -333,16 +327,15 @@ def handle_get(event, path):
                         SELECT NOW() > %s;
                     """, (expires_at,))
 
-                    expired = cur.fetchone()[0]
-
-                    if expired:
+                    if cur.fetchone()[0]:
                         return forbidden({
-                            "error": "This invitation has expired"
+                            "error":
+                            "This invitation has expired"
                         })
 
-            # ----------------------------------------------------
-            # Authenticated member ID path
-            # ----------------------------------------------------
+            # ====================================================
+            # ADMIN PATH
+            # ====================================================
 
             else:
 
@@ -361,18 +354,12 @@ def handle_get(event, path):
 
                 relationship = cur.fetchone()
 
-                if relationship is None:
-                    return not_found({
-                        "error":
-                        "No active Gift Aid relationship found"
-                    })
+                if relationship is not None:
+                    gift_aid_reference = relationship[0]
 
-                gift_aid_reference = relationship[0]
-                invitation_id = None
-
-            # ----------------------------------------------------
-            # Confirm the member itself exists
-            # ----------------------------------------------------
+            # ====================================================
+            # MEMBER
+            # ====================================================
 
             cur.execute("""
                 SELECT
@@ -394,52 +381,57 @@ def handle_get(event, path):
                     "error": "Member not found"
                 })
 
-            # ----------------------------------------------------
-            # Get all currently active members on this
-            # Gift Aid reference
+            # ====================================================
+            # CURRENT OPERATIONAL MEMBERS
             #
-            # A new online invitation may have NULL reference.
-            # In that case this simply returns no relationships.
-            # ----------------------------------------------------
+            # This represents the live relationship table.
+            # ====================================================
 
-            cur.execute("""
-                SELECT
-                    ga.member_id,
-                    m.membership_number,
-                    m.first_name,
-                    m.surname,
-                    t.tower_name
-                FROM gift_aid_members ga
-                JOIN members m
-                    ON ga.member_id = m.id
-                LEFT JOIN towers t
-                    ON m.tower_id = t.id
-                WHERE ga.gift_aid_reference = %s
-                  AND (
-                      ga.valid_until IS NULL
-                      OR ga.valid_until >= CURRENT_DATE
-                  )
-                ORDER BY
-                    m.surname,
-                    m.first_name;
-            """, (gift_aid_reference,))
+            members = []
 
-            member_rows = cur.fetchall()
+            if gift_aid_reference is not None:
 
-            members = [
-                {
-                    "member_id": row[0],
-                    "membership_number": row[1],
-                    "first_name": row[2],
-                    "surname": row[3],
-                    "tower": row[4],
-                }
-                for row in member_rows
-            ]
+                cur.execute("""
+                    SELECT
+                        ga.member_id,
+                        m.membership_number,
+                        m.first_name,
+                        m.surname,
+                        t.tower_name
+                    FROM gift_aid_members ga
+                    JOIN members m
+                        ON ga.member_id = m.id
+                    LEFT JOIN towers t
+                        ON m.tower_id = t.id
+                    WHERE ga.gift_aid_reference = %s
+                      AND (
+                          ga.valid_until IS NULL
+                          OR ga.valid_until >= CURRENT_DATE
+                      )
+                    ORDER BY
+                        m.surname,
+                        m.first_name;
+                """, (gift_aid_reference,))
 
-            # ----------------------------------------------------
-            # Get most recent declaration audit record
-            # ----------------------------------------------------
+                member_rows = cur.fetchall()
+
+                members = [
+                    {
+                        "member_id": row[0],
+                        "membership_number": row[1],
+                        "first_name": row[2],
+                        "surname": row[3],
+                        "tower": row[4],
+                    }
+                    for row in member_rows
+                ]
+
+            # ====================================================
+            # MOST RECENT CONFIRMED DECLARATION
+            #
+            # Pending review records must NOT replace the
+            # confirmed declaration shown to the user.
+            # ====================================================
 
             declaration = None
 
@@ -448,16 +440,27 @@ def handle_get(event, path):
                 cur.execute("""
                     SELECT
                         id,
+                        member_id,
+                        gift_aid_reference,
                         action,
                         declaration_method,
+                        declaration_text,
                         declarer_name,
                         declarer_address,
                         email_address,
-                        declaration_date,
+                        affirmed_date,
                         recorded_at,
-                        wording_version_id
+                        ip_address,
+                        user_agent,
+                        invitation_id,
+                        recorded_by,
+                        wording_version_id,
+                        affirmed,
+                        status,
+                        covered_members
                     FROM gift_aid_declaration_audit
                     WHERE gift_aid_reference = %s
+                      AND status = 'CONFIRMED'
                     ORDER BY recorded_at DESC, id DESC
                     LIMIT 1;
                 """, (gift_aid_reference,))
@@ -468,27 +471,41 @@ def handle_get(event, path):
 
                     declaration = {
                         "id": audit_row[0],
-                        "action": audit_row[1],
-                        "declaration_method": audit_row[2],
-                        "declarer_name": audit_row[3],
-                        "declarer_address": audit_row[4],
-                        "email_address": audit_row[5],
-                        "declaration_date": (
-                            audit_row[6].isoformat()
-                            if audit_row[6]
+                        "member_id": audit_row[1],
+                        "gift_aid_reference": audit_row[2],
+                        "action": audit_row[3],
+                        "declaration_method": audit_row[4],
+                        "declaration_text": audit_row[5],
+                        "declarer_name": audit_row[6],
+                        "declarer_address": audit_row[7],
+                        "email_address": audit_row[8],
+                        "affirmed_date": (
+                            audit_row[9].isoformat()
+                            if audit_row[9]
                             else None
                         ),
                         "recorded_at": (
-                            audit_row[7].isoformat()
-                            if audit_row[7]
+                            audit_row[10].isoformat()
+                            if audit_row[10]
                             else None
                         ),
-                        "wording_version_id": audit_row[8],
+                        "ip_address": (
+                            str(audit_row[11])
+                            if audit_row[11]
+                            else None
+                        ),
+                        "user_agent": audit_row[12],
+                        "invitation_id": audit_row[13],
+                        "recorded_by": audit_row[14],
+                        "wording_version_id": audit_row[15],
+                        "affirmed": audit_row[16],
+                        "status": audit_row[17],
+                        "covered_members": audit_row[18],
                     }
 
-            # ----------------------------------------------------
-            # Get current Gift Aid wording
-            # ----------------------------------------------------
+            # ====================================================
+            # CURRENT WORDING
+            # ====================================================
 
             cur.execute("""
                 SELECT
@@ -533,14 +550,21 @@ def handle_get(event, path):
                 ),
             }
 
-            # ----------------------------------------------------
-            # Return declaration
-            # ----------------------------------------------------
+            # ====================================================
+            # RETURN
+            # ====================================================
 
             return success({
-                "gift_aid_reference": gift_aid_reference,
-                "member_id": member_id,
-                "invitation_id": invitation_id,
+
+                "gift_aid_reference":
+                    gift_aid_reference,
+
+                "member_id":
+                    member_id,
+
+                "invitation_id":
+                    invitation_id,
+
                 "member": {
                     "member_id": member[0],
                     "membership_number": member[1],
@@ -548,9 +572,23 @@ def handle_get(event, path):
                     "surname": member[3],
                     "tower": member[4],
                 },
-                "members": members,
-                "declaration": declaration,
-                "wording": wording,
+
+                # Live operational relationships
+                "members":
+                    members,
+
+                # Historical snapshot contained in the declaration
+                "covered_members": (
+                    declaration["covered_members"]
+                    if declaration is not None
+                    else []
+                ),
+
+                "declaration":
+                    declaration,
+
+                "wording":
+                    wording,
             })
 
     finally:
@@ -567,7 +605,7 @@ def handle_post(event, path):
     params = event.get("queryStringParameters") or {}
 
     # ------------------------------------------------------------
-    # Determine access method from the API route
+    # Determine access method
     # ------------------------------------------------------------
 
     if path == PUBLIC_DECLARATION_PATH:
@@ -656,7 +694,7 @@ def handle_post(event, path):
     declarer_name = body.get("declarer_name")
     declarer_address = body.get("declarer_address")
     email_address = body.get("email_address")
-    declaration_date = body.get("declaration_date")
+    affirmed_date = body.get("affirmed_date")
     wording_version_id = body.get("wording_version_id")
     declaration_text = body.get("declaration_text")
 
@@ -670,9 +708,9 @@ def handle_post(event, path):
             "error": "declarer_address is required"
         })
 
-    if not declaration_date:
+    if not email_address:
         return bad_request({
-            "error": "declaration_date is required"
+            "error": "email_address is required"
         })
 
     if not wording_version_id:
@@ -686,15 +724,42 @@ def handle_post(event, path):
         })
 
     # ------------------------------------------------------------
+    # Affirmed date
+    #
+    # For manual paper declarations, the admin can supply the
+    # handwritten date. If it is unavailable, use today's date.
+    #
+    # For ONLINE declarations the client should normally supply
+    # the date on which the member affirmed.
+    # ------------------------------------------------------------
+
+    if not affirmed_date:
+
+        cur_date = None
+
+        conn_temp = get_connection()
+
+        try:
+            with conn_temp.cursor() as cur:
+                cur.execute("SELECT CURRENT_DATE")
+                cur_date = cur.fetchone()[0].isoformat()
+        finally:
+            conn_temp.close()
+
+        affirmed_date = cur_date
+
+    # ------------------------------------------------------------
     # Members submitted by the form
+    #
+    # These are currently member IDs. The Hugo UI will eventually
+    # collect names / numbers and the authenticated admin side
+    # will resolve them.
     # ------------------------------------------------------------
 
     submitted_members = body.get("members")
 
     if submitted_members is None:
-        return bad_request({
-            "error": "members is required"
-        })
+        submitted_members = []
 
     if not isinstance(submitted_members, list):
         return bad_request({
@@ -720,12 +785,43 @@ def handle_post(event, path):
             "error": "Invalid member ID in members"
         })
 
-    # A cancellation does not need submitted members.
-    if action != "CANCELLED" and not submitted_members:
+    # ------------------------------------------------------------
+    # COVERED_ELSEWHERE
+    #
+    # No online relationship is created.
+    # The supplied person's description is retained separately.
+    # ------------------------------------------------------------
 
-        return bad_request({
-            "error": "At least one member is required"
-        })
+    covered_elsewhere = body.get("covered_elsewhere")
+
+    if action == "COVERED_ELSEWHERE":
+
+        if not covered_elsewhere:
+            return bad_request({
+                "error":
+                "covered_elsewhere is required"
+            })
+
+        if not isinstance(covered_elsewhere, str):
+            return bad_request({
+                "error":
+                "covered_elsewhere must be text"
+            })
+
+    # ------------------------------------------------------------
+    # DECLINED does not require covered members.
+    # AFFIRMED / UPDATED require at least one member only if the
+    # declaration actually has covered members.
+    #
+    # The declarer themselves does not need to be submitted because
+    # member_id is always the person completing the declaration.
+    # ------------------------------------------------------------
+
+    if action in {"AFFIRMED", "UPDATED"} and not submitted_members:
+
+        # It is legitimate for the declarer to have no dependents.
+        # Therefore an empty list is permitted.
+        pass
 
     # ------------------------------------------------------------
     # Database
@@ -742,6 +838,7 @@ def handle_post(event, path):
             existing_members = set()
             declaration_exists = False
             reference_supplied = False
+            existing_declaration = None
 
             # ====================================================
             # TOKEN
@@ -789,16 +886,10 @@ def handle_post(event, path):
                     )
 
                     if cur.fetchone()[0]:
-
                         return forbidden({
                             "error":
                             "This invitation has expired"
                         })
-
-                # If the invitation already has a reference,
-                # this is an UPDATE/CANCEL.
-                #
-                # If it has no reference, this is a CREATE.
 
             # ====================================================
             # ADMIN
@@ -813,7 +904,6 @@ def handle_post(event, path):
                 if requested_reference is not None:
 
                     try:
-
                         requested_reference = int(
                             requested_reference
                         )
@@ -837,8 +927,6 @@ def handle_post(event, path):
 
                 else:
 
-                    # If no reference was supplied, find the
-                    # member's current active Gift Aid relationship.
                     cur.execute("""
                         SELECT
                             gift_aid_reference
@@ -852,30 +940,48 @@ def handle_post(event, path):
                         LIMIT 1
                     """, (
                         member_id,
-                        declaration_date,
+                        affirmed_date,
                     ))
 
                     relationship = cur.fetchone()
 
                     if relationship is not None:
-
                         gift_aid_reference = relationship[0]
 
             # ====================================================
-            # DETERMINE WHETHER REFERENCE ALREADY HAS A DECLARATION
+            # FIND EXISTING CONFIRMED DECLARATION
             # ====================================================
 
             if gift_aid_reference is not None:
 
                 cur.execute("""
-                    SELECT 1
+                    SELECT
+                        id,
+                        member_id,
+                        gift_aid_reference,
+                        action,
+                        declaration_method,
+                        declaration_text,
+                        declarer_name,
+                        declarer_address,
+                        email_address,
+                        affirmed_date,
+                        recorded_at,
+                        wording_version_id,
+                        affirmed,
+                        status,
+                        covered_members
                     FROM gift_aid_declaration_audit
                     WHERE gift_aid_reference = %s
+                      AND status = 'CONFIRMED'
+                    ORDER BY recorded_at DESC, id DESC
                     LIMIT 1
                 """, (gift_aid_reference,))
 
+                existing_declaration = cur.fetchone()
+
                 declaration_exists = (
-                    cur.fetchone() is not None
+                    existing_declaration is not None
                 )
 
             # ====================================================
@@ -887,8 +993,6 @@ def handle_post(event, path):
                 and gift_aid_reference is None
             ):
 
-                # New online declaration gets a system-generated
-                # reference from the 900000+ sequence.
                 cur.execute("""
                     SELECT nextval(
                         'gift_aid_reference_seq'
@@ -908,8 +1012,6 @@ def handle_post(event, path):
                 and not declaration_exists
             ):
 
-                # A new manual declaration MUST have the reference
-                # from the paper form.
                 if not reference_supplied:
 
                     return bad_request({
@@ -917,7 +1019,6 @@ def handle_post(event, path):
                         "gift_aid_reference is required for a new paper declaration"
                     })
 
-                # New declarations must be affirmed.
                 if action != "AFFIRMED":
 
                     return bad_request({
@@ -926,7 +1027,7 @@ def handle_post(event, path):
                     })
 
             # ====================================================
-            # CONFIRM DECLARER MEMBER EXISTS
+            # CONFIRM MEMBER EXISTS
             # ====================================================
 
             cur.execute("""
@@ -942,7 +1043,7 @@ def handle_post(event, path):
                 })
 
             # ====================================================
-            # GET CURRENT ACTIVE MEMBERS
+            # CURRENT MEMBERS
             # ====================================================
 
             if declaration_exists:
@@ -958,7 +1059,7 @@ def handle_post(event, path):
                       )
                 """, (
                     gift_aid_reference,
-                    declaration_date,
+                    affirmed_date,
                 ))
 
                 existing_members = {
@@ -969,46 +1070,75 @@ def handle_post(event, path):
             # ====================================================
             # VALIDATE SUBMITTED MEMBER IDS
             #
-            # The declarer may nominate ANY existing Guild member.
+            # Only an authenticated admin can have IDs resolved
+            # against the members database.
+            #
+            # Tokenised users cannot search the members database,
+            # so their submitted member IDs are treated as
+            # unverified and cause pending review.
             # ====================================================
+
+            invalid_members = set()
 
             if submitted_members:
 
-                cur.execute("""
-                    SELECT id
-                    FROM members
-                    WHERE id = ANY(%s)
-                """, (
-                    list(submitted_members),
-                ))
+                if is_token_request:
 
-                valid_member_ids = {
-                    row[0]
-                    for row in cur.fetchall()
-                }
+                    # Token users cannot prove these IDs correspond
+                    # to the intended people.
+                    pending_member_changes = True
 
-                invalid_members = (
-                    submitted_members
-                    - valid_member_ids
-                )
+                else:
 
-                if invalid_members:
+                    cur.execute("""
+                        SELECT id
+                        FROM members
+                        WHERE id = ANY(%s)
+                    """, (
+                        list(submitted_members),
+                    ))
 
-                    return bad_request({
-                        "error":
-                        "One or more members do not exist",
-                        "invalid_members":
-                        sorted(invalid_members),
-                    })
+                    valid_member_ids = {
+                        row[0]
+                        for row in cur.fetchall()
+                    }
+
+                    invalid_members = (
+                        submitted_members
+                        - valid_member_ids
+                    )
+
+                    if invalid_members:
+
+                        return bad_request({
+                            "error":
+                            "One or more members do not exist",
+                            "invalid_members":
+                            sorted(invalid_members),
+                        })
+
+                    pending_member_changes = False
+
+            else:
+
+                pending_member_changes = False
 
             # ====================================================
-            # DETERMINE ADDED / REMOVED MEMBERS
+            # DETERMINE MEMBER CHANGES
             # ====================================================
 
             if action == "CANCELLED":
 
                 added_members = set()
                 removed_members = existing_members
+
+            elif action in {
+                "DECLINED",
+                "COVERED_ELSEWHERE",
+            }:
+
+                added_members = set()
+                removed_members = set()
 
             else:
 
@@ -1022,53 +1152,61 @@ def handle_post(event, path):
                     - submitted_members
                 )
 
-            # ====================================================
-            # ADD MEMBERS
-            # ====================================================
-
-            for new_member_id in added_members:
-
-                cur.execute("""
-                    INSERT INTO gift_aid_members (
-                        member_id,
-                        gift_aid_reference,
-                        valid_until
-                    )
-                    VALUES (%s, %s, NULL)
-                    ON CONFLICT (member_id, gift_aid_reference)
-                    DO UPDATE SET valid_until = NULL;
-                """, (
-                    new_member_id,
-                    gift_aid_reference,
-                ))
+            member_changes = bool(
+                added_members or removed_members
+            )
 
             # ====================================================
-            # END REMOVED MEMBERS
+            # DETERMINE STATUS
             # ====================================================
 
-            for removed_member_id in removed_members:
+            if action == "COVERED_ELSEWHERE":
 
-                cur.execute("""
-                    UPDATE gift_aid_members
-                    SET valid_until = %s
-                    WHERE gift_aid_reference = %s
-                      AND member_id = %s
-                      AND (
-                          valid_until IS NULL
-                          OR valid_until >= %s
-                      )
-                """, (
-                    declaration_date,
-                    gift_aid_reference,
-                    removed_member_id,
-                    declaration_date,
-                ))
+                audit_status = "PENDING_REVIEW"
+
+            elif (
+                is_token_request
+                and member_changes
+            ):
+
+                audit_status = "PENDING_REVIEW"
+
+            else:
+
+                audit_status = "CONFIRMED"
+
+            # ====================================================
+            # DETERMINE AFFIRMED FLAG
+            # ====================================================
+
+            if action in {
+                "DECLINED",
+                "COVERED_ELSEWHERE",
+            }:
+
+                audit_affirmed = False
+
+            elif audit_status == "PENDING_REVIEW":
+
+                audit_affirmed = False
+
+            else:
+
+                audit_affirmed = True
 
             # ====================================================
             # DETERMINE AUDIT ACTION
             # ====================================================
 
-            if not declaration_exists:
+            if action == "DECLINED":
+
+                audit_action = "DECLINED"
+
+            elif action == "COVERED_ELSEWHERE":
+
+                audit_action = "COVERED_ELSEWHERE"
+
+            elif not declaration_exists:
 
                 audit_action = "AFFIRMED"
 
@@ -1081,16 +1219,150 @@ def handle_post(event, path):
                 audit_action = "UPDATED"
 
             # ====================================================
-            # RECORD WHO SUBMITTED IT
+            # COVERED MEMBERS SNAPSHOT
+            #
+            # For a pending token update, retain the user's
+            # complete proposed list.
+            #
+            # For a normal confirmed declaration, this is also
+            # the complete declaration snapshot.
+            # ====================================================
+
+            covered_members = []
+
+            if action not in {
+                "DECLINED",
+                "COVERED_ELSEWHERE",
+                "CANCELLED",
+            }:
+
+                if submitted_members:
+
+                    cur.execute("""
+                        SELECT
+                            id,
+                            membership_number,
+                            first_name,
+                            surname
+                        FROM members
+                        WHERE id = ANY(%s)
+                        ORDER BY surname, first_name
+                    """, (
+                        list(submitted_members),
+                    ))
+
+                    covered_members = [
+                        {
+                            "member_id": row[0],
+                            "membership_number": row[1],
+                            "first_name": row[2],
+                            "surname": row[3],
+                        }
+                        for row in cur.fetchall()
+                    ]
+
+                else:
+
+                    covered_members = []
+
+            elif action == "CANCELLED":
+
+                if existing_members:
+
+                    cur.execute("""
+                        SELECT
+                            id,
+                            membership_number,
+                            first_name,
+                            surname
+                        FROM members
+                        WHERE id = ANY(%s)
+                        ORDER BY surname, first_name
+                    """, (
+                        list(existing_members),
+                    ))
+
+                    covered_members = [
+                        {
+                            "member_id": row[0],
+                            "membership_number": row[1],
+                            "first_name": row[2],
+                            "surname": row[3],
+                        }
+                        for row in cur.fetchall()
+                    ]
+
+            # ====================================================
+            # UPDATE OPERATIONAL RELATIONSHIPS
+            #
+            # Only confirmed declarations alter gift_aid_members.
+            # Pending token submissions do not.
+            # ====================================================
+
+            if audit_status == "CONFIRMED":
+
+                # ------------------------------------------------
+                # ADD
+                # ------------------------------------------------
+
+                for new_member_id in added_members:
+
+                    cur.execute("""
+                        INSERT INTO gift_aid_members (
+                            member_id,
+                            gift_aid_reference,
+                            valid_until
+                        )
+                        VALUES (%s, %s, NULL)
+                        ON CONFLICT (member_id, gift_aid_reference)
+                        DO UPDATE SET valid_until = NULL;
+                    """, (
+                        new_member_id,
+                        gift_aid_reference,
+                    ))
+
+                # ------------------------------------------------
+                # REMOVE
+                # ------------------------------------------------
+
+                for removed_member_id in removed_members:
+
+                    cur.execute("""
+                        UPDATE gift_aid_members
+                        SET valid_until = %s
+                        WHERE gift_aid_reference = %s
+                          AND member_id = %s
+                          AND (
+                              valid_until IS NULL
+                              OR valid_until >= %s
+                          )
+                    """, (
+                        affirmed_date,
+                        gift_aid_reference,
+                        removed_member_id,
+                        affirmed_date,
+                    ))
+
+            # ====================================================
+            # RECORD WHO SUBMITTED
             # ====================================================
 
             if is_token_request:
 
-                # For an unauthenticated invitation submission,
-                # recorded_by is the declarer's member ID.
                 recorded_by = str(member_id)
 
-            # For admin, recorded_by was already set to Cognito sub.
+            # ====================================================
+            # RECORD COVERED ELSEWHERE IN SNAPSHOT
+            # ====================================================
+
+            if action == "COVERED_ELSEWHERE":
+
+                covered_members = [
+                    {
+                        "description":
+                            covered_elsewhere
+                    }
+                ]
 
             # ====================================================
             # AUDIT RECORD
@@ -1106,14 +1378,20 @@ def handle_post(event, path):
                     declarer_name,
                     declarer_address,
                     email_address,
-                    declaration_date,
+                    affirmed_date,
                     ip_address,
                     user_agent,
                     invitation_id,
                     recorded_by,
-                    wording_version_id
+                    wording_version_id,
+                    affirmed,
+                    status,
+                    covered_members
                 )
                 VALUES (
+                    %s,
+                    %s,
+                    %s,
                     %s,
                     %s,
                     %s,
@@ -1139,18 +1417,27 @@ def handle_post(event, path):
                 declarer_name,
                 declarer_address,
                 email_address,
-                declaration_date,
+                affirmed_date,
                 get_source_ip(event),
                 get_user_agent(event),
                 invitation_id,
                 recorded_by,
                 wording_version_id,
+                audit_affirmed,
+                audit_status,
+                json.dumps(covered_members),
             ))
 
             audit_id = cur.fetchone()[0]
 
             # ====================================================
             # COMPLETE ONLINE INVITATION
+            #
+            # Only consume the invitation when the submission is
+            # actually accepted as the response.
+            #
+            # A pending review still counts as an answered
+            # invitation, so it is consumed here too.
             # ====================================================
 
             if invitation_id:
@@ -1173,26 +1460,40 @@ def handle_post(event, path):
             conn.commit()
 
             return created({
+
                 "gift_aid_reference":
                     gift_aid_reference,
+
                 "member_id":
                     member_id,
+
                 "invitation_id":
                     invitation_id,
+
                 "audit_id":
                     audit_id,
+
                 "action":
                     audit_action,
+
                 "declaration_method":
                     declaration_method,
-                "members":
-                    sorted(
-                        submitted_members
-                        if action != "CANCELLED"
-                        else existing_members
-                    ),
+
+                "affirmed":
+                    audit_affirmed,
+
+                "status":
+                    audit_status,
+
+                "affirmed_date":
+                    affirmed_date,
+
+                "covered_members":
+                    covered_members,
+
                 "added_members":
                     sorted(added_members),
+
                 "removed_members":
                     sorted(removed_members),
             })
