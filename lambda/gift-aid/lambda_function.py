@@ -212,10 +212,10 @@ def lambda_handler(event, context):
     # ------------------------------------------------------------
 
     if method == "GET":
-        return handle_get(event)
+        return handle_get(event, path)
 
     if method == "POST":
-        return handle_post(event)
+        return handle_post(event, path)
 
     return bad_request({
         "error": "Method not supported"
@@ -226,40 +226,41 @@ def lambda_handler(event, context):
 # GET
 # =================================================================
 
-def handle_get(event):
+def handle_get(event, path):
 
     params = event.get("queryStringParameters") or {}
 
-    token = params.get("token")
-    member_id = params.get("member_id")
-
     # ------------------------------------------------------------
-    # Access path validation
+    # Public token path
     # ------------------------------------------------------------
 
-    if token and member_id:
-        return bad_request({
-            "error": "Specify either token or member_id, not both"
-        })
+    if path == PUBLIC_DECLARATION_PATH:
 
-    if not token and not member_id:
-        return bad_request({
-            "error": "Either token or member_id is required"
-        })
+        token = params.get("token")
+
+        if not token:
+            return bad_request({
+                "error": "token is required"
+            })
+
+        member_id = None
 
     # ------------------------------------------------------------
-    # Member ID access requires administration
+    # Authenticated member ID path
     # ------------------------------------------------------------
 
-    if member_id:
+    elif path == ADMIN_DECLARATION_PATH:
 
-        if not can_administer(event):
-            return forbidden({
-                "error": "Gift Aid administration access required"
+        member_id_param = params.get("member_id")
+
+        if not member_id_param:
+            return bad_request({
+                "error": "member_id is required"
             })
 
         try:
-            member_id = int(member_id)
+            member_id = int(member_id_param)
+
         except (TypeError, ValueError):
             return bad_request({
                 "error": "Invalid member_id"
@@ -269,6 +270,14 @@ def handle_get(event):
             return bad_request({
                 "error": "Invalid member_id"
             })
+
+        token = None
+
+    else:
+
+        return bad_request({
+            "error": "Invalid Gift Aid declaration route"
+        })
 
     # ------------------------------------------------------------
     # Database
@@ -284,7 +293,7 @@ def handle_get(event):
             # Token path
             # ----------------------------------------------------
 
-            if token:
+            if path == PUBLIC_DECLARATION_PATH:
 
                 token_hash = hash_token(token)
 
@@ -545,6 +554,7 @@ def handle_get(event):
             })
 
     finally:
+
         conn.close()
 
 
@@ -552,25 +562,68 @@ def handle_get(event):
 # POST
 # =================================================================
 
-def handle_post(event):
+def handle_post(event, path):
 
     params = event.get("queryStringParameters") or {}
 
-    token = params.get("token")
-    member_id_param = params.get("member_id")
-
     # ------------------------------------------------------------
-    # Access path validation
+    # Determine access method from the API route
     # ------------------------------------------------------------
 
-    if token and member_id_param:
-        return bad_request({
-            "error": "Specify either token or member_id, not both"
-        })
+    if path == PUBLIC_DECLARATION_PATH:
 
-    if not token and not member_id_param:
+        token = params.get("token")
+
+        if not token:
+            return bad_request({
+                "error": "token is required"
+            })
+
+        member_id = None
+        declaration_method = "ONLINE"
+        recorded_by = None
+        is_token_request = True
+
+    elif path == ADMIN_DECLARATION_PATH:
+
+        member_id_param = params.get("member_id")
+
+        if not member_id_param:
+            return bad_request({
+                "error": "member_id is required"
+            })
+
+        try:
+            member_id = int(member_id_param)
+
+        except (TypeError, ValueError):
+            return bad_request({
+                "error": "Invalid member_id"
+            })
+
+        if member_id <= 0:
+            return bad_request({
+                "error": "Invalid member_id"
+            })
+
+        declaration_method = "MANUAL"
+
+        cognito_sub = get_cognito_sub(event)
+
+        if not cognito_sub:
+            return forbidden({
+                "error":
+                "Authenticated user identity not available"
+            })
+
+        recorded_by = cognito_sub
+        token = None
+        is_token_request = False
+
+    else:
+
         return bad_request({
-            "error": "Either token or member_id is required"
+            "error": "Invalid Gift Aid declaration route"
         })
 
     # ------------------------------------------------------------
@@ -595,49 +648,6 @@ def handle_post(event):
         return bad_request({
             "error": "Invalid action"
         })
-
-    # ------------------------------------------------------------
-    # Determine access method
-    # ------------------------------------------------------------
-
-    is_token_request = bool(token)
-
-    if member_id_param:
-
-        if not can_administer(event):
-            return forbidden({
-                "error": "Gift Aid administration access required"
-            })
-
-        try:
-            member_id = int(member_id_param)
-        except (TypeError, ValueError):
-            return bad_request({
-                "error": "Invalid member_id"
-            })
-
-        if member_id <= 0:
-            return bad_request({
-                "error": "Invalid member_id"
-            })
-
-        declaration_method = "MANUAL"
-
-        cognito_sub = get_cognito_sub(event)
-
-        if not cognito_sub:
-            return forbidden({
-                "error":
-                "Authenticated user identity not available"
-            })
-
-        recorded_by = cognito_sub
-
-    else:
-
-        member_id = None
-        declaration_method = "ONLINE"
-        recorded_by = None
 
     # ------------------------------------------------------------
     # Declaration data
