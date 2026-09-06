@@ -117,6 +117,150 @@ def get_request_path(event):
     )
 
 
+# =================================================================
+# Helpers
+# =================================================================
+
+def covered_member_ids(covered_members):
+
+    """
+    Extract authoritative member IDs from a covered_members
+    audit snapshot.
+
+    Historical entries which do not contain a member_id cannot
+    be resolved automatically and therefore do not contribute
+    an ID to the comparison.
+    """
+
+    if not isinstance(covered_members, list):
+        return set()
+
+    result = set()
+
+    for member in covered_members:
+
+        if not isinstance(member, dict):
+            continue
+
+        member_id = member.get("member_id")
+
+        if member_id is None:
+            continue
+
+        try:
+            member_id = int(member_id)
+
+        except (TypeError, ValueError):
+            continue
+
+        if member_id > 0:
+            result.add(member_id)
+
+    return result
+
+
+def declaration_relationships_consistent(
+    declaration,
+    existing_members,
+):
+    """
+    Compare the latest confirmed declaration snapshot with
+    the current operational gift_aid_members state.
+
+    Returns:
+        (True, None) when the state is consistent.
+        (False, reason) when it requires review.
+
+    Cancellation and declined declarations intentionally have
+    no live Gift Aid relationships.
+
+    COVERED_ELSEWHERE also has no automatically created
+    relationship.
+    """
+
+    if declaration is None:
+        return True, None
+
+    action = declaration[3]
+    covered_members = declaration[14]
+
+    # ------------------------------------------------------------
+    # These confirmed states should have no live relationships.
+    # ------------------------------------------------------------
+
+    if action in {
+        "CANCELLED",
+        "DECLINED",
+        "COVERED_ELSEWHERE",
+    }:
+
+        if existing_members:
+
+            return (
+                False,
+                (
+                    "Confirmed declaration action "
+                    f"{action} has active Gift Aid relationships"
+                ),
+            )
+
+        return True, None
+
+    # ------------------------------------------------------------
+    # Normal affirmed/updated declaration.
+    # ------------------------------------------------------------
+
+    snapshot_ids = covered_member_ids(
+        covered_members
+    )
+
+    live_ids = set(existing_members)
+
+    # ------------------------------------------------------------
+    # If the historical snapshot contains unresolved people,
+    # we cannot safely prove that the operational state matches.
+    # ------------------------------------------------------------
+
+    unresolved_snapshot_entries = 0
+
+    if isinstance(covered_members, list):
+
+        for member in covered_members:
+
+            if not isinstance(member, dict):
+                unresolved_snapshot_entries += 1
+                continue
+
+            if member.get("member_id") is None:
+                unresolved_snapshot_entries += 1
+
+    if unresolved_snapshot_entries:
+
+        return (
+            False,
+            (
+                "Confirmed declaration contains covered members "
+                "which cannot be resolved to member IDs"
+            ),
+        )
+
+    if snapshot_ids != live_ids:
+
+        return (
+            False,
+            (
+                "Confirmed declaration covered-member snapshot "
+                "does not match current Gift Aid relationships"
+            ),
+        )
+
+    return True, None
+
+
+# =================================================================
+# Main handler
+# =================================================================
+
 def lambda_handler(event, context):
 
     method = (
@@ -127,7 +271,11 @@ def lambda_handler(event, context):
 
     path = get_request_path(event)
 
-    print("Gift Aid declaration request:", method, path)
+    print(
+        "Gift Aid declaration request:",
+        method,
+        path
+    )
 
     # ------------------------------------------------------------
     # Confirm expected API route
@@ -138,7 +286,8 @@ def lambda_handler(event, context):
         ADMIN_DECLARATION_PATH,
     }:
         return bad_request({
-            "error": "Invalid Gift Aid declaration route"
+            "error":
+            "Invalid Gift Aid declaration route"
         })
 
     # ------------------------------------------------------------
@@ -149,10 +298,13 @@ def lambda_handler(event, context):
 
         if method not in {"GET", "POST"}:
             return bad_request({
-                "error": "Method not supported"
+                "error":
+                "Method not supported"
             })
 
-        params = event.get("queryStringParameters") or {}
+        params = event.get(
+            "queryStringParameters"
+        ) or {}
 
         token = params.get("token")
         member_id = params.get("member_id")
@@ -173,14 +325,17 @@ def lambda_handler(event, context):
     # Admin route
     # ------------------------------------------------------------
 
-    elif path == ADMIN_DECLARATION_PATH:
+    else:
 
         if method not in {"GET", "POST"}:
             return bad_request({
-                "error": "Method not supported"
+                "error":
+                "Method not supported"
             })
 
-        params = event.get("queryStringParameters") or {}
+        params = event.get(
+            "queryStringParameters"
+        ) or {}
 
         token = params.get("token")
         member_id = params.get("member_id")
@@ -199,7 +354,8 @@ def lambda_handler(event, context):
 
         if not can_administer(event):
             return forbidden({
-                "error": "Gift Aid administration access required"
+                "error":
+                "Gift Aid administration access required"
             })
 
     # ------------------------------------------------------------
@@ -213,7 +369,8 @@ def lambda_handler(event, context):
         return handle_post(event, path)
 
     return bad_request({
-        "error": "Method not supported"
+        "error":
+        "Method not supported"
     })
 
 
@@ -223,7 +380,9 @@ def lambda_handler(event, context):
 
 def handle_get(event, path):
 
-    params = event.get("queryStringParameters") or {}
+    params = event.get(
+        "queryStringParameters"
+    ) or {}
 
     # ------------------------------------------------------------
     # Public token path
@@ -235,35 +394,44 @@ def handle_get(event, path):
 
         if not token:
             return bad_request({
-                "error": "token is required"
+                "error":
+                "token is required"
             })
 
         member_id = None
 
     # ------------------------------------------------------------
-    # Authenticated admin path
+    # Admin path
     # ------------------------------------------------------------
 
     elif path == ADMIN_DECLARATION_PATH:
 
-        member_id_param = params.get("member_id")
+        member_id_param = params.get(
+            "member_id"
+        )
 
         if not member_id_param:
             return bad_request({
-                "error": "member_id is required"
+                "error":
+                "member_id is required"
             })
 
         try:
-            member_id = int(member_id_param)
+            member_id = int(
+                member_id_param
+            )
 
         except (TypeError, ValueError):
+
             return bad_request({
-                "error": "Invalid member_id"
+                "error":
+                "Invalid member_id"
             })
 
         if member_id <= 0:
             return bad_request({
-                "error": "Invalid member_id"
+                "error":
+                "Invalid member_id"
             })
 
         token = None
@@ -271,7 +439,8 @@ def handle_get(event, path):
     else:
 
         return bad_request({
-            "error": "Invalid Gift Aid declaration route"
+            "error":
+            "Invalid Gift Aid declaration route"
         })
 
     conn = get_connection()
@@ -284,7 +453,7 @@ def handle_get(event, path):
             gift_aid_reference = None
 
             # ====================================================
-            # TOKEN PATH
+            # TOKEN
             # ====================================================
 
             if path == PUBLIC_DECLARATION_PATH:
@@ -306,7 +475,8 @@ def handle_get(event, path):
 
                 if invitation is None:
                     return not_found({
-                        "error": "Invalid invitation token"
+                        "error":
+                        "Invalid invitation token"
                     })
 
                 invitation_id = invitation[0]
@@ -328,13 +498,14 @@ def handle_get(event, path):
                     """, (expires_at,))
 
                     if cur.fetchone()[0]:
+
                         return forbidden({
                             "error":
                             "This invitation has expired"
                         })
 
             # ====================================================
-            # ADMIN PATH
+            # ADMIN
             # ====================================================
 
             else:
@@ -348,7 +519,8 @@ def handle_get(event, path):
                           ga.valid_until IS NULL
                           OR ga.valid_until >= CURRENT_DATE
                       )
-                    ORDER BY ga.gift_aid_reference DESC
+                    ORDER BY
+                        ga.gift_aid_reference DESC
                     LIMIT 1;
                 """, (member_id,))
 
@@ -378,13 +550,12 @@ def handle_get(event, path):
 
             if member is None:
                 return not_found({
-                    "error": "Member not found"
+                    "error":
+                    "Member not found"
                 })
 
             # ====================================================
-            # CURRENT OPERATIONAL MEMBERS
-            #
-            # This represents the live relationship table.
+            # LIVE OPERATIONAL MEMBERS
             # ====================================================
 
             members = []
@@ -428,9 +599,6 @@ def handle_get(event, path):
 
             # ====================================================
             # MOST RECENT CONFIRMED DECLARATION
-            #
-            # Pending review records must NOT replace the
-            # confirmed declaration shown to the user.
             # ====================================================
 
             declaration = None
@@ -461,7 +629,9 @@ def handle_get(event, path):
                     FROM gift_aid_declaration_audit
                     WHERE gift_aid_reference = %s
                       AND status = 'CONFIRMED'
-                    ORDER BY recorded_at DESC, id DESC
+                    ORDER BY
+                        recorded_at DESC,
+                        id DESC
                     LIMIT 1;
                 """, (gift_aid_reference,))
 
@@ -573,11 +743,9 @@ def handle_get(event, path):
                     "tower": member[4],
                 },
 
-                # Live operational relationships
                 "members":
                     members,
 
-                # Historical snapshot contained in the declaration
                 "covered_members": (
                     declaration["covered_members"]
                     if declaration is not None
@@ -602,7 +770,9 @@ def handle_get(event, path):
 
 def handle_post(event, path):
 
-    params = event.get("queryStringParameters") or {}
+    params = event.get(
+        "queryStringParameters"
+    ) or {}
 
     # ------------------------------------------------------------
     # Determine access method
@@ -614,7 +784,8 @@ def handle_post(event, path):
 
         if not token:
             return bad_request({
-                "error": "token is required"
+                "error":
+                "token is required"
             })
 
         member_id = None
@@ -624,24 +795,32 @@ def handle_post(event, path):
 
     elif path == ADMIN_DECLARATION_PATH:
 
-        member_id_param = params.get("member_id")
+        member_id_param = params.get(
+            "member_id"
+        )
 
         if not member_id_param:
             return bad_request({
-                "error": "member_id is required"
+                "error":
+                "member_id is required"
             })
 
         try:
-            member_id = int(member_id_param)
+            member_id = int(
+                member_id_param
+            )
 
         except (TypeError, ValueError):
+
             return bad_request({
-                "error": "Invalid member_id"
+                "error":
+                "Invalid member_id"
             })
 
         if member_id <= 0:
             return bad_request({
-                "error": "Invalid member_id"
+                "error":
+                "Invalid member_id"
             })
 
         declaration_method = "MANUAL"
@@ -661,7 +840,8 @@ def handle_post(event, path):
     else:
 
         return bad_request({
-            "error": "Invalid Gift Aid declaration route"
+            "error":
+            "Invalid Gift Aid declaration route"
         })
 
     # ------------------------------------------------------------
@@ -677,93 +857,176 @@ def handle_post(event, path):
     except json.JSONDecodeError:
 
         return bad_request({
-            "error": "Invalid JSON body"
+            "error":
+            "Invalid JSON body"
         })
 
     action = body.get("action")
 
     if action not in VALID_ACTIONS:
+
         return bad_request({
-            "error": "Invalid action"
+            "error":
+            "Invalid action"
         })
 
     # ------------------------------------------------------------
     # Declaration data
     # ------------------------------------------------------------
 
-    declarer_name = body.get("declarer_name")
-    declarer_address = body.get("declarer_address")
-    email_address = body.get("email_address")
-    affirmed_date = body.get("affirmed_date")
-    wording_version_id = body.get("wording_version_id")
-    declaration_text = body.get("declaration_text")
+    declarer_name = body.get(
+        "declarer_name"
+    )
+
+    declarer_address = body.get(
+        "declarer_address"
+    )
+
+    email_address = body.get(
+        "email_address"
+    )
+
+    affirmed_date = body.get(
+        "affirmed_date"
+    )
+
+    wording_version_id = body.get(
+        "wording_version_id"
+    )
+
+    declaration_text = body.get(
+        "declaration_text"
+    )
+
+    affirmed = body.get(
+        "affirmed"
+    )
 
     if not declarer_name:
         return bad_request({
-            "error": "declarer_name is required"
+            "error":
+            "declarer_name is required"
         })
 
     if not declarer_address:
         return bad_request({
-            "error": "declarer_address is required"
+            "error":
+            "declarer_address is required"
         })
 
     if not email_address:
         return bad_request({
-            "error": "email_address is required"
+            "error":
+            "email_address is required"
         })
 
     if not wording_version_id:
         return bad_request({
-            "error": "wording_version_id is required"
+            "error":
+            "wording_version_id is required"
         })
 
     if not declaration_text:
         return bad_request({
-            "error": "declaration_text is required"
+            "error":
+            "declaration_text is required"
         })
 
     # ------------------------------------------------------------
+    # Affirmation
+    #
+    # The browser must explicitly send affirmed=true.
+    #
+    # This is independent of status. A declaration can be:
+    #
+    #     affirmed=true
+    #     status=PENDING_REVIEW
+    #
+    # because the member has affirmed the declaration even though
+    # the resulting Gift Aid state needs administrative review.
+    # ------------------------------------------------------------
+
+    if action in {
+        "AFFIRMED",
+        "UPDATED",
+    }:
+
+        if affirmed is not True:
+
+            return bad_request({
+                "error":
+                "The Gift Aid declaration must be explicitly affirmed"
+            })
+
+    elif action in {
+        "DECLINED",
+        "COVERED_ELSEWHERE",
+    }:
+
+        if affirmed is not False:
+
+            return bad_request({
+                "error":
+                "This action must not be affirmed"
+            })
+
+    elif action == "CANCELLED":
+
+        if affirmed is not False:
+
+            return bad_request({
+                "error":
+                "A cancellation must not be affirmed as a new declaration"
+            })
+
+    # ------------------------------------------------------------
     # Affirmed date
-    #
-    # For manual paper declarations, the admin can supply the
-    # handwritten date. If it is unavailable, use today's date.
-    #
-    # For ONLINE declarations the client should normally supply
-    # the date on which the member affirmed.
     # ------------------------------------------------------------
 
     if not affirmed_date:
 
-        cur_date = None
-
         conn_temp = get_connection()
 
         try:
+
             with conn_temp.cursor() as cur:
-                cur.execute("SELECT CURRENT_DATE")
-                cur_date = cur.fetchone()[0].isoformat()
+
+                cur.execute(
+                    "SELECT CURRENT_DATE"
+                )
+
+                affirmed_date = (
+                    cur.fetchone()[0]
+                    .isoformat()
+                )
+
         finally:
+
             conn_temp.close()
 
-        affirmed_date = cur_date
-
     # ------------------------------------------------------------
-    # Members submitted by the form
+    # Legacy numeric members input
     #
-    # These are currently member IDs. The Hugo UI will eventually
-    # collect names / numbers and the authenticated admin side
-    # will resolve them.
+    # This is retained only for authenticated admin requests.
+    #
+    # The public tokenised page must NOT submit member IDs.
     # ------------------------------------------------------------
 
-    submitted_members = body.get("members")
+    submitted_members = body.get(
+        "members"
+    )
 
     if submitted_members is None:
         submitted_members = []
 
-    if not isinstance(submitted_members, list):
+    if not isinstance(
+        submitted_members,
+        list
+    ):
+
         return bad_request({
-            "error": "members must be a list"
+            "error":
+            "members must be a list"
         })
 
     try:
@@ -776,52 +1039,53 @@ def handle_post(event, path):
     except (TypeError, ValueError):
 
         return bad_request({
-            "error": "Invalid member ID in members"
+            "error":
+            "Invalid member ID in members"
         })
 
-    if any(value <= 0 for value in submitted_members):
+    if any(
+        value <= 0
+        for value in submitted_members
+    ):
 
         return bad_request({
-            "error": "Invalid member ID in members"
+            "error":
+            "Invalid member ID in members"
+        })
+
+    if is_token_request and submitted_members:
+
+        return forbidden({
+            "error":
+            "Member IDs are not permitted on the public declaration route"
         })
 
     # ------------------------------------------------------------
     # COVERED_ELSEWHERE
-    #
-    # No online relationship is created.
-    # The supplied person's description is retained separately.
     # ------------------------------------------------------------
 
-    covered_elsewhere = body.get("covered_elsewhere")
+    covered_elsewhere = body.get(
+        "covered_elsewhere"
+    )
 
     if action == "COVERED_ELSEWHERE":
 
         if not covered_elsewhere:
+
             return bad_request({
                 "error":
                 "covered_elsewhere is required"
             })
 
-        if not isinstance(covered_elsewhere, str):
+        if not isinstance(
+            covered_elsewhere,
+            str
+        ):
+
             return bad_request({
                 "error":
                 "covered_elsewhere must be text"
             })
-
-    # ------------------------------------------------------------
-    # DECLINED does not require covered members.
-    # AFFIRMED / UPDATED require at least one member only if the
-    # declaration actually has covered members.
-    #
-    # The declarer themselves does not need to be submitted because
-    # member_id is always the person completing the declaration.
-    # ------------------------------------------------------------
-
-    if action in {"AFFIRMED", "UPDATED"} and not submitted_members:
-
-        # It is legitimate for the declarer to have no dependents.
-        # Therefore an empty list is permitted.
-        pass
 
     # ------------------------------------------------------------
     # Database
@@ -862,8 +1126,10 @@ def handle_post(event, path):
                 invitation = cur.fetchone()
 
                 if invitation is None:
+
                     return not_found({
-                        "error": "Invalid invitation token"
+                        "error":
+                        "Invalid invitation token"
                     })
 
                 invitation_id = invitation[0]
@@ -873,6 +1139,7 @@ def handle_post(event, path):
                 used_at = invitation[4]
 
                 if used_at is not None:
+
                     return forbidden({
                         "error":
                         "This invitation has already been used"
@@ -886,6 +1153,7 @@ def handle_post(event, path):
                     )
 
                     if cur.fetchone()[0]:
+
                         return forbidden({
                             "error":
                             "This invitation has expired"
@@ -904,11 +1172,15 @@ def handle_post(event, path):
                 if requested_reference is not None:
 
                     try:
+
                         requested_reference = int(
                             requested_reference
                         )
 
-                    except (TypeError, ValueError):
+                    except (
+                        TypeError,
+                        ValueError
+                    ):
 
                         return bad_request({
                             "error":
@@ -922,7 +1194,10 @@ def handle_post(event, path):
                             "Invalid gift_aid_reference"
                         })
 
-                    gift_aid_reference = requested_reference
+                    gift_aid_reference = (
+                        requested_reference
+                    )
+
                     reference_supplied = True
 
                 else:
@@ -936,7 +1211,8 @@ def handle_post(event, path):
                               valid_until IS NULL
                               OR valid_until >= %s
                           )
-                        ORDER BY gift_aid_reference DESC
+                        ORDER BY
+                            gift_aid_reference DESC
                         LIMIT 1
                     """, (
                         member_id,
@@ -946,7 +1222,10 @@ def handle_post(event, path):
                     relationship = cur.fetchone()
 
                     if relationship is not None:
-                        gift_aid_reference = relationship[0]
+
+                        gift_aid_reference = (
+                            relationship[0]
+                        )
 
             # ====================================================
             # FIND EXISTING CONFIRMED DECLARATION
@@ -974,11 +1253,15 @@ def handle_post(event, path):
                     FROM gift_aid_declaration_audit
                     WHERE gift_aid_reference = %s
                       AND status = 'CONFIRMED'
-                    ORDER BY recorded_at DESC, id DESC
+                    ORDER BY
+                        recorded_at DESC,
+                        id DESC
                     LIMIT 1
                 """, (gift_aid_reference,))
 
-                existing_declaration = cur.fetchone()
+                existing_declaration = (
+                    cur.fetchone()
+                )
 
                 declaration_exists = (
                     existing_declaration is not None
@@ -999,7 +1282,9 @@ def handle_post(event, path):
                     )
                 """)
 
-                gift_aid_reference = cur.fetchone()[0]
+                gift_aid_reference = (
+                    cur.fetchone()[0]
+                )
 
                 declaration_exists = False
 
@@ -1039,14 +1324,15 @@ def handle_post(event, path):
             if cur.fetchone() is None:
 
                 return not_found({
-                    "error": "Member not found"
+                    "error":
+                    "Member not found"
                 })
 
             # ====================================================
-            # CURRENT MEMBERS
+            # CURRENT OPERATIONAL MEMBERS
             # ====================================================
 
-            if declaration_exists:
+            if gift_aid_reference is not None:
 
                 cur.execute("""
                     SELECT
@@ -1068,14 +1354,33 @@ def handle_post(event, path):
                 }
 
             # ====================================================
-            # VALIDATE SUBMITTED MEMBER IDS
+            # CHECK EXISTING DECLARATION CONSISTENCY
+            # ====================================================
+
+            state_consistent = True
+            inconsistency_reason = None
+
+            if declaration_exists:
+
+                (
+                    state_consistent,
+                    inconsistency_reason
+                ) = declaration_relationships_consistent(
+                    existing_declaration,
+                    existing_members
+                )
+
+                print(
+                    "Gift Aid relationship consistency:",
+                    state_consistent,
+                    inconsistency_reason
+                )
+
+            # ====================================================
+            # EXPLICIT MEMBER CHANGES
             #
-            # Only an authenticated admin can have IDs resolved
-            # against the members database.
-            #
-            # Tokenised users cannot search the members database,
-            # so their submitted member IDs are treated as
-            # unverified and cause pending review.
+            # Admin IDs are authoritative.
+            # Public users cannot submit IDs.
             # ====================================================
 
             invalid_members = set()
@@ -1084,44 +1389,37 @@ def handle_post(event, path):
 
                 if is_token_request:
 
-                    # Token users cannot prove these IDs correspond
-                    # to the intended people.
-                    pending_member_changes = True
+                    return forbidden({
+                        "error":
+                        "Member IDs are not permitted on the public declaration route"
+                    })
 
-                else:
+                cur.execute("""
+                    SELECT id
+                    FROM members
+                    WHERE id = ANY(%s)
+                """, (
+                    list(submitted_members),
+                ))
 
-                    cur.execute("""
-                        SELECT id
-                        FROM members
-                        WHERE id = ANY(%s)
-                    """, (
-                        list(submitted_members),
-                    ))
+                valid_member_ids = {
+                    row[0]
+                    for row in cur.fetchall()
+                }
 
-                    valid_member_ids = {
-                        row[0]
-                        for row in cur.fetchall()
-                    }
+                invalid_members = (
+                    submitted_members
+                    - valid_member_ids
+                )
 
-                    invalid_members = (
-                        submitted_members
-                        - valid_member_ids
-                    )
+                if invalid_members:
 
-                    if invalid_members:
-
-                        return bad_request({
-                            "error":
-                            "One or more members do not exist",
-                            "invalid_members":
-                            sorted(invalid_members),
-                        })
-
-                    pending_member_changes = False
-
-            else:
-
-                pending_member_changes = False
+                    return bad_request({
+                        "error":
+                        "One or more members do not exist",
+                        "invalid_members":
+                        sorted(invalid_members),
+                    })
 
             # ====================================================
             # DETERMINE MEMBER CHANGES
@@ -1140,7 +1438,7 @@ def handle_post(event, path):
                 added_members = set()
                 removed_members = set()
 
-            else:
+            elif submitted_members:
 
                 added_members = (
                     submitted_members
@@ -1152,8 +1450,16 @@ def handle_post(event, path):
                     - submitted_members
                 )
 
+            else:
+
+                # Public ordinary update with no explicit
+                # relationship changes.
+                added_members = set()
+                removed_members = set()
+
             member_changes = bool(
-                added_members or removed_members
+                added_members
+                or removed_members
             )
 
             # ====================================================
@@ -1171,22 +1477,33 @@ def handle_post(event, path):
 
                 audit_status = "PENDING_REVIEW"
 
+            elif (
+                is_token_request
+                and declaration_exists
+                and not state_consistent
+            ):
+
+                audit_status = "PENDING_REVIEW"
+
             else:
 
                 audit_status = "CONFIRMED"
 
             # ====================================================
             # DETERMINE AFFIRMED FLAG
+            #
+            # IMPORTANT:
+            #
+            # Pending review does NOT mean unaffirmed.
+            #
+            # If the member ticked the box, affirmed=true.
             # ====================================================
 
             if action in {
                 "DECLINED",
                 "COVERED_ELSEWHERE",
+                "CANCELLED",
             }:
-
-                audit_affirmed = False
-
-            elif audit_status == "PENDING_REVIEW":
 
                 audit_affirmed = False
 
@@ -1221,22 +1538,40 @@ def handle_post(event, path):
             # ====================================================
             # COVERED MEMBERS SNAPSHOT
             #
-            # For a pending token update, retain the user's
-            # complete proposed list.
+            # The critical rule here is:
             #
-            # For a normal confirmed declaration, this is also
-            # the complete declaration snapshot.
+            # If this is an ordinary public update with no
+            # explicit covered-member change, carry forward the
+            # previous confirmed snapshot.
+            #
+            # If the existing state is inconsistent, retain that
+            # snapshot and mark the new declaration PENDING_REVIEW.
             # ====================================================
 
             covered_members = []
 
-            if action not in {
-                "DECLINED",
-                "COVERED_ELSEWHERE",
-                "CANCELLED",
+            if action in {
+                "AFFIRMED",
+                "UPDATED",
             }:
 
-                if submitted_members:
+                if (
+                    is_token_request
+                    and declaration_exists
+                    and not submitted_members
+                ):
+
+                    previous_snapshot = (
+                        existing_declaration[14]
+                    )
+
+                    if previous_snapshot is not None:
+
+                        covered_members = (
+                            previous_snapshot
+                        )
+
+                elif submitted_members:
 
                     cur.execute("""
                         SELECT
@@ -1246,7 +1581,9 @@ def handle_post(event, path):
                             surname
                         FROM members
                         WHERE id = ANY(%s)
-                        ORDER BY surname, first_name
+                        ORDER BY
+                            surname,
+                            first_name
                     """, (
                         list(submitted_members),
                     ))
@@ -1261,13 +1598,33 @@ def handle_post(event, path):
                         for row in cur.fetchall()
                     ]
 
-                else:
+                elif declaration_exists:
 
-                    covered_members = []
+                    previous_snapshot = (
+                        existing_declaration[14]
+                    )
+
+                    if previous_snapshot is not None:
+
+                        covered_members = (
+                            previous_snapshot
+                        )
 
             elif action == "CANCELLED":
 
-                if existing_members:
+                if declaration_exists:
+
+                    previous_snapshot = (
+                        existing_declaration[14]
+                    )
+
+                    if previous_snapshot is not None:
+
+                        covered_members = (
+                            previous_snapshot
+                        )
+
+                elif existing_members:
 
                     cur.execute("""
                         SELECT
@@ -1277,7 +1634,9 @@ def handle_post(event, path):
                             surname
                         FROM members
                         WHERE id = ANY(%s)
-                        ORDER BY surname, first_name
+                        ORDER BY
+                            surname,
+                            first_name
                     """, (
                         list(existing_members),
                     ))
@@ -1293,10 +1652,25 @@ def handle_post(event, path):
                     ]
 
             # ====================================================
+            # COVERED ELSEWHERE SNAPSHOT
+            # ====================================================
+
+            if action == "COVERED_ELSEWHERE":
+
+                covered_members = [
+                    {
+                        "description":
+                        covered_elsewhere
+                    }
+                ]
+
+            # ====================================================
             # UPDATE OPERATIONAL RELATIONSHIPS
             #
-            # Only confirmed declarations alter gift_aid_members.
-            # Pending token submissions do not.
+            # Only CONFIRMED declarations can alter the live
+            # relationship table.
+            #
+            # A public inconsistency therefore remains untouched.
             # ====================================================
 
             if audit_status == "CONFIRMED":
@@ -1314,8 +1688,12 @@ def handle_post(event, path):
                             valid_until
                         )
                         VALUES (%s, %s, NULL)
-                        ON CONFLICT (member_id, gift_aid_reference)
-                        DO UPDATE SET valid_until = NULL;
+                        ON CONFLICT (
+                            member_id,
+                            gift_aid_reference
+                        )
+                        DO UPDATE SET
+                            valid_until = NULL;
                     """, (
                         new_member_id,
                         gift_aid_reference,
@@ -1350,19 +1728,6 @@ def handle_post(event, path):
             if is_token_request:
 
                 recorded_by = str(member_id)
-
-            # ====================================================
-            # RECORD COVERED ELSEWHERE IN SNAPSHOT
-            # ====================================================
-
-            if action == "COVERED_ELSEWHERE":
-
-                covered_members = [
-                    {
-                        "description":
-                            covered_elsewhere
-                    }
-                ]
 
             # ====================================================
             # AUDIT RECORD
@@ -1432,12 +1797,6 @@ def handle_post(event, path):
 
             # ====================================================
             # COMPLETE ONLINE INVITATION
-            #
-            # Only consume the invitation when the submission is
-            # actually accepted as the response.
-            #
-            # A pending review still counts as an answered
-            # invitation, so it is consumed here too.
             # ====================================================
 
             if invitation_id:
@@ -1459,7 +1818,7 @@ def handle_post(event, path):
 
             conn.commit()
 
-            return created({
+            response = {
 
                 "gift_aid_reference":
                     gift_aid_reference,
@@ -1496,7 +1855,24 @@ def handle_post(event, path):
 
                 "removed_members":
                     sorted(removed_members),
-            })
+            }
+
+            # ----------------------------------------------------
+            # Tell the caller why review was triggered.
+            #
+            # This is useful for testing and for the admin UI later.
+            # ----------------------------------------------------
+
+            if (
+                audit_status == "PENDING_REVIEW"
+                and inconsistency_reason
+            ):
+
+                response["review_reason"] = (
+                    inconsistency_reason
+                )
+
+            return created(response)
 
     except Exception:
 
