@@ -24,6 +24,10 @@ VALID_ACTIONS = {
 }
 
 
+PUBLIC_DECLARATION_PATH = "/api/gift-aid/declaration"
+ADMIN_DECLARATION_PATH = "/api/gift-aid/admin/declaration"
+
+
 def get_user_groups(event):
 
     claims = (
@@ -99,6 +103,18 @@ def get_user_agent(event):
     )
 
 
+def get_request_path(event):
+
+    request_context = event.get("requestContext", {})
+
+    http = request_context.get("http", {})
+
+    return (
+        event.get("rawPath")
+        or http.get("path")
+    )
+
+
 def lambda_handler(event, context):
 
     method = (
@@ -106,6 +122,94 @@ def lambda_handler(event, context):
         .get("http", {})
         .get("method")
     )
+
+    path = get_request_path(event)
+
+    print("Gift Aid declaration request:", method, path)
+
+    # ------------------------------------------------------------
+    # Confirm that the request came through one of the two
+    # expected API Gateway routes.
+    # ------------------------------------------------------------
+
+    if path not in {
+        PUBLIC_DECLARATION_PATH,
+        ADMIN_DECLARATION_PATH,
+    }:
+        return bad_request({
+            "error": "Invalid Gift Aid declaration route"
+        })
+
+    # ------------------------------------------------------------
+    # Public route
+    #
+    # Must use an invitation token.
+    # API Gateway deliberately has no JWT authoriser here.
+    # ------------------------------------------------------------
+
+    if path == PUBLIC_DECLARATION_PATH:
+
+        if method not in {"GET", "POST"}:
+            return bad_request({
+                "error": "Method not supported"
+            })
+
+        params = event.get("queryStringParameters") or {}
+
+        token = params.get("token")
+        member_id = params.get("member_id")
+
+        if not token:
+            return forbidden({
+                "error":
+                "Invitation token required for this route"
+            })
+
+        if member_id:
+            return forbidden({
+                "error":
+                "member_id is not permitted on the public declaration route"
+            })
+
+    # ------------------------------------------------------------
+    # Admin route
+    #
+    # API Gateway requires the Cognito JWT authoriser here.
+    # Lambda additionally checks the user's admin group.
+    # ------------------------------------------------------------
+
+    elif path == ADMIN_DECLARATION_PATH:
+
+        if method not in {"GET", "POST"}:
+            return bad_request({
+                "error": "Method not supported"
+            })
+
+        params = event.get("queryStringParameters") or {}
+
+        token = params.get("token")
+        member_id = params.get("member_id")
+
+        if token:
+            return forbidden({
+                "error":
+                "Invitation token is not permitted on the admin declaration route"
+            })
+
+        if not member_id:
+            return bad_request({
+                "error":
+                "member_id is required for the admin declaration route"
+            })
+
+        if not can_administer(event):
+            return forbidden({
+                "error": "Gift Aid administration access required"
+            })
+
+    # ------------------------------------------------------------
+    # Dispatch
+    # ------------------------------------------------------------
 
     if method == "GET":
         return handle_get(event)
@@ -210,7 +314,8 @@ def handle_get(event):
 
                 if used_at is not None:
                     return forbidden({
-                        "error": "This invitation has already been used"
+                        "error":
+                        "This invitation has already been used"
                     })
 
                 if expires_at is not None:
@@ -249,7 +354,8 @@ def handle_get(event):
 
                 if relationship is None:
                     return not_found({
-                        "error": "No active Gift Aid relationship found"
+                        "error":
+                        "No active Gift Aid relationship found"
                     })
 
                 gift_aid_reference = relationship[0]
@@ -398,7 +504,8 @@ def handle_get(event):
 
             if wording_row is None:
                 return not_found({
-                    "error": "No current Gift Aid wording is available"
+                    "error":
+                    "No current Gift Aid wording is available"
                 })
 
             wording = {
@@ -520,7 +627,8 @@ def handle_post(event):
 
         if not cognito_sub:
             return forbidden({
-                "error": "Authenticated user identity not available"
+                "error":
+                "Authenticated user identity not available"
             })
 
         recorded_by = cognito_sub
@@ -659,7 +767,8 @@ def handle_post(event):
 
                 if used_at is not None:
                     return forbidden({
-                        "error": "This invitation has already been used"
+                        "error":
+                        "This invitation has already been used"
                     })
 
                 if expires_at is not None:
@@ -672,7 +781,8 @@ def handle_post(event):
                     if cur.fetchone()[0]:
 
                         return forbidden({
-                            "error": "This invitation has expired"
+                            "error":
+                            "This invitation has expired"
                         })
 
                 # If the invitation already has a reference,
@@ -701,13 +811,15 @@ def handle_post(event):
                     except (TypeError, ValueError):
 
                         return bad_request({
-                            "error": "Invalid gift_aid_reference"
+                            "error":
+                            "Invalid gift_aid_reference"
                         })
 
                     if requested_reference <= 0:
 
                         return bad_request({
-                            "error": "Invalid gift_aid_reference"
+                            "error":
+                            "Invalid gift_aid_reference"
                         })
 
                     gift_aid_reference = requested_reference
