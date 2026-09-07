@@ -648,7 +648,6 @@ def handle_get(event, path):
                         covered_members
                     FROM gift_aid_declaration_audit
                     WHERE gift_aid_reference = %s
-                      AND status = 'CONFIRMED'
                     ORDER BY
                         recorded_at DESC,
                         id DESC
