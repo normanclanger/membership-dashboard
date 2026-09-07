@@ -1,3 +1,4 @@
+```python
 import hashlib
 import json
 
@@ -148,9 +149,11 @@ def covered_member_ids(covered_members):
             continue
 
         try:
+
             member_id = int(member_id)
 
         except (TypeError, ValueError):
+
             continue
 
         if member_id > 0:
@@ -1070,6 +1073,54 @@ def handle_post(event, path):
     if submitted_members is None:
         submitted_members = []
 
+    # ------------------------------------------------------------
+    # Covered members supplied by the public declaration form
+    # ------------------------------------------------------------
+
+    submitted_covered_members = body.get(
+        "covered_members"
+    )
+
+    if submitted_covered_members is None:
+        submitted_covered_members = []
+
+    if not isinstance(
+        submitted_covered_members,
+        list
+    ):
+
+        return bad_request({
+            "error":
+            "covered_members must be a list"
+        })
+
+    for covered_member in submitted_covered_members:
+
+        if not isinstance(
+            covered_member,
+            dict
+        ):
+
+            return bad_request({
+                "error":
+                "Each covered member must be an object"
+            })
+
+        membership_number = covered_member.get(
+            "membership_number"
+        )
+
+        name = covered_member.get(
+            "name"
+        )
+
+        if not membership_number and not name:
+
+            return bad_request({
+                "error":
+                "Each covered member must contain a membership number or name"
+            })
+
     if not isinstance(
         submitted_members,
         list
@@ -1581,14 +1632,43 @@ def handle_post(event, path):
             # COVERED MEMBERS SNAPSHOT
             # ====================================================
 
-            covered_members = []
+            covered_members = None
 
             if action in {
                 "AFFIRMED",
                 "UPDATED",
             }:
 
-                if (
+                # ------------------------------------------------
+                # Public form supplied covered_members.
+                #
+                # An empty list is meaningful: it means the user
+                # has deliberately removed all other members.
+                # ------------------------------------------------
+
+                if "covered_members" in body:
+
+                    covered_members = [
+                        {
+                            key: value
+                            for key, value in member.items()
+                            if key in {
+                                "membership_number",
+                                "name",
+                            }
+                            and value
+                            and str(value).strip()
+                        }
+                        for member in submitted_covered_members
+                    ]
+
+                # ------------------------------------------------
+                # No covered_members supplied.
+                #
+                # Preserve the existing historical snapshot.
+                # ------------------------------------------------
+
+                elif (
                     is_token_request
                     and declaration_exists
                     and not submitted_members
@@ -1603,6 +1683,10 @@ def handle_post(event, path):
                         covered_members = (
                             previous_snapshot
                         )
+
+                # ------------------------------------------------
+                # Legacy admin numeric member IDs.
+                # ------------------------------------------------
 
                 elif submitted_members:
 
@@ -1631,6 +1715,10 @@ def handle_post(event, path):
                         for row in cur.fetchall()
                     ]
 
+                # ------------------------------------------------
+                # Existing declaration with no new member data.
+                # ------------------------------------------------
+
                 elif declaration_exists:
 
                     previous_snapshot = (
@@ -1642,6 +1730,14 @@ def handle_post(event, path):
                         covered_members = (
                             previous_snapshot
                         )
+
+                # ------------------------------------------------
+                # New declaration with no covered members.
+                # ------------------------------------------------
+
+                if covered_members is None:
+
+                    covered_members = []
 
             elif action == "CANCELLED":
 
@@ -1683,6 +1779,14 @@ def handle_post(event, path):
                         }
                         for row in cur.fetchall()
                     ]
+
+                else:
+
+                    covered_members = []
+
+            else:
+
+                covered_members = []
 
             # ====================================================
             # COVERED ELSEWHERE SNAPSHOT
@@ -1914,3 +2018,4 @@ def handle_post(event, path):
     finally:
 
         conn.close()
+```
