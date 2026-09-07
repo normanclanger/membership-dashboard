@@ -163,6 +163,7 @@ def declaration_relationships_consistent(
     declaration,
     existing_members,
 ):
+
     """
     Compare the latest confirmed declaration snapshot with
     the current operational gift_aid_members state.
@@ -182,7 +183,7 @@ def declaration_relationships_consistent(
         return True, None
 
     action = declaration[3]
-    covered_members = declaration[14]
+    covered_members = declaration[16]
 
     # ------------------------------------------------------------
     # These confirmed states should have no live relationships.
@@ -285,6 +286,7 @@ def lambda_handler(event, context):
         PUBLIC_DECLARATION_PATH,
         ADMIN_DECLARATION_PATH,
     }:
+
         return bad_request({
             "error":
             "Invalid Gift Aid declaration route"
@@ -297,6 +299,7 @@ def lambda_handler(event, context):
     if path == PUBLIC_DECLARATION_PATH:
 
         if method not in {"GET", "POST"}:
+
             return bad_request({
                 "error":
                 "Method not supported"
@@ -310,12 +313,14 @@ def lambda_handler(event, context):
         member_id = params.get("member_id")
 
         if not token:
+
             return forbidden({
                 "error":
                 "Invitation token required for this route"
             })
 
         if member_id:
+
             return forbidden({
                 "error":
                 "member_id is not permitted on the public declaration route"
@@ -328,6 +333,7 @@ def lambda_handler(event, context):
     else:
 
         if method not in {"GET", "POST"}:
+
             return bad_request({
                 "error":
                 "Method not supported"
@@ -341,18 +347,21 @@ def lambda_handler(event, context):
         member_id = params.get("member_id")
 
         if token:
+
             return forbidden({
                 "error":
                 "Invitation token is not permitted on the admin declaration route"
             })
 
         if not member_id:
+
             return bad_request({
                 "error":
                 "member_id is required for the admin declaration route"
             })
 
         if not can_administer(event):
+
             return forbidden({
                 "error":
                 "Gift Aid administration access required"
@@ -393,6 +402,7 @@ def handle_get(event, path):
         token = params.get("token")
 
         if not token:
+
             return bad_request({
                 "error":
                 "token is required"
@@ -411,12 +421,14 @@ def handle_get(event, path):
         )
 
         if not member_id_param:
+
             return bad_request({
                 "error":
                 "member_id is required"
             })
 
         try:
+
             member_id = int(
                 member_id_param
             )
@@ -429,6 +441,7 @@ def handle_get(event, path):
             })
 
         if member_id <= 0:
+
             return bad_request({
                 "error":
                 "Invalid member_id"
@@ -474,6 +487,7 @@ def handle_get(event, path):
                 invitation = cur.fetchone()
 
                 if invitation is None:
+
                     return not_found({
                         "error":
                         "Invalid invitation token"
@@ -486,6 +500,7 @@ def handle_get(event, path):
                 used_at = invitation[4]
 
                 if used_at is not None:
+
                     return forbidden({
                         "error":
                         "This invitation has already been used"
@@ -549,6 +564,7 @@ def handle_get(event, path):
             member = cur.fetchone()
 
             if member is None:
+
                 return not_found({
                     "error":
                     "Member not found"
@@ -614,7 +630,9 @@ def handle_get(event, path):
                         declaration_method,
                         declaration_text,
                         declarer_name,
-                        declarer_address,
+                        declarer_address_line_1,
+                        declarer_address_line_2,
+                        declarer_postcode,
                         email_address,
                         affirmed_date,
                         recorded_at,
@@ -647,30 +665,32 @@ def handle_get(event, path):
                         "declaration_method": audit_row[4],
                         "declaration_text": audit_row[5],
                         "declarer_name": audit_row[6],
-                        "declarer_address": audit_row[7],
-                        "email_address": audit_row[8],
+                        "declarer_address_line_1": audit_row[7],
+                        "declarer_address_line_2": audit_row[8],
+                        "declarer_postcode": audit_row[9],
+                        "email_address": audit_row[10],
                         "affirmed_date": (
-                            audit_row[9].isoformat()
-                            if audit_row[9]
-                            else None
-                        ),
-                        "recorded_at": (
-                            audit_row[10].isoformat()
-                            if audit_row[10]
-                            else None
-                        ),
-                        "ip_address": (
-                            str(audit_row[11])
+                            audit_row[11].isoformat()
                             if audit_row[11]
                             else None
                         ),
-                        "user_agent": audit_row[12],
-                        "invitation_id": audit_row[13],
-                        "recorded_by": audit_row[14],
-                        "wording_version_id": audit_row[15],
-                        "affirmed": audit_row[16],
-                        "status": audit_row[17],
-                        "covered_members": audit_row[18],
+                        "recorded_at": (
+                            audit_row[12].isoformat()
+                            if audit_row[12]
+                            else None
+                        ),
+                        "ip_address": (
+                            str(audit_row[13])
+                            if audit_row[13]
+                            else None
+                        ),
+                        "user_agent": audit_row[14],
+                        "invitation_id": audit_row[15],
+                        "recorded_by": audit_row[16],
+                        "wording_version_id": audit_row[17],
+                        "affirmed": audit_row[18],
+                        "status": audit_row[19],
+                        "covered_members": audit_row[20],
                     }
 
             # ====================================================
@@ -699,6 +719,7 @@ def handle_get(event, path):
             wording_row = cur.fetchone()
 
             if wording_row is None:
+
                 return not_found({
                     "error":
                     "No current Gift Aid wording is available"
@@ -783,6 +804,7 @@ def handle_post(event, path):
         token = params.get("token")
 
         if not token:
+
             return bad_request({
                 "error":
                 "token is required"
@@ -800,12 +822,14 @@ def handle_post(event, path):
         )
 
         if not member_id_param:
+
             return bad_request({
                 "error":
                 "member_id is required"
             })
 
         try:
+
             member_id = int(
                 member_id_param
             )
@@ -818,6 +842,7 @@ def handle_post(event, path):
             })
 
         if member_id <= 0:
+
             return bad_request({
                 "error":
                 "Invalid member_id"
@@ -828,6 +853,7 @@ def handle_post(event, path):
         cognito_sub = get_cognito_sub(event)
 
         if not cognito_sub:
+
             return forbidden({
                 "error":
                 "Authenticated user identity not available"
@@ -878,8 +904,16 @@ def handle_post(event, path):
         "declarer_name"
     )
 
-    declarer_address = body.get(
-        "declarer_address"
+    declarer_address_line_1 = body.get(
+        "declarer_address_line_1"
+    )
+
+    declarer_address_line_2 = body.get(
+        "declarer_address_line_2"
+    )
+
+    declarer_postcode = body.get(
+        "declarer_postcode"
     )
 
     email_address = body.get(
@@ -903,47 +937,68 @@ def handle_post(event, path):
     )
 
     if not declarer_name:
+
         return bad_request({
             "error":
             "declarer_name is required"
         })
 
-    if not declarer_address:
+    if not declarer_address_line_1:
+
         return bad_request({
             "error":
-            "declarer_address is required"
+            "declarer_address_line_1 is required"
+        })
+
+    if not declarer_address_line_2:
+
+        return bad_request({
+            "error":
+            "declarer_address_line_2 is required"
+        })
+
+    if not declarer_postcode:
+
+        return bad_request({
+            "error":
+            "declarer_postcode is required"
         })
 
     if not email_address:
+
         return bad_request({
             "error":
             "email_address is required"
         })
 
     if not wording_version_id:
+
         return bad_request({
             "error":
             "wording_version_id is required"
         })
 
     if not declaration_text:
+
         return bad_request({
             "error":
             "declaration_text is required"
         })
 
+    declarer_address_line_1 = (
+        declarer_address_line_1.strip()
+    )
+
+    declarer_address_line_2 = (
+        declarer_address_line_2.strip()
+    )
+
+    declarer_postcode = (
+        declarer_postcode.strip().upper()
+    )
+
     # ------------------------------------------------------------
     # Affirmation
-    #
-    # The browser must explicitly send affirmed=true.
-    #
-    # This is independent of status. A declaration can be:
-    #
-    #     affirmed=true
-    #     status=PENDING_REVIEW
-    #
-    # because the member has affirmed the declaration even though
-    # the resulting Gift Aid state needs administrative review.
     # ------------------------------------------------------------
 
     if action in {
@@ -1006,10 +1061,6 @@ def handle_post(event, path):
 
     # ------------------------------------------------------------
     # Legacy numeric members input
-    #
-    # This is retained only for authenticated admin requests.
-    #
-    # The public tokenised page must NOT submit member IDs.
     # ------------------------------------------------------------
 
     submitted_members = body.get(
@@ -1242,7 +1293,9 @@ def handle_post(event, path):
                         declaration_method,
                         declaration_text,
                         declarer_name,
-                        declarer_address,
+                        declarer_address_line_1,
+                        declarer_address_line_2,
+                        declarer_postcode,
                         email_address,
                         affirmed_date,
                         recorded_at,
@@ -1378,9 +1431,6 @@ def handle_post(event, path):
 
             # ====================================================
             # EXPLICIT MEMBER CHANGES
-            #
-            # Admin IDs are authoritative.
-            # Public users cannot submit IDs.
             # ====================================================
 
             invalid_members = set()
@@ -1452,8 +1502,6 @@ def handle_post(event, path):
 
             else:
 
-                # Public ordinary update with no explicit
-                # relationship changes.
                 added_members = set()
                 removed_members = set()
 
@@ -1491,12 +1539,6 @@ def handle_post(event, path):
 
             # ====================================================
             # DETERMINE AFFIRMED FLAG
-            #
-            # IMPORTANT:
-            #
-            # Pending review does NOT mean unaffirmed.
-            #
-            # If the member ticked the box, affirmed=true.
             # ====================================================
 
             if action in {
@@ -1537,15 +1579,6 @@ def handle_post(event, path):
 
             # ====================================================
             # COVERED MEMBERS SNAPSHOT
-            #
-            # The critical rule here is:
-            #
-            # If this is an ordinary public update with no
-            # explicit covered-member change, carry forward the
-            # previous confirmed snapshot.
-            #
-            # If the existing state is inconsistent, retain that
-            # snapshot and mark the new declaration PENDING_REVIEW.
             # ====================================================
 
             covered_members = []
@@ -1562,7 +1595,7 @@ def handle_post(event, path):
                 ):
 
                     previous_snapshot = (
-                        existing_declaration[14]
+                        existing_declaration[16]
                     )
 
                     if previous_snapshot is not None:
@@ -1601,7 +1634,7 @@ def handle_post(event, path):
                 elif declaration_exists:
 
                     previous_snapshot = (
-                        existing_declaration[14]
+                        existing_declaration[16]
                     )
 
                     if previous_snapshot is not None:
@@ -1615,7 +1648,7 @@ def handle_post(event, path):
                 if declaration_exists:
 
                     previous_snapshot = (
-                        existing_declaration[14]
+                        existing_declaration[16]
                     )
 
                     if previous_snapshot is not None:
@@ -1666,11 +1699,6 @@ def handle_post(event, path):
 
             # ====================================================
             # UPDATE OPERATIONAL RELATIONSHIPS
-            #
-            # Only CONFIRMED declarations can alter the live
-            # relationship table.
-            #
-            # A public inconsistency therefore remains untouched.
             # ====================================================
 
             if audit_status == "CONFIRMED":
@@ -1741,7 +1769,9 @@ def handle_post(event, path):
                     declaration_method,
                     declaration_text,
                     declarer_name,
-                    declarer_address,
+                    declarer_address_line_1,
+                    declarer_address_line_2,
+                    declarer_postcode,
                     email_address,
                     affirmed_date,
                     ip_address,
@@ -1770,6 +1800,8 @@ def handle_post(event, path):
                     %s,
                     %s,
                     %s,
+                    %s,
+                    %s,
                     %s
                 )
                 RETURNING id
@@ -1780,7 +1812,9 @@ def handle_post(event, path):
                 declaration_method,
                 declaration_text,
                 declarer_name,
-                declarer_address,
+                declarer_address_line_1,
+                declarer_address_line_2,
+                declarer_postcode,
                 email_address,
                 affirmed_date,
                 get_source_ip(event),
@@ -1859,8 +1893,6 @@ def handle_post(event, path):
 
             # ----------------------------------------------------
             # Tell the caller why review was triggered.
-            #
-            # This is useful for testing and for the admin UI later.
             # ----------------------------------------------------
 
             if (
