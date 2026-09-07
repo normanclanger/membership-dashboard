@@ -1,4 +1,3 @@
-```python
 import hashlib
 import json
 
@@ -2018,4 +2017,4 @@ def handle_post(event, path):
     finally:
 
         conn.close()
-```
+
