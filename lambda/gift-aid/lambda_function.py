@@ -936,48 +936,44 @@ def handle_post(event, path):
     affirmed = body.get(
         "affirmed"
     )
+    
+    
 
     if not declarer_name:
-
         return bad_request({
             "error":
             "declarer_name is required"
         })
 
-    if not declarer_address_line_1:
+    if action in {
+        "AFFIRMED",
+        "UPDATED",
+    }:
 
-        return bad_request({
-            "error":
-            "declarer_address_line_1 is required"
-        })
+        if not declarer_address_line_1:
+            return bad_request({
+                "error":
+                "declarer_address_line_1 is required"
+            })
 
-    if not declarer_address_line_2:
+        if not declarer_postcode:
+            return bad_request({
+                "error":
+                "declarer_postcode is required"
+            })
 
-        return bad_request({
-            "error":
-            "declarer_address_line_2 is required"
-        })
+        if not email_address:
+            return bad_request({
+                "error":
+                "email_address is required"
+            })
 
-    if not declarer_postcode:
+        if not wording_version_id:
 
-        return bad_request({
-            "error":
-            "declarer_postcode is required"
-        })
-
-    if not email_address:
-
-        return bad_request({
-            "error":
-            "email_address is required"
-        })
-
-    if not wording_version_id:
-
-        return bad_request({
-            "error":
-            "wording_version_id is required"
-        })
+            return bad_request({
+                "error":
+                "wording_version_id is required"
+            })
 
     if not declaration_text:
 
