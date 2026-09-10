@@ -897,6 +897,26 @@ def handle_post(event, path):
             "Invalid action"
         })
 
+    follow_up_action = body.get(
+        "follow_up_action"
+    )
+
+    if follow_up_action is not None:
+
+        if follow_up_action != "COVERED_ELSEWHERE":
+
+            return bad_request({
+                "error":
+                "Invalid follow_up_action"
+            })
+
+        if action != "CANCELLED":
+
+            return bad_request({
+                "error":
+                "follow_up_action is only permitted with cancellation"
+            })
+
     # ------------------------------------------------------------
     # Declaration data
     # ------------------------------------------------------------
@@ -936,33 +956,39 @@ def handle_post(event, path):
     affirmed = body.get(
         "affirmed"
     )
-    
-    
 
-    if not declarer_name:
-        return bad_request({
-            "error":
-            "declarer_name is required"
-        })
+    # ------------------------------------------------------------
+    # Action-specific validation
+    # ------------------------------------------------------------
 
     if action in {
         "AFFIRMED",
         "UPDATED",
     }:
 
+        if not declarer_name:
+
+            return bad_request({
+                "error":
+                "declarer_name is required"
+            })
+
         if not declarer_address_line_1:
+
             return bad_request({
                 "error":
                 "declarer_address_line_1 is required"
             })
 
         if not declarer_postcode:
+
             return bad_request({
                 "error":
                 "declarer_postcode is required"
             })
 
         if not email_address:
+
             return bad_request({
                 "error":
                 "email_address is required"
@@ -975,24 +1001,35 @@ def handle_post(event, path):
                 "wording_version_id is required"
             })
 
-    if not declaration_text:
+        if not declaration_text:
 
-        return bad_request({
-            "error":
-            "declaration_text is required"
-        })
+            return bad_request({
+                "error":
+                "declaration_text is required"
+            })
 
-    declarer_address_line_1 = (
-        declarer_address_line_1.strip()
-    )
+    else:
 
-    declarer_address_line_2 = (
-        declarer_address_line_2.strip()
-    )
+        if declarer_name:
+            declarer_name = declarer_name.strip()
 
-    declarer_postcode = (
-        declarer_postcode.strip().upper()
-    )
+        if declarer_address_line_1:
+            declarer_address_line_1 = (
+                declarer_address_line_1.strip()
+            )
+
+        if declarer_address_line_2:
+            declarer_address_line_2 = (
+                declarer_address_line_2.strip()
+            )
+
+        if declarer_postcode:
+            declarer_postcode = (
+                declarer_postcode.strip().upper()
+            )
+
+        if email_address:
+            email_address = email_address.strip()
 
     # ------------------------------------------------------------
     # Affirmation
@@ -1048,8 +1085,7 @@ def handle_post(event, path):
                 )
 
                 affirmed_date = (
-                    cur.fetchone()[0]
-                    .isoformat()
+                    cur.fetchone()[0].isoformat()
                 )
 
         finally:
@@ -1183,6 +1219,15 @@ def handle_post(event, path):
                 "covered_elsewhere must be text"
             })
 
+        covered_elsewhere = covered_elsewhere.strip()
+
+        if not covered_elsewhere:
+
+            return bad_request({
+                "error":
+                "covered_elsewhere is required"
+            })
+
     # ------------------------------------------------------------
     # Database
     # ------------------------------------------------------------
@@ -1240,6 +1285,39 @@ def handle_post(event, path):
                         "error":
                         "This invitation has already been used"
                     })
+
+                # ------------------------------------------------
+                # If this is COVERED_ELSEWHERE, make sure that
+                # this invitation has first recorded the
+                # cancellation which precedes it.
+                # ------------------------------------------------
+
+                if action == "COVERED_ELSEWHERE":
+
+                    cur.execute("""
+                        SELECT
+                            action
+                        FROM gift_aid_declaration_audit
+                        WHERE invitation_id = %s
+                        ORDER BY
+                            recorded_at DESC,
+                            id DESC
+                        LIMIT 1
+                    """, (
+                        invitation_id,
+                    ))
+
+                    previous_audit = cur.fetchone()
+
+                    if (
+                        previous_audit is None
+                        or previous_audit[0] != "CANCELLED"
+                    ):
+
+                        return forbidden({
+                            "error":
+                            "Covered Elsewhere must follow a cancellation"
+                        })
 
                 if expires_at is not None:
 
@@ -1385,6 +1463,130 @@ def handle_post(event, path):
                 )
 
                 declaration_exists = False
+
+            # ====================================================
+            # USE HISTORICAL DECLARATION DATA FOR NON-AFFIRMED
+            # ACTIONS WHEN AVAILABLE
+            # ====================================================
+
+            if action in {
+                "CANCELLED",
+                "DECLINED",
+                "COVERED_ELSEWHERE",
+            } and existing_declaration is not None:
+
+                if not declarer_name:
+                    declarer_name = existing_declaration[6]
+
+                if not declarer_address_line_1:
+                    declarer_address_line_1 = (
+                        existing_declaration[7]
+                    )
+
+                if not declarer_address_line_2:
+                    declarer_address_line_2 = (
+                        existing_declaration[8]
+                    )
+
+                if not declarer_postcode:
+                    declarer_postcode = (
+                        existing_declaration[9]
+                    )
+
+                if not email_address:
+                    email_address = (
+                        existing_declaration[10]
+                    )
+
+                if not wording_version_id:
+                    wording_version_id = (
+                        existing_declaration[13]
+                    )
+
+                if not declaration_text:
+                    declaration_text = (
+                        existing_declaration[5]
+                    )
+
+            # ====================================================
+            # FALLBACK DATA FOR ACTIONS WITH NO EXISTING
+            # DECLARATION
+            # ====================================================
+
+            if not declarer_name:
+
+                cur.execute("""
+                    SELECT
+                        first_name,
+                        surname
+                    FROM members
+                    WHERE id = %s
+                """, (
+                    member_id,
+                ))
+
+                member_name_row = cur.fetchone()
+
+                if member_name_row is not None:
+
+                    declarer_name = (
+                        f"{member_name_row[0]} "
+                        f"{member_name_row[1]}"
+                    )
+
+            if not wording_version_id:
+
+                cur.execute("""
+                    SELECT
+                        id
+                    FROM gift_aid_wording_versions
+                    WHERE effective_from <= CURRENT_DATE
+                      AND (
+                          effective_until IS NULL
+                          OR effective_until >= CURRENT_DATE
+                      )
+                    ORDER BY
+                        effective_from DESC,
+                        id DESC
+                    LIMIT 1
+                """)
+
+                wording_version_row = cur.fetchone()
+
+                if wording_version_row is not None:
+
+                    wording_version_id = (
+                        wording_version_row[0]
+                    )
+
+            # ----------------------------------------------------
+            # declaration_text is historical wording for
+            # cancellation/decline/covered-elsewhere.
+            # If there is no previous declaration, use an
+            # explanatory audit snapshot rather than requiring
+            # the member to resubmit the declaration wording.
+            # ----------------------------------------------------
+
+            if not declaration_text:
+
+                if action == "CANCELLED":
+
+                    declaration_text = (
+                        "Cancellation of Gift Aid declaration"
+                    )
+
+                elif action == "DECLINED":
+
+                    declaration_text = (
+                        "Member declined to make a Gift Aid declaration"
+                    )
+
+                elif action == "COVERED_ELSEWHERE":
+
+                    declaration_text = (
+                        "Member stated that Gift Aid is covered "
+                        "by another person's declaration"
+                    )
 
             # ====================================================
             # ADMIN CREATE
@@ -1633,13 +1835,6 @@ def handle_post(event, path):
                 "UPDATED",
             }:
 
-                # ------------------------------------------------
-                # Public form supplied covered_members.
-                #
-                # An empty list is meaningful: it means the user
-                # has deliberately removed all other members.
-                # ------------------------------------------------
-
                 if "covered_members" in body:
 
                     covered_members = [
@@ -1656,12 +1851,6 @@ def handle_post(event, path):
                         for member in submitted_covered_members
                     ]
 
-                # ------------------------------------------------
-                # No covered_members supplied.
-                #
-                # Preserve the existing historical snapshot.
-                # ------------------------------------------------
-
                 elif (
                     is_token_request
                     and declaration_exists
@@ -1677,10 +1866,6 @@ def handle_post(event, path):
                         covered_members = (
                             previous_snapshot
                         )
-
-                # ------------------------------------------------
-                # Legacy admin numeric member IDs.
-                # ------------------------------------------------
 
                 elif submitted_members:
 
@@ -1709,10 +1894,6 @@ def handle_post(event, path):
                         for row in cur.fetchall()
                     ]
 
-                # ------------------------------------------------
-                # Existing declaration with no new member data.
-                # ------------------------------------------------
-
                 elif declaration_exists:
 
                     previous_snapshot = (
@@ -1724,10 +1905,6 @@ def handle_post(event, path):
                         covered_members = (
                             previous_snapshot
                         )
-
-                # ------------------------------------------------
-                # New declaration with no covered members.
-                # ------------------------------------------------
 
                 if covered_members is None:
 
@@ -1933,16 +2110,27 @@ def handle_post(event, path):
 
             if invitation_id:
 
-                cur.execute("""
-                    UPDATE gift_aid_invitations
-                    SET
-                        gift_aid_reference = %s,
-                        used_at = NOW()
-                    WHERE id = %s
-                """, (
-                    gift_aid_reference,
-                    invitation_id,
-                ))
+                # ------------------------------------------------
+                # When cancellation is explicitly the first half
+                # of Covered Elsewhere, leave the invitation open
+                # for the second POST.
+                # ------------------------------------------------
+
+                if not (
+                    action == "CANCELLED"
+                    and follow_up_action == "COVERED_ELSEWHERE"
+                ):
+
+                    cur.execute("""
+                        UPDATE gift_aid_invitations
+                        SET
+                            gift_aid_reference = %s,
+                            used_at = NOW()
+                        WHERE id = %s
+                    """, (
+                        gift_aid_reference,
+                        invitation_id,
+                    ))
 
             # ====================================================
             # COMMIT
