@@ -1835,6 +1835,18 @@ def handle_post(event, path):
                 "UPDATED",
             }:
 
+                # ------------------------------------------------
+                # IMPORTANT:
+                #
+                # If covered_members was actually supplied by
+                # the tokenised form, this is an explicit write.
+                #
+                # Any member_id supplied by the client is removed.
+                # The public form therefore cannot carry forward
+                # authoritative member IDs when the user edits
+                # the covered-member list.
+                # ------------------------------------------------
+
                 if "covered_members" in body:
 
                     covered_members = [
@@ -1850,6 +1862,14 @@ def handle_post(event, path):
                         }
                         for member in submitted_covered_members
                     ]
+
+                # ------------------------------------------------
+                # No covered_members field was supplied.
+                #
+                # This means the existing covered-member list was
+                # passively accepted. Preserve the authoritative
+                # member_id values from the existing declaration.
+                # ------------------------------------------------
 
                 elif (
                     is_token_request
@@ -2200,4 +2220,3 @@ def handle_post(event, path):
     finally:
 
         conn.close()
-
