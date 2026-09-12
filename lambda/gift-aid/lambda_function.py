@@ -506,20 +506,6 @@ def handle_get(
             "tower_id": member_row[4]
         }
 
-        if gift_aid_reference is None:
-
-            return success(
-                {
-                    "gift_aid_reference": None,
-                    "member_id": member_id,
-                    "invitation_id": invitation_id,
-                    "member": member,
-                    "members": [],
-                    "covered_members": [],
-                    "declaration": None,
-                    "wording": None,
-                }
-            )
 
         cur.execute(
             """
