@@ -381,8 +381,13 @@ def handle_pending():
             """
             SELECT
                 COUNT(*)
-            FROM gift_aid_declaration_audit
-            WHERE status = 'PENDING_REVIEW'
+            FROM gift_aid_declaration_audit a
+            WHERE a.status = 'PENDING_REVIEW'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM gift_aid_declaration_audit newer
+                  WHERE newer.supersedes_audit_id = a.id
+              )
             """
         )
 
@@ -393,11 +398,16 @@ def handle_pending():
         cur.execute(
             """
             SELECT
-                pending_review_type,
+                a.pending_review_type,
                 COUNT(*)
-            FROM gift_aid_declaration_audit
-            WHERE status = 'PENDING_REVIEW'
-            GROUP BY pending_review_type
+            FROM gift_aid_declaration_audit a
+            WHERE a.status = 'PENDING_REVIEW'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM gift_aid_declaration_audit newer
+                  WHERE newer.supersedes_audit_id = a.id
+              )
+            GROUP BY a.pending_review_type
             """
         )
 
@@ -1083,6 +1093,10 @@ def handle_post(
 
         invitation_id = None
 
+        # This is the audit row which the new row will supersede.
+        # It remains NULL when this is the first audit version.
+        supersedes_audit_id = None
+
         if is_public:
 
             token_hash = hash_token(
@@ -1177,6 +1191,13 @@ def handle_post(
                         "Covered Elsewhere must follow the cancellation of the current declaration"
                     )
 
+                # COVERED_ELSEWHERE has no Gift Aid reference of
+                # its own, so its predecessor is the cancellation
+                # audit row associated with this invitation.
+                supersedes_audit_id = (
+                    cancellation[0]
+                )
+
         else:
 
             supplied_reference = body.get(
@@ -1228,6 +1249,40 @@ def handle_post(
                     reference_row[0]
                     if reference_row
                     else None
+                )
+
+        # For declarations which have a Gift Aid reference, the
+        # predecessor is the latest audit version for that reference.
+        #
+        # COVERED_ELSEWHERE is handled separately above because its
+        # reference may be NULL.
+        if (
+            gift_aid_reference is not None
+            and supersedes_audit_id is None
+        ):
+
+            cur.execute(
+                """
+                SELECT
+                    id
+                FROM gift_aid_declaration_audit
+                WHERE gift_aid_reference = %s
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (
+                    gift_aid_reference,
+                ),
+            )
+
+            latest_audit_row = (
+                cur.fetchone()
+            )
+
+            if latest_audit_row:
+
+                supersedes_audit_id = (
+                    latest_audit_row[0]
                 )
 
         cur.execute(
@@ -1291,6 +1346,19 @@ def handle_post(
             gift_aid_reference = (
                 cur.fetchone()[0]
             )
+
+            # This is a genuinely new declaration reference,
+            # so there is no predecessor for this reference.
+            #
+            # The value could only have been set above for the
+            # COVERED_ELSEWHERE case, which is not generating
+            # a new reference here.
+            if action in (
+                "AFFIRMED",
+                "UPDATED",
+            ):
+
+                supersedes_audit_id = None
 
         if (
             action in (
@@ -2014,9 +2082,11 @@ def handle_post(
                     affirmed,
                     status,
                     pending_review_type,
-                    covered_members
+                    covered_members,
+                    supersedes_audit_id
                 )
                 VALUES (
+                    %s,
                     %s,
                     %s,
                     %s,
@@ -2063,6 +2133,7 @@ def handle_post(
                     json.dumps(
                         covered_snapshot
                     ),
+                    supersedes_audit_id,
                 ),
             )
 
@@ -2090,7 +2161,8 @@ def handle_post(
                     affirmed,
                     status,
                     pending_review_type,
-                    covered_members
+                    covered_members,
+                    supersedes_audit_id
                 )
                 VALUES (
                     %s,
@@ -2104,6 +2176,7 @@ def handle_post(
                     %s,
                     %s,
                     CURRENT_DATE,
+                    %s,
                     %s,
                     %s,
                     %s,
@@ -2138,6 +2211,7 @@ def handle_post(
                     json.dumps(
                         covered_snapshot
                     ),
+                    supersedes_audit_id,
                 ),
             )
 
@@ -2181,6 +2255,9 @@ def handle_post(
 
             "audit_id":
                 audit_id,
+
+            "supersedes_audit_id":
+                supersedes_audit_id,
 
             "action":
                 audit_action,
@@ -2235,6 +2312,11 @@ def handle_post(
 
         if conn:
             conn.rollback()
+
+        print(
+            "Gift Aid POST error:",
+            exc
+        )
 
         return bad_request(
             "Unable to record the Gift Aid declaration"
