@@ -612,8 +612,16 @@ def handle_get(
                 "declarer_address_line_2": declaration_row[8],
                 "declarer_postcode": declaration_row[9],
                 "email_address": declaration_row[10],
-                "affirmed_date": declaration_row[11],
-                "recorded_at": declaration_row[12],
+                "affirmed_date": (
+                    declaration_row[11].isoformat()
+                    if declaration_row[11]
+                    else None
+                ),
+                "recorded_at": (
+                    declaration_row[12].isoformat()
+                    if declaration_row[12]
+                    else None
+                ),
                 "invitation_id": declaration_row[13],
                 "recorded_by": declaration_row[14],
                 "wording_version_id": declaration_row[15],
@@ -662,7 +670,11 @@ def handle_get(
                 "wording_version_id": wording_row[0],
                 "version": wording_row[1],
                 "wording": wording_row[2],
-                "effective_from": wording_row[3],
+                "effective_from": (
+                    wording_row[3].isoformat()
+                    if wording_row[3]
+                    else None
+                ),
             }
 
         return success(
