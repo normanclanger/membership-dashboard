@@ -506,7 +506,6 @@ def handle_get(
             "tower_id": member_row[4]
         }
 
-
         cur.execute(
             """
             SELECT
@@ -647,8 +646,6 @@ def handle_get(
         )
 
         wording_row = cur.fetchone()
-        
-        print("Gift Aid wording query result:", wording_row)
 
         wording = None
 
@@ -980,12 +977,6 @@ def handle_post(
         if action == "COVERED_ELSEWHERE":
 
             if not covered_elsewhere:
-            
-                print(
-                     "COVERED_ELSEWHERE MISSING:",
-                     body
-                )
-
 
                 return bad_request(
                     "covered_elsewhere information is required"
@@ -1690,10 +1681,16 @@ def handle_post(
             live_relationship_ids
         )
 
+        pending_review_type = None
+
         if action == "COVERED_ELSEWHERE":
 
             audit_status = (
                 "PENDING_REVIEW"
+            )
+
+            pending_review_type = (
+                "COVERAGE_REQUEST"
             )
 
         elif (
@@ -1703,6 +1700,10 @@ def handle_post(
 
             audit_status = (
                 "PENDING_REVIEW"
+            )
+
+            pending_review_type = (
+                "UNRESOLVED_MEMBER"
             )
 
             if not inconsistency_reason:
@@ -1720,6 +1721,10 @@ def handle_post(
                 "PENDING_REVIEW"
             )
 
+            pending_review_type = (
+                "RELATIONSHIP_MISMATCH"
+            )
+
             if not inconsistency_reason:
 
                 inconsistency_reason = (
@@ -1735,6 +1740,10 @@ def handle_post(
                 "PENDING_REVIEW"
             )
 
+            pending_review_type = (
+                "RELATIONSHIP_MISMATCH"
+            )
+
         elif (
             is_token_request
             and removed_members
@@ -1742,6 +1751,10 @@ def handle_post(
 
             audit_status = (
                 "PENDING_REVIEW"
+            )
+
+            pending_review_type = (
+                "RELATIONSHIP_MISMATCH"
             )
 
         elif (
@@ -1752,6 +1765,10 @@ def handle_post(
 
             audit_status = (
                 "PENDING_REVIEW"
+            )
+
+            pending_review_type = (
+                "RELATIONSHIP_MISMATCH"
             )
 
         else:
@@ -1901,9 +1918,11 @@ def handle_post(
                     wording_version_id,
                     affirmed,
                     status,
+                    pending_review_type,
                     covered_members
                 )
                 VALUES (
+                    %s,
                     %s,
                     %s,
                     %s,
@@ -1945,6 +1964,7 @@ def handle_post(
                     wording_version_id,
                     audit_affirmed,
                     audit_status,
+                    pending_review_type,
                     json.dumps(
                         covered_snapshot
                     ),
@@ -1974,6 +1994,7 @@ def handle_post(
                     wording_version_id,
                     affirmed,
                     status,
+                    pending_review_type,
                     covered_members
                 )
                 VALUES (
@@ -1988,6 +2009,7 @@ def handle_post(
                     %s,
                     %s,
                     CURRENT_DATE,
+                    %s,
                     %s,
                     %s,
                     %s,
@@ -2017,6 +2039,7 @@ def handle_post(
                     wording_version_id,
                     audit_affirmed,
                     audit_status,
+                    pending_review_type,
                     json.dumps(
                         covered_snapshot
                     ),
@@ -2117,11 +2140,6 @@ def handle_post(
 
         if conn:
             conn.rollback()
-
-        print(
-            "Gift Aid POST error:",
-            exc
-        )
 
         return bad_request(
             "Unable to record the Gift Aid declaration"
