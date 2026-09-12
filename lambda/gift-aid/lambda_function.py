@@ -1057,6 +1057,7 @@ def handle_post(
             if (
                 action == "COVERED_ELSEWHERE"
                 and follow_up_action is None
+                and gift_aid_reference is not None
             ):
 
                 cur.execute(
