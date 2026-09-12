@@ -28,6 +28,7 @@ VALID_ACTIONS = {
 
 PUBLIC_DECLARATION_PATH = "/api/gift-aid/declaration"
 ADMIN_DECLARATION_PATH = "/api/gift-aid/admin/declaration"
+PENDING_REVIEW_PATH = "/api/gift-aid/admin/pending"
 
 
 def get_user_groups(event):
@@ -239,6 +240,22 @@ def lambda_handler(event, context):
         ""
     ).upper()
 
+    if path == PENDING_REVIEW_PATH:
+
+        if method != "GET":
+
+            return bad_request(
+                "Method not allowed"
+            )
+
+        if not can_administer(event):
+
+            return forbidden(
+                "You do not have permission to view Gift Aid pending reviews"
+            )
+
+        return handle_pending()
+
     if path not in (
         PUBLIC_DECLARATION_PATH,
         ADMIN_DECLARATION_PATH,
@@ -348,6 +365,84 @@ def lambda_handler(event, context):
     return bad_request(
         "Unsupported method"
     )
+
+
+def handle_pending():
+
+    conn = None
+
+    try:
+
+        conn = get_connection()
+
+        cur = conn.cursor()
+
+        cur.execute(
+            """
+            SELECT
+                COUNT(*)
+            FROM gift_aid_declaration_audit
+            WHERE status = 'PENDING_REVIEW'
+            """
+        )
+
+        total_pending = (
+            cur.fetchone()[0]
+        )
+
+        cur.execute(
+            """
+            SELECT
+                pending_review_type,
+                COUNT(*)
+            FROM gift_aid_declaration_audit
+            WHERE status = 'PENDING_REVIEW'
+            GROUP BY pending_review_type
+            """
+        )
+
+        rows = cur.fetchall()
+
+        counts = {
+            "UNRESOLVED_MEMBER": 0,
+            "RELATIONSHIP_MISMATCH": 0,
+            "COVERAGE_REQUEST": 0,
+        }
+
+        for row in rows:
+
+            review_type = row[0]
+            count = row[1]
+
+            if review_type in counts:
+
+                counts[review_type] = count
+
+        return success(
+            {
+                "total": total_pending,
+                "types": counts,
+            }
+        )
+
+    except Exception as exc:
+
+        if conn:
+            conn.rollback()
+
+        print(
+            "Gift Aid pending review error:",
+            exc
+        )
+
+        return bad_request(
+            "Unable to load pending Gift Aid reviews"
+        )
+
+    finally:
+
+        if conn:
+            conn.close()
 
 
 def handle_get(
