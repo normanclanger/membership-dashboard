@@ -639,7 +639,7 @@ def handle_get(
             """
             SELECT
                 id,
-                wording_version,
+                version,
                 wording,
                 effective_from
             FROM gift_aid_wording_versions
