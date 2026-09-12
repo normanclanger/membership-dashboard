@@ -980,6 +980,12 @@ def handle_post(
         if action == "COVERED_ELSEWHERE":
 
             if not covered_elsewhere:
+            
+                print(
+                     "COVERED_ELSEWHERE MISSING:",
+                     body
+                )
+
 
                 return bad_request(
                     "covered_elsewhere information is required"
