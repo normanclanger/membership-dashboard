@@ -482,7 +482,6 @@ def handle_get(
                 first_name,
                 surname,
                 tower_id,
-                title,
                 date_of_birth,
                 membership_class_id,
                 membership_status_id,
@@ -509,11 +508,10 @@ def handle_get(
             "first_name": member_row[2],
             "surname": member_row[3],
             "tower_id": member_row[4],
-            "title": member_row[5],
-            "date_of_birth": member_row[6],
-            "membership_class_id": member_row[7],
-            "membership_status_id": member_row[8],
-            "full_member_type_id": member_row[9],
+            "date_of_birth": member_row[5],
+            "membership_class_id": member_row[6],
+            "membership_status_id": member_row[7],
+            "full_member_type_id": member_row[8],
         }
 
         if gift_aid_reference is None:
