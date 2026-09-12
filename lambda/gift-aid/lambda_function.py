@@ -661,6 +661,8 @@ def handle_get(
         )
 
         wording_row = cur.fetchone()
+        
+        print("Gift Aid wording query result:", wording_row)
 
         wording = None
 
