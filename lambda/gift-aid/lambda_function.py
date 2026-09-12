@@ -481,11 +481,7 @@ def handle_get(
                 membership_number,
                 first_name,
                 surname,
-                tower_id,
-                date_of_birth,
-                membership_class_id,
-                membership_status_id,
-                full_member_type_id
+                tower_id
             FROM members
             WHERE id = %s
             """,
@@ -507,11 +503,7 @@ def handle_get(
             "membership_number": member_row[1],
             "first_name": member_row[2],
             "surname": member_row[3],
-            "tower_id": member_row[4],
-            "date_of_birth": member_row[5],
-            "membership_class_id": member_row[6],
-            "membership_status_id": member_row[7],
-            "full_member_type_id": member_row[8],
+            "tower_id": member_row[4]
         }
 
         if gift_aid_reference is None:
