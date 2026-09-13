@@ -285,6 +285,15 @@ def handle_resolve_coverage(
                 "Exactly one covered member must be resolved"
             )
 
+        add_requester = body.get(
+            "add_requester"
+        )
+
+        if add_requester is not True:
+            return bad_request(
+                "Confirmation is required before adding the requesting member"
+            )
+
         conn = get_connection()
 
         cur = conn.cursor()
@@ -468,7 +477,7 @@ def handle_resolve_coverage(
 
         # Load the resolved member's current working declaration.
         #
-        # We deliberately look at the latest CONFIRMED audit
+        # We deliberately look at the latest audit
         # for this member, rather than using the gift_aid_reference
         # stored on the COVERED_ELSEWHERE request.  That request
         # may have a NULL reference or an old cancelled reference.
@@ -494,8 +503,12 @@ def handle_resolve_coverage(
                 a.affirmed,
                 a.status
             FROM gift_aid_declaration_audit a
-            WHERE a.member_id = %s
-              AND a.status = 'CONFIRMED'
+                WHERE a.member_id = %s
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM gift_aid_declaration_audit newer
+                      WHERE newer.supersedes_audit_id = a.id
+                  )
             ORDER BY a.id DESC
             LIMIT 1
             FOR UPDATE
@@ -515,9 +528,26 @@ def handle_resolve_coverage(
                 "The resolved member does not have a current confirmed Gift Aid declaration"
             )
 
-        working_action = (
-            working_declaration[3]
-        )
+        
+        working_action = working_declaration[3]
+        working_status = working_declaration[17]
+
+        if working_action in {"CANCELLED", "DECLINED"}:
+            return bad_request(
+                "The resolved member's current Gift Aid declaration "
+                "cannot accept an additional covered member"
+            )
+
+        if working_action not in {"AFFIRMED", "UPDATED"}:
+            return bad_request(
+                "The resolved member does not have a usable current Gift Aid declaration"
+            )
+
+        if working_status not in {"CONFIRMED", "PENDING_REVIEW"}:
+            return bad_request(
+                "The resolved member's current Gift Aid declaration "
+                "has an invalid status"
+            )
 
         working_reference = (
             working_declaration[2]
@@ -527,15 +557,6 @@ def handle_resolve_coverage(
 
             return bad_request(
                 "The resolved member's current Gift Aid declaration has no Gift Aid reference"
-            )
-
-        if working_action not in (
-            "AFFIRMED",
-            "UPDATED",
-        ):
-
-            return bad_request(
-                "The resolved member does not have a current working Gift Aid declaration"
             )
 
         working_covered_members = (
