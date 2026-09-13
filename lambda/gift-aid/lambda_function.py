@@ -333,6 +333,23 @@ def handle_resolve_member(
             or []
         )
 
+        if isinstance(
+            original_covered_members,
+            str
+        ):
+
+            try:
+
+                original_covered_members = json.loads(
+                    original_covered_members
+                )
+
+            except json.JSONDecodeError:
+
+                return bad_request(
+                    "The pending declaration contains invalid covered member data"
+                )
+
         if not isinstance(
             original_covered_members,
             list
