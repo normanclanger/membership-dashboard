@@ -31,6 +31,7 @@ ADMIN_DECLARATION_PATH = "/api/gift-aid/admin/declaration"
 PENDING_REVIEW_PATH = "/api/gift-aid/admin/pending"
 RESOLVE_MEMBER_PATH = "/api/gift-aid/admin/pending"
 CONFIRM_RELATIONSHIPS_PATH = "/api/gift-aid/admin/pending"
+RESOLVE_COVERAGE_PATH = "/api/gift-aid/admin/pending"
 
 
 def get_user_groups(event):
@@ -223,6 +224,691 @@ def declaration_relationships_consistent(
         )
 
     return True, None
+
+def handle_resolve_coverage(
+    event,
+    audit_id
+):
+
+    conn = None
+
+    try:
+
+        try:
+
+            audit_id = int(
+                audit_id
+            )
+
+        except (
+            TypeError,
+            ValueError
+        ):
+
+            return bad_request(
+                "Invalid audit_id"
+            )
+
+        body_text = (
+            event.get("body")
+            or "{}"
+        )
+
+        try:
+
+            body = json.loads(
+                body_text
+            )
+
+        except json.JSONDecodeError:
+
+            return bad_request(
+                "Invalid JSON request body"
+            )
+
+        resolutions = body.get(
+            "resolutions"
+        )
+
+        if not isinstance(
+            resolutions,
+            list
+        ):
+
+            return bad_request(
+                "resolutions must be a list"
+            )
+
+        if len(resolutions) != 1:
+
+            return bad_request(
+                "Exactly one covered member must be resolved"
+            )
+
+        conn = get_connection()
+
+        cur = conn.cursor()
+
+        # Lock the current COVERAGE_REQUEST row.
+        cur.execute(
+            """
+            SELECT
+                a.id,
+                a.member_id,
+                a.gift_aid_reference,
+                a.action,
+                a.declaration_method,
+                a.declaration_text,
+                a.declarer_name,
+                a.declarer_address_line_1,
+                a.declarer_address_line_2,
+                a.declarer_postcode,
+                a.email_address,
+                a.affirmed_date,
+                a.invitation_id,
+                a.recorded_by,
+                a.wording_version_id,
+                a.covered_members,
+                a.affirmed,
+                a.status,
+                a.pending_review_type
+            FROM gift_aid_declaration_audit a
+            WHERE a.id = %s
+              AND a.status = 'PENDING_REVIEW'
+              AND a.pending_review_type = 'COVERAGE_REQUEST'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM gift_aid_declaration_audit newer
+                  WHERE newer.supersedes_audit_id = a.id
+              )
+            FOR UPDATE
+            """,
+            (
+                audit_id,
+            ),
+        )
+
+        original = cur.fetchone()
+
+        if not original:
+
+            return not_found(
+                "Current Gift Aid coverage request not found"
+            )
+
+        original_covered_members = (
+            original[15]
+            or []
+        )
+
+        if not isinstance(
+            original_covered_members,
+            list
+        ):
+
+            return bad_request(
+                "The coverage request contains invalid covered member data"
+            )
+
+        # COVERED_ELSEWHERE currently represents one
+        # informal covered member.
+        if len(original_covered_members) != 1:
+
+            return bad_request(
+                "The coverage request must contain exactly one covered member"
+            )
+
+        informal_member = (
+            original_covered_members[0]
+        )
+
+        if not isinstance(
+            informal_member,
+            dict
+        ):
+
+            return bad_request(
+                "The coverage request contains an invalid covered member"
+            )
+
+        if informal_member.get(
+            "member_id"
+        ) is not None:
+
+            return bad_request(
+                "The coverage request has already been resolved"
+            )
+
+        resolution = resolutions[0]
+
+        if not isinstance(
+            resolution,
+            dict
+        ):
+
+            return bad_request(
+                "The resolution must be an object"
+            )
+
+        covered_member_index = (
+            resolution.get(
+                "covered_member_index"
+            )
+        )
+
+        resolved_member_id = (
+            resolution.get(
+                "member_id"
+            )
+        )
+
+        try:
+
+            covered_member_index = int(
+                covered_member_index
+            )
+
+        except (
+            TypeError,
+            ValueError
+        ):
+
+            return bad_request(
+                "Invalid covered_member_index"
+            )
+
+        if covered_member_index != 0:
+
+            return bad_request(
+                "covered_member_index must be 0"
+            )
+
+        try:
+
+            resolved_member_id = int(
+                resolved_member_id
+            )
+
+        except (
+            TypeError,
+            ValueError
+        ):
+
+            return bad_request(
+                "Invalid member_id"
+            )
+
+        # The member identified by the admin is the person whose
+        # declaration we need to load.
+        cur.execute(
+            """
+            SELECT
+                id,
+                membership_number,
+                first_name,
+                surname
+            FROM members
+            WHERE id = %s
+            """,
+            (
+                resolved_member_id,
+            ),
+        )
+
+        resolved_member = (
+            cur.fetchone()
+        )
+
+        if not resolved_member:
+
+            return bad_request(
+                "Resolved member does not exist: "
+                + str(resolved_member_id)
+            )
+
+        # Load the resolved member's current working declaration.
+        #
+        # We deliberately look at the latest CONFIRMED audit
+        # for this member, rather than using the gift_aid_reference
+        # stored on the COVERED_ELSEWHERE request.  That request
+        # may have a NULL reference or an old cancelled reference.
+        cur.execute(
+            """
+            SELECT
+                a.id,
+                a.member_id,
+                a.gift_aid_reference,
+                a.action,
+                a.declaration_method,
+                a.declaration_text,
+                a.declarer_name,
+                a.declarer_address_line_1,
+                a.declarer_address_line_2,
+                a.declarer_postcode,
+                a.email_address,
+                a.affirmed_date,
+                a.invitation_id,
+                a.recorded_by,
+                a.wording_version_id,
+                a.covered_members,
+                a.affirmed,
+                a.status
+            FROM gift_aid_declaration_audit a
+            WHERE a.member_id = %s
+              AND a.status = 'CONFIRMED'
+            ORDER BY a.id DESC
+            LIMIT 1
+            FOR UPDATE
+            """,
+            (
+                resolved_member_id,
+            ),
+        )
+
+        working_declaration = (
+            cur.fetchone()
+        )
+
+        if not working_declaration:
+
+            return bad_request(
+                "The resolved member does not have a current confirmed Gift Aid declaration"
+            )
+
+        working_action = (
+            working_declaration[3]
+        )
+
+        working_reference = (
+            working_declaration[2]
+        )
+
+        if working_reference is None:
+
+            return bad_request(
+                "The resolved member's current Gift Aid declaration has no Gift Aid reference"
+            )
+
+        if working_action not in (
+            "AFFIRMED",
+            "UPDATED",
+        ):
+
+            return bad_request(
+                "The resolved member does not have a current working Gift Aid declaration"
+            )
+
+        working_covered_members = (
+            working_declaration[15]
+            or []
+        )
+
+        if not isinstance(
+            working_covered_members,
+            list
+        ):
+
+            return bad_request(
+                "The working Gift Aid declaration contains invalid covered member data"
+            )
+
+        # The person who raised the COVERED_ELSEWHERE request
+        # is the person we may add to the working declaration.
+        requester_id = (
+            original[1]
+        )
+
+        if requester_id is None:
+
+            return bad_request(
+                "The coverage request has no requesting member"
+            )
+
+        cur.execute(
+            """
+            SELECT
+                id,
+                membership_number,
+                first_name,
+                surname
+            FROM members
+            WHERE id = %s
+            """,
+            (
+                requester_id,
+            ),
+        )
+
+        requester = (
+            cur.fetchone()
+        )
+
+        if not requester:
+
+            return bad_request(
+                "Requesting member does not exist: "
+                + str(requester_id)
+            )
+
+        # Start with the working declaration's existing
+        # covered-member snapshot.
+        updated_covered_members = []
+
+        requester_already_present = False
+
+        for covered_member in working_covered_members:
+
+            if not isinstance(
+                covered_member,
+                dict
+            ):
+
+                return bad_request(
+                    "The working declaration contains an invalid covered member"
+                )
+
+            member_id = covered_member.get(
+                "member_id"
+            )
+
+            if member_id is not None:
+
+                try:
+
+                    member_id = int(
+                        member_id
+                    )
+
+                except (
+                    TypeError,
+                    ValueError
+                ):
+
+                    return bad_request(
+                        "The working declaration contains an invalid member_id"
+                    )
+
+                covered_member = dict(
+                    covered_member
+                )
+
+                covered_member[
+                    "member_id"
+                ] = member_id
+
+                if member_id == requester_id:
+
+                    requester_already_present = True
+
+            updated_covered_members.append(
+                covered_member
+            )
+
+        # Add the REQUESTER, not the resolved declaration holder.
+        if not requester_already_present:
+
+            updated_covered_members.append(
+                {
+                    "member_id":
+                        requester[0],
+
+                    "membership_number":
+                        requester[1],
+
+                    "first_name":
+                        requester[2],
+
+                    "surname":
+                        requester[3],
+                }
+            )
+
+        # The new declaration must contain only formal member
+        # entries.
+        if covered_members_have_informal_entries(
+            updated_covered_members
+        ):
+
+            return bad_request(
+                "The working declaration contains unresolved covered members"
+            )
+
+        updated_ids = covered_member_ids(
+            updated_covered_members
+        )
+
+        # Compare the proposed declaration with the CURRENT
+        # Gift Aid relationships for the working declaration's
+        # existing reference.
+        cur.execute(
+            """
+            SELECT
+                gam.member_id
+            FROM gift_aid_members gam
+            WHERE gam.gift_aid_reference = %s
+              AND (
+                  gam.valid_until IS NULL
+                  OR gam.valid_until >= CURRENT_DATE
+              )
+            ORDER BY gam.member_id
+            """,
+            (
+                working_reference,
+            ),
+        )
+
+        live_rows = cur.fetchall()
+
+        live_ids = {
+            int(row[0])
+            for row in live_rows
+        }
+
+        relationships_match = (
+            updated_ids == live_ids
+        )
+
+        if relationships_match:
+
+            audit_status = (
+                "CONFIRMED"
+            )
+
+            pending_review_type = None
+
+        else:
+
+            audit_status = (
+                "PENDING_REVIEW"
+            )
+
+            pending_review_type = (
+                "RELATIONSHIP_MISMATCH"
+            )
+
+        # Create a NEW audit version of the WORKING declaration.
+        #
+        # The Gift Aid reference belongs to the working declaration
+        # and is deliberately retained.
+        #
+        # The original COVERED_ELSEWHERE audit is NOT its predecessor.
+        # The new audit supersedes the working declaration audit.
+        cur.execute(
+            """
+            INSERT INTO gift_aid_declaration_audit (
+                member_id,
+                gift_aid_reference,
+                action,
+                declaration_method,
+                declaration_text,
+                declarer_name,
+                declarer_address_line_1,
+                declarer_address_line_2,
+                declarer_postcode,
+                email_address,
+                affirmed_date,
+                ip_address,
+                user_agent,
+                invitation_id,
+                recorded_by,
+                wording_version_id,
+                affirmed,
+                status,
+                pending_review_type,
+                covered_members,
+                supersedes_audit_id
+            )
+            VALUES (
+                %s,
+                %s,
+                'UPDATED',
+                'MANUAL',
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                TRUE,
+                %s,
+                %s,
+                %s,
+                %s
+            )
+            RETURNING id
+            """,
+            (
+                working_declaration[1],
+                working_reference,
+                working_declaration[5],
+                working_declaration[6],
+                working_declaration[7],
+                working_declaration[8],
+                working_declaration[9],
+                working_declaration[10],
+                working_declaration[11],
+                get_source_ip(event),
+                get_user_agent(event),
+                working_declaration[12],
+                get_cognito_sub(event),
+                working_declaration[14],
+                audit_status,
+                pending_review_type,
+                json.dumps(
+                    updated_covered_members
+                ),
+                working_declaration[0],
+            ),
+        )
+
+        new_audit_id = (
+            cur.fetchone()[0]
+        )
+
+        conn.commit()
+
+        return success(
+            {
+                "audit_id":
+                    new_audit_id,
+
+                "supersedes_audit_id":
+                    working_declaration[0],
+
+                "source_coverage_request_id":
+                    original[0],
+
+                "gift_aid_reference":
+                    working_reference,
+
+                "requesting_member":
+                    {
+                        "member_id":
+                            requester[0],
+
+                        "membership_number":
+                            requester[1],
+
+                        "first_name":
+                            requester[2],
+
+                        "surname":
+                            requester[3],
+                    },
+
+                "resolved_declaration_member":
+                    {
+                        "member_id":
+                            resolved_member[0],
+
+                        "membership_number":
+                            resolved_member[1],
+
+                        "first_name":
+                            resolved_member[2],
+
+                        "surname":
+                            resolved_member[3],
+                    },
+
+                "action":
+                    "UPDATED",
+
+                "method":
+                    "MANUAL",
+
+                "affirmed":
+                    True,
+
+                "status":
+                    audit_status,
+
+                "pending_review_type":
+                    pending_review_type,
+
+                "covered_members":
+                    updated_covered_members,
+
+                "relationship_ids":
+                    sorted(
+                        updated_ids
+                    ),
+
+                "live_relationship_ids":
+                    sorted(
+                        live_ids
+                    ),
+
+                "relationships_match":
+                    relationships_match,
+            }
+        )
+
+    except Exception as exc:
+
+        if conn:
+            conn.rollback()
+
+        print(
+            "Gift Aid resolve coverage error:",
+            exc
+        )
+
+        return bad_request(
+            "Unable to resolve the Gift Aid coverage request"
+        )
+
+    finally:
+
+        if conn:
+            conn.close()
+
 
 def handle_resolve_member(
     event,
@@ -1319,6 +2005,43 @@ def lambda_handler(event, context):
             event,
             audit_id_text
         )
+
+    # Process 3: resolve a COVERED_ELSEWHERE coverage request
+    coverage_prefix = (
+        RESOLVE_COVERAGE_PATH + "/"
+    )
+
+    if (
+        path.startswith(coverage_prefix)
+        and
+        path.endswith("/resolve-coverage")
+    ):
+
+        if method != "POST":
+
+            return bad_request(
+                "Method not allowed"
+            )
+
+        if not can_administer(event):
+
+            return forbidden(
+                "You do not have permission to resolve Gift Aid coverage requests"
+            )
+
+        audit_id_text = path[
+            len(coverage_prefix):
+        ]
+
+        audit_id_text = audit_id_text[
+            :-len("/resolve-coverage")
+        ]
+
+        return handle_resolve_coverage(
+            event,
+            audit_id_text
+        )
+
 
     if path == PENDING_REVIEW_PATH:
 
