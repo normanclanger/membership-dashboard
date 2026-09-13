@@ -30,6 +30,7 @@ PUBLIC_DECLARATION_PATH = "/api/gift-aid/declaration"
 ADMIN_DECLARATION_PATH = "/api/gift-aid/admin/declaration"
 PENDING_REVIEW_PATH = "/api/gift-aid/admin/pending"
 RESOLVE_MEMBER_PATH = "/api/gift-aid/admin/pending"
+CONFIRM_RELATIONSHIPS_PATH = "/api/gift-aid/admin/pending"
 
 
 def get_user_groups(event):
@@ -795,6 +796,438 @@ def handle_resolve_member(
 
         if conn:
             conn.close()
+            
+            
+def handle_confirm_relationships(
+    event,
+    audit_id
+):
+
+    conn = None
+
+    try:
+
+        try:
+
+            audit_id = int(
+                audit_id
+            )
+
+        except (
+            TypeError,
+            ValueError
+        ):
+
+            return bad_request(
+                "Invalid audit_id"
+            )
+
+        body_text = (
+            event.get("body")
+            or "{}"
+        )
+
+        try:
+
+            body = json.loads(
+                body_text
+            )
+
+        except json.JSONDecodeError:
+
+            return bad_request(
+                "Invalid JSON request body"
+            )
+
+        confirmed = body.get(
+            "confirmed"
+        )
+
+        if confirmed is not True:
+
+            return bad_request(
+                "Relationship confirmation is required"
+            )
+
+        conn = get_connection()
+
+        cur = conn.cursor()
+
+        # Lock the current pending audit row.
+        cur.execute(
+            """
+            SELECT
+                a.id,
+                a.member_id,
+                a.gift_aid_reference,
+                a.action,
+                a.declaration_method,
+                a.declaration_text,
+                a.declarer_name,
+                a.declarer_address_line_1,
+                a.declarer_address_line_2,
+                a.declarer_postcode,
+                a.email_address,
+                a.affirmed_date,
+                a.invitation_id,
+                a.recorded_by,
+                a.wording_version_id,
+                a.covered_members,
+                a.affirmed,
+                a.status,
+                a.pending_review_type
+            FROM gift_aid_declaration_audit a
+            WHERE a.id = %s
+              AND a.status = 'PENDING_REVIEW'
+              AND a.pending_review_type = 'RELATIONSHIP_MISMATCH'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM gift_aid_declaration_audit newer
+                  WHERE newer.supersedes_audit_id = a.id
+              )
+            FOR UPDATE
+            """,
+            (
+                audit_id,
+            ),
+        )
+
+        original = cur.fetchone()
+
+        if not original:
+
+            return not_found(
+                "Current relationship mismatch review not found"
+            )
+
+        covered_members = (
+            original[15]
+            or []
+        )
+
+        if not isinstance(
+            covered_members,
+            list
+        ):
+
+            return bad_request(
+                "The pending declaration contains invalid covered member data"
+            )
+
+        # A relationship mismatch cannot be confirmed while
+        # any covered member is still unresolved.
+        if covered_members_have_informal_entries(
+            covered_members
+        ):
+
+            return bad_request(
+                "All covered members must be resolved before confirming relationships"
+            )
+
+        covered_ids = covered_member_ids(
+            covered_members
+        )
+
+        # There must be at least one formal covered member.
+        if not covered_ids:
+
+            return bad_request(
+                "The declaration contains no resolved covered members"
+            )
+
+        gift_aid_reference = (
+            original[2]
+        )
+
+        if gift_aid_reference is None:
+
+            return bad_request(
+                "Gift Aid reference is required"
+            )
+
+        # Make sure every covered member still exists.
+        for member_id in covered_ids:
+
+            cur.execute(
+                """
+                SELECT
+                    id
+                FROM members
+                WHERE id = %s
+                """,
+                (
+                    member_id,
+                ),
+            )
+
+            if not cur.fetchone():
+
+                return bad_request(
+                    "Covered member does not exist: "
+                    + str(member_id)
+                )
+
+        # Get the current live relationships.
+        cur.execute(
+            """
+            SELECT
+                member_id
+            FROM gift_aid_members
+            WHERE gift_aid_reference = %s
+              AND (
+                  valid_until IS NULL
+                  OR valid_until >= CURRENT_DATE
+              )
+            FOR UPDATE
+            """,
+            (
+                gift_aid_reference,
+            ),
+        )
+
+        live_rows = cur.fetchall()
+
+        live_ids = {
+            int(row[0])
+            for row in live_rows
+        }
+
+        added_members = sorted(
+            covered_ids - live_ids
+        )
+
+        removed_members = sorted(
+            live_ids - covered_ids
+        )
+
+        # The declaration's affirmed date determines the effective
+        # date of the relationship changes.
+        affirmed_date = original[11]
+
+        # Add relationships which the confirmed declaration says
+        # should exist.
+        for member_id in added_members:
+
+            cur.execute(
+                """
+                INSERT INTO gift_aid_members (
+                    member_id,
+                    gift_aid_reference,
+                    valid_until
+                )
+                VALUES (
+                    %s,
+                    %s,
+                    NULL
+                )
+                """,
+                (
+                    member_id,
+                    gift_aid_reference,
+                ),
+            )
+
+        # End relationships which are no longer covered.
+        #
+        # valid_until is inclusive, so setting it to the
+        # declaration date means the old relationship remains
+        # valid for that date and is no longer live afterwards.
+        for member_id in removed_members:
+
+            cur.execute(
+                """
+                UPDATE gift_aid_members
+                SET valid_until = %s
+                WHERE member_id = %s
+                  AND gift_aid_reference = %s
+                  AND (
+                      valid_until IS NULL
+                      OR valid_until >= %s
+                  )
+                """,
+                (
+                    affirmed_date,
+                    member_id,
+                    gift_aid_reference,
+                    affirmed_date,
+                ),
+            )
+
+        # The relationship state should now agree with the
+        # declaration.
+        cur.execute(
+            """
+            SELECT
+                member_id
+            FROM gift_aid_members
+            WHERE gift_aid_reference = %s
+              AND (
+                  valid_until IS NULL
+                  OR valid_until >= %s
+              )
+            ORDER BY member_id
+            """,
+            (
+                gift_aid_reference,
+                affirmed_date,
+            ),
+        )
+
+        final_rows = cur.fetchall()
+
+        final_ids = {
+            int(row[0])
+            for row in final_rows
+        }
+
+        if final_ids != covered_ids:
+
+            return bad_request(
+                "Unable to reconcile Gift Aid relationships"
+            )
+
+        # Create the confirmed audit version.
+        cur.execute(
+            """
+            INSERT INTO gift_aid_declaration_audit (
+                member_id,
+                gift_aid_reference,
+                action,
+                declaration_method,
+                declaration_text,
+                declarer_name,
+                declarer_address_line_1,
+                declarer_address_line_2,
+                declarer_postcode,
+                email_address,
+                affirmed_date,
+                ip_address,
+                user_agent,
+                invitation_id,
+                recorded_by,
+                wording_version_id,
+                affirmed,
+                status,
+                pending_review_type,
+                covered_members,
+                supersedes_audit_id
+            )
+            VALUES (
+                %s,
+                %s,
+                'UPDATED',
+                'MANUAL',
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                TRUE,
+                'CONFIRMED',
+                NULL,
+                %s,
+                %s
+            )
+            RETURNING id
+            """,
+            (
+                original[1],
+                gift_aid_reference,
+                original[5],
+                original[6],
+                original[7],
+                original[8],
+                original[9],
+                original[10],
+                affirmed_date,
+                get_source_ip(event),
+                get_user_agent(event),
+                original[12],
+                get_cognito_sub(event),
+                original[14],
+                json.dumps(
+                    covered_members
+                ),
+                original[0],
+            ),
+        )
+
+        new_audit_id = (
+            cur.fetchone()[0]
+        )
+
+        conn.commit()
+
+        return success(
+            {
+                "audit_id":
+                    new_audit_id,
+
+                "supersedes_audit_id":
+                    original[0],
+
+                "gift_aid_reference":
+                    gift_aid_reference,
+
+                "member_id":
+                    original[1],
+
+                "action":
+                    "UPDATED",
+
+                "method":
+                    "MANUAL",
+
+                "affirmed":
+                    True,
+
+                "status":
+                    "CONFIRMED",
+
+                "pending_review_type":
+                    None,
+
+                "covered_members":
+                    covered_members,
+
+                "added_members":
+                    added_members,
+
+                "removed_members":
+                    removed_members,
+
+                "relationship_ids":
+                    sorted(
+                        final_ids
+                    ),
+            }
+        )
+
+    except Exception as exc:
+
+        if conn:
+            conn.rollback()
+
+        print(
+            "Gift Aid confirm relationships error:",
+            exc
+        )
+
+        return bad_request(
+            "Unable to confirm the Gift Aid relationships"
+        )
+
+    finally:
+
+        if conn:
+            conn.close()
 
 
 def lambda_handler(event, context):
@@ -815,7 +1248,7 @@ def lambda_handler(event, context):
     ).upper()
     
     
-        # Process 1: resolve an informal covered member
+    # Process 1: resolve an informal covered member
     resolve_prefix = (
         RESOLVE_MEMBER_PATH + "/"
     )
@@ -847,6 +1280,42 @@ def lambda_handler(event, context):
         ]
 
         return handle_resolve_member(
+            event,
+            audit_id_text
+        )
+
+    # Process 2: confirm a relationship mismatch
+    confirm_prefix = (
+        CONFIRM_RELATIONSHIPS_PATH + "/"
+    )
+
+    if (
+        path.startswith(confirm_prefix)
+        and
+        path.endswith("/confirm-relationships")
+    ):
+
+        if method != "POST":
+
+            return bad_request(
+                "Method not allowed"
+            )
+
+        if not can_administer(event):
+
+            return forbidden(
+                "You do not have permission to confirm Gift Aid relationships"
+            )
+
+        audit_id_text = path[
+            len(confirm_prefix):
+        ]
+
+        audit_id_text = audit_id_text[
+            :-len("/confirm-relationships")
+        ]
+
+        return handle_confirm_relationships(
             event,
             audit_id_text
         )
