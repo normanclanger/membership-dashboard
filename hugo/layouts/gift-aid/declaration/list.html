@@ -1,0 +1,450 @@
+{{ define "main" }}
+
+<div class="container">
+
+
+<div class="row justify-content-center">
+
+    <div class="col-lg-8">
+
+        <h1 class="mb-4">
+            Gift Aid Declaration
+        </h1>
+
+
+        <!-- =====================================================
+             Alternative Gift Aid actions
+             ===================================================== -->
+
+        <div
+            id="gift-aid-actions"
+            class="card mb-4"
+            >
+
+            <div class="card-body">
+
+                <h2 class="card-title h4">
+                    Gift Aid options
+                </h2>
+
+                <p>
+                    If you do not wish to submit or continue with
+                    your Gift Aid declaration, please choose one
+                    of the options below.
+                </p>
+
+                <div class="d-flex flex-column flex-sm-row gap-2">
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        id="gift-aid-cancel">
+
+                        Cancel my Gift Aid declaration
+
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        id="gift-aid-decline">
+
+                        I don't want to Gift Aid
+
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        id="gift-aid-covered-elsewhere">
+
+                        My Gift Aid is covered by another person's declaration
+
+                    </button>
+
+                </div>
+
+                <p class="text-muted mt-3 mb-0">
+
+                    If you wish to submit or update your Gift Aid
+                    declaration, please complete and submit the
+                    form below.
+
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             Loading
+             ===================================================== -->
+
+        <div
+            id="gift-aid-loading"
+            class="alert alert-info">
+
+            Loading your Gift Aid declaration...
+
+        </div>
+
+
+        <!-- =====================================================
+             Error
+             ===================================================== -->
+
+        <div
+            id="gift-aid-error"
+            class="alert alert-danger"
+            hidden>
+        </div>
+
+
+        <!-- =====================================================
+             Declaration status
+             ===================================================== -->
+
+        <div
+            id="gift-aid-status"
+            class="alert alert-secondary mb-4"
+            hidden>
+        </div>
+
+
+        <!-- =====================================================
+             Declaration
+             ===================================================== -->
+
+        <div
+            id="gift-aid-declaration"
+            hidden>
+
+
+            <!-- =================================================
+                 Declarer
+                 ================================================= -->
+
+            <div class="card mb-4">
+
+                <div class="card-body">
+
+                    <h2 class="card-title h4">
+                        Your details
+                    </h2>
+
+
+                    <div class="mb-3">
+
+                        <label
+                            for="gift-aid-declarer-name"
+                            class="form-label">
+
+                            Name
+
+                        </label>
+
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="gift-aid-declarer-name"
+                            readonly>
+
+                    </div>
+
+
+                    <div class="mb-3">
+
+                        <label
+                            for="gift-aid-declarer-address-line-1"
+                            class="form-label">
+
+                            Address line 1
+
+                        </label>
+
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="gift-aid-declarer-address-line-1"
+                            required>
+
+                    </div>
+
+
+                    <div class="mb-3">
+
+                        <label
+                            for="gift-aid-declarer-address-line-2"
+                            class="form-label">
+
+                            Address line 2
+
+                        </label>
+
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="gift-aid-declarer-address-line-2">
+
+                    </div>
+
+
+                    <div class="mb-3">
+
+                        <label
+                            for="gift-aid-declarer-postcode"
+                            class="form-label">
+
+                            Postcode
+
+                        </label>
+
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="gift-aid-declarer-postcode"
+                            required>
+
+                    </div>
+
+
+                    <div class="mb-0">
+
+                        <label
+                            for="gift-aid-declarer-email"
+                            class="form-label">
+
+                            Email address
+
+                        </label>
+
+                        <input
+                            type="email"
+                            class="form-control"
+                            id="gift-aid-declarer-email"
+                            required>
+
+                        <div class="form-text">
+
+                            A copy of this declaration will be sent
+                            to this email address.
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 Gift Aid reference
+                 ================================================= -->
+
+            <div
+                id="gift-aid-reference-container"
+                class="alert alert-secondary mb-4"
+                hidden>
+
+                Gift Aid reference:
+
+                <strong
+                    id="gift-aid-reference">
+                </strong>
+
+            </div>
+
+
+            <!-- =================================================
+                 Members covered by this declaration
+                 ================================================= -->
+
+            <div
+                id="gift-aid-covered-members-card"
+                class="card mb-4">
+
+                <div class="card-body">
+
+                    <h2 class="card-title h4">
+                        Members covered by this declaration
+                    </h2>
+
+                    <p>
+                        This declaration covers the following Guild members:
+                    </p>
+
+                    <div
+                        id="gift-aid-covered-members"
+                        class="mb-4">
+                    </div>
+
+
+                    <!-- =============================================
+                         Add covered member
+                         ============================================= -->
+
+                    <h3 class="h5">
+                        Add another Guild member
+                    </h3>
+
+                    <p class="text-muted">
+                        Enter the member's membership number or name.
+                    </p>
+
+                    <div class="mb-3">
+
+                        <label
+                            for="gift-aid-covered-member-number"
+                            class="form-label">
+
+                            Membership number
+
+                        </label>
+
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="gift-aid-covered-member-number">
+
+                    </div>
+
+                    <div class="mb-3">
+
+                        <label
+                            for="gift-aid-covered-member-name"
+                            class="form-label">
+
+                            Name
+
+                        </label>
+
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="gift-aid-covered-member-name">
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        id="gift-aid-covered-member-add">
+
+                        Add member
+
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 Declaration wording
+                 ================================================= -->
+
+            <div class="card mb-4">
+
+                <div class="card-body">
+
+                    <h2 class="card-title h4">
+                        Gift Aid declaration
+                    </h2>
+
+
+                    <div
+                        id="gift-aid-declaration-text"
+                        class="border rounded p-3 bg-light"
+                        style="white-space: pre-line;">
+                    </div>
+
+
+                    <p class="mt-4 mb-0">
+
+                        In order to Gift Aid your donation you must
+                        tick the box below and enter the email address
+                        to which a copy of this declaration will be sent.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 Affirmation
+                 ================================================= -->
+
+            <div class="card mb-4">
+
+                <div class="card-body">
+
+                    <div class="form-check">
+
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            id="gift-aid-affirmation">
+
+                        <label
+                            class="form-check-label"
+                            for="gift-aid-affirmation">
+
+                            Submit the declaration
+
+                        </label>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 Submit
+                 ================================================= -->
+
+            <div class="d-flex gap-2 mb-5">
+
+                <button
+                    type="button"
+                    class="btn btn-success"
+                    id="gift-aid-submit">
+
+                    Submit Gift Aid declaration
+
+                </button>
+
+            </div>
+
+
+        </div>
+
+
+        <!-- =================================================
+             Success
+             ================================================= -->
+
+        <div
+            id="gift-aid-success"
+            class="alert alert-success"
+            hidden>
+        </div>
+
+    </div>
+
+</div>
+
+
+</div>
+
+<script
+    type="module"
+    src="/js/gift-aid-declaration.js">
+</script>
+
+{{ end }}
