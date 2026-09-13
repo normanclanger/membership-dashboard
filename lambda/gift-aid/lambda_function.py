@@ -329,33 +329,8 @@ def handle_resolve_member(
             )
 
         original_covered_members = (
-            original[16]
+            original[15]
             or []
-        )
-
-        if isinstance(
-            original_covered_members,
-            str
-        ):
-
-            try:
-
-                original_covered_members = json.loads(
-                    original_covered_members
-                )
-
-            except json.JSONDecodeError:
-
-                return bad_request(
-                    "The pending declaration contains invalid covered member data - str"
-                )
-                
-                
-        print(
-            "DEBUG covered_members:",
-            repr(original[16]),
-            "TYPE:",
-            type(original[16]).__name__
         )
 
         if not isinstance(
@@ -364,7 +339,7 @@ def handle_resolve_member(
         ):
 
             return bad_request(
-                "The pending declaration contains invalid covered member data - list"
+                "The pending declaration contains invalid covered member data"
             )
 
         # Build a lookup of the requested resolutions.
