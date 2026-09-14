@@ -16,6 +16,7 @@ from giftaid1 import (
      handle_confirm_relationships
 )
 
+from ga_email import send_email
 
 ALLOWED_ADMIN_GROUPS = {
     "PaymentAdmin",
@@ -38,6 +39,7 @@ PENDING_REVIEW_PATH = "/api/gift-aid/admin/pending"
 RESOLVE_MEMBER_PATH = "/api/gift-aid/admin/pending"
 CONFIRM_RELATIONSHIPS_PATH = "/api/gift-aid/admin/pending"
 RESOLVE_COVERAGE_PATH = "/api/gift-aid/admin/pending"
+EMAIL_TEST_PATH = "/api/gift-aid/email-test"
 
 
 def get_user_groups(event):
@@ -256,6 +258,72 @@ def lambda_handler(event, context):
         "method",
         ""
     ).upper()
+    
+        # Email test
+    if path == EMAIL_TEST_PATH:
+
+        if method != "POST":
+
+            return bad_request(
+                "Method not allowed"
+            )
+
+        if not can_administer(event):
+
+            return forbidden(
+                "You do not have permission to send test emails"
+            )
+
+        body_text = (
+            event.get("body")
+            or "{}"
+        )
+
+        try:
+
+            body = json.loads(
+                body_text
+            )
+
+        except json.JSONDecodeError:
+
+            return bad_request(
+                "Invalid JSON request body"
+            )
+
+        recipient = body.get(
+            "to"
+        )
+
+        if not recipient:
+
+            return bad_request(
+                "Recipient is required"
+            )
+
+        try:
+
+            send_email(
+                recipient=recipient,
+                subject="Suffolk Guild Gift Aid email test",
+                body=(
+                    "This is a test email from the "
+                    "Suffolk Guild of Ringers Gift Aid system."
+                ),
+            )
+
+        except Exception as exc:
+
+            return bad_request(
+                f"Email could not be sent: {str(exc)}"
+            )
+
+        return success(
+            {
+                "message": "Test email sent",
+                "to": recipient,
+            }
+        )
 
     # Process 1: resolve an informal covered member
     resolve_prefix = (
