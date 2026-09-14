@@ -1,9 +1,10 @@
-import json
 import base64
+import json
 from email.message import EmailMessage
 
 import boto3
 
+from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
@@ -34,10 +35,17 @@ def get_gmail_credentials():
         SCOPES
     )
 
-    if credentials.expired and credentials.refresh_token:
-        from google.auth.transport.requests import Request
+    if credentials.expired:
 
-        credentials.refresh(Request())
+        if not credentials.refresh_token:
+
+            raise RuntimeError(
+                "Gmail credentials have expired and no refresh token is available"
+            )
+
+        credentials.refresh(
+            Request()
+        )
 
     return credentials
 
@@ -47,6 +55,21 @@ def send_email(
     subject,
     body
 ):
+
+    if not recipient:
+        raise ValueError(
+            "Email recipient is required"
+        )
+
+    if not subject:
+        raise ValueError(
+            "Email subject is required"
+        )
+
+    if not body:
+        raise ValueError(
+            "Email body is required"
+        )
 
     credentials = get_gmail_credentials()
 
@@ -62,15 +85,27 @@ def send_email(
     message["To"] = recipient
     message["Subject"] = subject
 
-    message.set_content(body)
+    message.set_content(
+        body
+    )
 
-    encoded_message = base64.urlsafe_b64encode(
-        message.as_bytes()
-    ).decode()
+    encoded_message = (
+        base64.urlsafe_b64encode(
+            message.as_bytes()
+        )
+        .decode()
+    )
 
-    gmail.users().messages().send(
-        userId="me",
-        body={
-            "raw": encoded_message
-        }
-    ).execute()
+    response = (
+        gmail.users()
+        .messages()
+        .send(
+            userId="me",
+            body={
+                "raw": encoded_message
+            }
+        )
+        .execute()
+    )
+
+    return response["id"]
