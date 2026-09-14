@@ -193,6 +193,14 @@ def declaration_relationships_consistent(
         covered_members
     )
 
+    # The declaration owner is also a Gift Aid relationship.
+    owner_id = declaration[1]
+
+    if owner_id is not None:
+        snapshot_ids.add(
+            int(owner_id)
+        )
+
     if action in (
         "CANCELLED",
         "DECLINED",
@@ -224,6 +232,7 @@ def declaration_relationships_consistent(
         )
 
     return True, None
+
 
 def handle_resolve_coverage(
     event,
@@ -528,7 +537,6 @@ def handle_resolve_coverage(
                 "The resolved member does not have a current confirmed Gift Aid declaration"
             )
 
-        
         working_action = working_declaration[3]
         working_status = working_declaration[17]
 
@@ -1503,8 +1511,8 @@ def handle_resolve_member(
 
         if conn:
             conn.close()
-            
-            
+
+
 def handle_confirm_relationships(
     event,
     audit_id
@@ -1635,12 +1643,24 @@ def handle_confirm_relationships(
             covered_members
         )
 
-        # There must be at least one formal covered member.
-        if not covered_ids:
+        # The declaration owner is also a Gift Aid relationship.
+        #
+        # covered_members contains only people other than the owner.
+        owner_id = original[1]
+
+        if owner_id is None:
 
             return bad_request(
-                "The declaration contains no resolved covered members"
+                "The declaration has no declaration owner"
             )
+
+        expected_ids = set(
+            covered_ids
+        )
+
+        expected_ids.add(
+            int(owner_id)
+        )
 
         gift_aid_reference = (
             original[2]
@@ -1652,8 +1672,8 @@ def handle_confirm_relationships(
                 "Gift Aid reference is required"
             )
 
-        # Make sure every covered member still exists.
-        for member_id in covered_ids:
+        # Make sure every expected relationship member still exists.
+        for member_id in expected_ids:
 
             cur.execute(
                 """
@@ -1670,7 +1690,7 @@ def handle_confirm_relationships(
             if not cur.fetchone():
 
                 return bad_request(
-                    "Covered member does not exist: "
+                    "Gift Aid relationship member does not exist: "
                     + str(member_id)
                 )
 
@@ -1700,11 +1720,11 @@ def handle_confirm_relationships(
         }
 
         added_members = sorted(
-            covered_ids - live_ids
+            expected_ids - live_ids
         )
 
         removed_members = sorted(
-            live_ids - covered_ids
+            live_ids - expected_ids
         )
 
         # The declaration's affirmed date determines the effective
@@ -1787,7 +1807,7 @@ def handle_confirm_relationships(
             for row in final_rows
         }
 
-        if final_ids != covered_ids:
+        if final_ids != expected_ids:
 
             return bad_request(
                 "Unable to reconcile Gift Aid relationships"
@@ -1953,8 +1973,7 @@ def lambda_handler(event, context):
         "method",
         ""
     ).upper()
-    
-    
+
     # Process 1: resolve an informal covered member
     resolve_prefix = (
         RESOLVE_MEMBER_PATH + "/"
@@ -2062,7 +2081,6 @@ def lambda_handler(event, context):
             event,
             audit_id_text
         )
-
 
     if path == PENDING_REVIEW_PATH:
 
@@ -3173,10 +3191,6 @@ def handle_post(
 
             # This is a genuinely new declaration reference,
             # so there is no predecessor for this reference.
-            #
-            # The value could only have been set above for the
-            # COVERED_ELSEWHERE case, which is not generating
-            # a new reference here.
             if action in (
                 "AFFIRMED",
                 "UPDATED",
@@ -3444,6 +3458,10 @@ def handle_post(
                     + str(submitted_id)
                 )
 
+        # These are calculated later, once covered_snapshot has
+        # been built.  For CANCELLED the existing live relationships
+        # are removed; DECLINED and COVERED_ELSEWHERE do not add or
+        # remove relationships here.
         added_members = []
         removed_members = []
 
@@ -3457,23 +3475,6 @@ def handle_post(
             "DECLINED",
             "COVERED_ELSEWHERE",
         ):
-
-            added_members = []
-            removed_members = []
-
-        elif submitted_members:
-
-            added_members = sorted(
-                submitted_member_ids -
-                existing_ids
-            )
-
-            removed_members = sorted(
-                existing_ids -
-                submitted_member_ids
-            )
-
-        else:
 
             added_members = []
             removed_members = []
@@ -3644,16 +3645,44 @@ def handle_post(
                 }
             ]
 
+        # covered_snapshot contains only people OTHER THAN the
+        # declaration owner.
         submitted_relationship_ids = (
             covered_member_ids(
                 covered_snapshot
             )
         )
 
+        # The declaration owner is also part of the Gift Aid
+        # relationship set.
+        if member_id is not None:
+
+            submitted_relationship_ids.add(
+                int(member_id)
+            )
+
         live_relationship_ids = {
             int(member["member_id"])
             for member in existing_members
         }
+
+        # For an AFFIRMED or UPDATED declaration, the expected
+        # relationship set is the owner plus all formal covered
+        # members.
+        if action in (
+            "AFFIRMED",
+            "UPDATED",
+        ):
+
+            added_members = sorted(
+                submitted_relationship_ids -
+                live_relationship_ids
+            )
+
+            removed_members = sorted(
+                live_relationship_ids -
+                submitted_relationship_ids
+            )
 
         informal_covered_members = (
             is_token_request
