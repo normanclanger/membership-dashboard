@@ -175,6 +175,13 @@ def send_gift_aid_submission_email(
                 f"{member.get('surname', '')}"
             ).strip()
 
+            if not name:
+
+                name = (
+                    member.get("name")
+                    or ""
+                ).strip()
+
             membership_number = (
                 member.get("membership_number")
             )
