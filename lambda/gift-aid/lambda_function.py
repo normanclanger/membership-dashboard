@@ -2458,9 +2458,9 @@ def handle_post(
                 send_gift_aid_submission_email(
                     recipient=email_address,
                     declarer_name=declarer_name,
-                    declarer_address_line_1=declarer_address_line_1,
-                    declarer_address_line_2=declarer_address_line_2,
-                    declarer_postcode=declarer_postcode,                    
+                    declarer_address_line_1=address_line_1,
+                    declarer_address_line_2=address_line_2,
+                    declarer_postcode=postcode,                    
                     gift_aid_reference=gift_aid_reference,
                     action=audit_action,
                     status=audit_status,
