@@ -199,7 +199,7 @@ jobs:
             --only-binary=:all: \
             -r requirements.txt
 
-          cp lambda_function.py giftaid1.py email.py database.py responses.py package/
+          cp lambda_function.py giftaid1.py ga_email.py database.py responses.py package/
 
       - name: Create gift-aid deployment ZIP
         run: |
