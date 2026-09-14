@@ -16,7 +16,7 @@ from giftaid1 import (
      handle_confirm_relationships
 )
 
-from gift_aid_email import (
+from ga_email import (
     send_email,
     send_gift_aid_submission_email,
 )
