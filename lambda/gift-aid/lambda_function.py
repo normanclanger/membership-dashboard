@@ -16,7 +16,10 @@ from giftaid1 import (
      handle_confirm_relationships
 )
 
-from ga_email import send_email
+from gift_aid_email import (
+    send_email,
+    send_gift_aid_submission_email,
+)
 
 ALLOWED_ADMIN_GROUPS = {
     "PaymentAdmin",
@@ -2446,6 +2449,28 @@ def handle_post(
                 )
 
         conn.commit()
+        
+        
+        if email_address:
+
+            try:
+
+                send_gift_aid_submission_email(
+                    recipient=email_address,
+                    declarer_name=declarer_name,
+                    gift_aid_reference=gift_aid_reference,
+                    action=audit_action,
+                    status=audit_status,
+                    declaration_text=declaration_text,
+                    covered_members=covered_snapshot,
+                )
+
+            except Exception as exc:
+
+                print(
+                    "Gift Aid submission email error:",
+                    exc
+                )
 
         response = {
             "gift_aid_reference":

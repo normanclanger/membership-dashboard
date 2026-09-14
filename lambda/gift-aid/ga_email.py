@@ -109,3 +109,121 @@ def send_email(
     )
 
     return response["id"]
+    
+def send_gift_aid_submission_email(
+    recipient,
+    declarer_name,
+    gift_aid_reference,
+    action,
+    status,
+    declaration_text,
+    covered_members,
+):
+
+    if status == "CONFIRMED":
+
+        if action == "AFFIRMED":
+            heading = (
+                "Your Gift Aid declaration has been received "
+                "and confirmed."
+            )
+
+        elif action == "UPDATED":
+            heading = (
+                "Your Gift Aid declaration update has been "
+                "received and confirmed."
+            )
+
+        elif action == "CANCELLED":
+            heading = (
+                "Your decision to cancel you Gift Aid declaration "
+                "has been received."
+            )
+
+        elif action == "DECLINED":
+            heading = (
+                "Your decision not to complete a Gift Aid declaration has been "
+                "received."
+            )
+
+        else:
+            heading = (
+                "Your Gift Aid submission has been received "
+                "and confirmed."
+            )
+
+    else:
+
+        heading = (
+            "Your Gift Aid submission has been received "
+            "and will be reviewed by the treasurer."
+        )
+
+    covered_text = ""
+
+    if covered_members:
+
+        covered_lines = []
+
+        for member in covered_members:
+
+            name = (
+                f"{member.get('first_name', '')} "
+                f"{member.get('surname', '')}"
+            ).strip()
+
+            membership_number = (
+                member.get("membership_number")
+            )
+
+            if membership_number:
+
+                covered_lines.append(
+                    f"- {name} "
+                    f"(membership number {membership_number})"
+                )
+
+            else:
+
+                covered_lines.append(
+                    f"- {name}"
+                )
+
+        covered_text = (
+            "\n\nPeople covered by this declaration:\n"
+            + "\n".join(covered_lines)
+        )
+
+    else:
+
+        covered_text = (
+            "\n\nPeople covered by this declaration:\n"
+            "- None"
+        )
+
+    body = f"""Dear {declarer_name},
+
+{heading}
+
+Gift Aid reference: {gift_aid_reference}
+Submission type: {action}
+Submission status: {status}
+
+Your submitted declaration text was:
+
+"{declaration_text}"
+{covered_text}
+
+Please keep this email for your records.
+
+Suffolk Guild of Ringers
+"""
+
+    return send_email(
+        recipient=recipient,
+        subject=(
+            f"Gift Aid declaration "
+            f"{gift_aid_reference} - {action}"
+        ),
+        body=body,
+    )
