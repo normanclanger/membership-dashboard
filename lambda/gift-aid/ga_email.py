@@ -113,6 +113,9 @@ def send_email(
 def send_gift_aid_submission_email(
     recipient,
     declarer_name,
+    declarer_address_line_1,
+    declarer_address_line_2,
+    declarer_postcode,    
     gift_aid_reference,
     action,
     status,
@@ -208,6 +211,12 @@ def send_gift_aid_submission_email(
 Gift Aid reference: {gift_aid_reference}
 Submission type: {action}
 Submission status: {status}
+
+Declarer's address:
+
+{declarer_address_line_1}
+{declarer_address_line_2 if declarer_address_line_2 else ""}
+{declarer_postcode}
 
 Your submitted declaration text was:
 
