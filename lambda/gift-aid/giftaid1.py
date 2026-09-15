@@ -1851,3 +1851,107 @@ def handle_dashboard_summary():
         if conn:
             conn.close()
 
+def handle_declarations():
+
+    conn = None
+
+    try:
+
+        conn = get_connection()
+
+        with conn.cursor() as cur:
+
+            cur.execute(
+                """
+                SELECT
+                    a.id,
+                    a.gift_aid_reference,
+                    a.member_id,
+                    m.membership_number,
+                    m.first_name,
+                    m.surname,
+                    a.action,
+                    a.status,
+                    a.declaration_method,
+                    a.affirmed_date,
+                    a.declarer_name,
+                    a.email_address,
+                    a.covered_members,
+                    a.pending_review_type,
+                    a.recorded_at
+
+                FROM gift_aid_declaration_audit a
+
+                JOIN members m
+                    ON m.id = a.member_id
+
+                WHERE a.id = (
+                    SELECT a2.id
+                    FROM gift_aid_declaration_audit a2
+                    WHERE a2.gift_aid_reference =
+                        a.gift_aid_reference
+                    ORDER BY
+                        a2.recorded_at DESC,
+                        a2.id DESC
+                    LIMIT 1
+                )
+
+                ORDER BY
+                    a.gift_aid_reference
+                """
+            )
+
+            rows = cur.fetchall()
+
+        declarations = []
+
+        for row in rows:
+
+            declarations.append(
+                {
+                    "audit_id": row[0],
+                    "gift_aid_reference": row[1],
+                    "member_id": row[2],
+                    "membership_number": row[3],
+                    "first_name": row[4],
+                    "surname": row[5],
+                    "action": row[6],
+                    "status": row[7],
+                    "declaration_method": row[8],
+                    "affirmed_date": (
+                        row[9].isoformat()
+                        if row[9]
+                        else None
+                    ),
+                    "declarer_name": row[10],
+                    "email_address": row[11],
+                    "covered_members": row[12],
+                    "pending_review_type": row[13],
+                    "recorded_at": (
+                        row[14].isoformat()
+                        if row[14]
+                        else None
+                    )
+                }
+            )
+
+        return success(
+            {
+                "declarations":
+                    declarations
+            }
+        )
+
+    except Exception as exc:
+
+        if conn:
+            conn.rollback()
+
+        return bad_request(
+            f"Could not load Gift Aid declarations: {str(exc)}"
+        )
+
+    finally:
+
+        if conn:
+            conn.close()

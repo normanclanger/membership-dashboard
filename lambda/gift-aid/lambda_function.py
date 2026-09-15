@@ -14,7 +14,8 @@ from giftaid1 import (
      handle_resolve_coverage,
      handle_resolve_member,
      handle_confirm_relationships,
-     handle_dashboard_summary
+     handle_dashboard_summary,
+     handle_declarations
 )
 
 from ga_email import (
@@ -45,6 +46,7 @@ CONFIRM_RELATIONSHIPS_PATH = "/api/gift-aid/admin/pending"
 RESOLVE_COVERAGE_PATH = "/api/gift-aid/admin/pending"
 EMAIL_TEST_PATH = "/api/gift-aid/email-test"
 DASHBOARD_SUMMARY_PATH = "/api/gift-aid/admin/dashboard"
+DECLARATIONS_PATH = "/api/gift-aid/admin/declarations"
 
 
    
@@ -484,6 +486,24 @@ def lambda_handler(event, context):
             )
 
         return handle_dashboard_summary()
+        
+    # Gift Aid declarations list
+
+    if path == DECLARATIONS_PATH:
+
+        if method != "GET":
+
+            return bad_request(
+                "Method not allowed"
+            )
+
+        if not can_administer(event):
+
+            return forbidden(
+                "You do not have permission to view Gift Aid declarations"
+            )
+
+        return handle_declarations()
 
 
     # original handling for public & admin declaration management
