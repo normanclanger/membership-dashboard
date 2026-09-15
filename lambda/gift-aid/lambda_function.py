@@ -13,7 +13,8 @@ from responses import (
 from giftaid1 import (
      handle_resolve_coverage,
      handle_resolve_member,
-     handle_confirm_relationships
+     handle_confirm_relationships,
+     handle_dashboard_summary
 )
 
 from ga_email import (
