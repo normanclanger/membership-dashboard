@@ -47,7 +47,10 @@ EMAIL_TEST_PATH = "/api/gift-aid/email-test"
 DASHBOARD_SUMMARY_PATH = "/api/gift-aid/admin/dashboard"
 
 
+   
+    
 def get_user_groups(event):
+
     claims = (
         event.get("requestContext", {})
         .get("authorizer", {})
@@ -55,12 +58,22 @@ def get_user_groups(event):
         .get("claims", {})
     )
 
-    groups = claims.get("cognito:groups", [])
+    groups = claims.get("cognito:groups", "")
 
-    if isinstance(groups, str):
-        return [groups]
+    if not groups:
+        return set()
 
-    return groups or []
+    groups = groups.strip("[]")
+
+    if not groups:
+        return set()
+
+    return {
+        group.strip().strip("'\"")
+        for group in groups.replace(",", " ").split()
+        if group.strip()
+    }
+
 
 
 def get_cognito_sub(event):
