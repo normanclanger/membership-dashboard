@@ -2,7 +2,7 @@
 
 <div class="container mt-4">
 
-```
+
 <h1>
     {{ .Title }}
 </h1>
@@ -35,60 +35,58 @@
                         <th>
                             Total members
                         </th>
-
                         <td class="text-end">
-                            2,900
-                        </td>
+                            <span id="gift-aid-total-members">—</span>
+						</td>
                     </tr>
 
                     <tr>
                         <th>
                             Confirmed declarations
                         </th>
-
                         <td class="text-end">
-                            484
-                        </td>
+                            <span id="gift-aid-confirmed-declarations">—</span>
+							
+						</td>
                     </tr>
 
                     <tr>
                         <th>
                             Pending review
                         </th>
-
                         <td class="text-end">
-                            4
-                        </td>
+                            <span id="gift-aid-pending-review">—</span>
+					    </td>
                     </tr>
 
                     <tr>
                         <th>
                             Declined
                         </th>
-
                         <td class="text-end">
-                            12
-                        </td>
-                    </tr>
+                            <span id="gift-aid-declined">—</span>
+ 
+						</td>
+                   </tr>
 
                     <tr>
                         <th>
                             Cancelled
                         </th>
-
                         <td class="text-end">
-                            8
-                        </td>
+                            <span id="gift-aid-cancelled">—</span>
+							
+						</td>
                     </tr>
 
                     <tr>
                         <th>
                             Covered elsewhere
                         </th>
-
                         <td class="text-end">
-                            3
-                        </td>
+                            <span id="gift-aid-covered-elsewhere">—</span>
+							
+						</td>
                     </tr>
 
                 </tbody>
@@ -118,30 +116,30 @@
                         <th>
                             Members invited
                         </th>
-
                         <td class="text-end">
-                            420
-                        </td>
+                            <span id="gift-aid-members-invited">—</span>
+							
+						</td>
                     </tr>
 
                     <tr>
                         <th>
                             Open invitations
                         </th>
-
                         <td class="text-end">
-                            37
-                        </td>
+                            <span id="gift-aid-open-invitations">—</span>
+							
+						</td>
                     </tr>
 
                     <tr>
                         <th>
                             Used invitations
                         </th>
-
                         <td class="text-end">
-                            383
-                        </td>
+                            <span id="gift-aid-used-invitations">—</span>
+							
+						</td>
                     </tr>
 
                 </tbody>
@@ -183,8 +181,13 @@
     </a>
 
 </div>
-```
+
 
 </div>
+
+<script
+    type="module"
+    src="/js/gift-aid-dashboard.js"
+></script>
 
 {{ end }}
