@@ -43,6 +43,7 @@ RESOLVE_MEMBER_PATH = "/api/gift-aid/admin/pending"
 CONFIRM_RELATIONSHIPS_PATH = "/api/gift-aid/admin/pending"
 RESOLVE_COVERAGE_PATH = "/api/gift-aid/admin/pending"
 EMAIL_TEST_PATH = "/api/gift-aid/email-test"
+DASHBOARD_SUMMARY_PATH = "/api/gift-aid/admin/dashboard"
 
 
 def get_user_groups(event):
@@ -452,6 +453,27 @@ def lambda_handler(event, context):
 
         return handle_pending()
 
+    # Gift Aid dashboard summary
+
+    if path == DASHBOARD_SUMMARY_PATH:
+
+        if method != "GET":
+
+            return bad_request(
+                "Method not allowed"
+            )
+
+        if not can_administer(event):
+
+            return forbidden(
+                "You do not have permission to view the Gift Aid dashboard"
+            )
+
+        return handle_dashboard_summary()
+
+
+    # original handling for public & admin declaration management
+    
     if path not in (
         PUBLIC_DECLARATION_PATH,
         ADMIN_DECLARATION_PATH,
