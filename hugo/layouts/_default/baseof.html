@@ -19,6 +19,12 @@
         href="/css/main.css"
     >
 
+    <style>
+        body[data-protected="true"] {
+            visibility: hidden;
+        }
+    </style>
+
 
     <title>
         {{ if .Title }}

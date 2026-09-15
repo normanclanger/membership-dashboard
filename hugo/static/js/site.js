@@ -4,116 +4,166 @@ import {
 } from "/js/auth.js";
 
 
-document.addEventListener(
-    "DOMContentLoaded",
-    async () => {
+async function checkAuthentication() {
 
-        const protectedPage =
-            document.body.dataset.protected === "true";
+    const protectedPage =
+        document.body.dataset.protected === "true";
 
-        if (!protectedPage) {
+    if (!protectedPage) {
+        return;
+    }
+
+    try {
+
+        const user =
+            await requireLogin();
+
+        if (!user) {
             return;
         }
 
-        try {
+        window.currentUser =
+            user;
 
-            const user =
-                await requireLogin();
+        /*
+         * Determine the user's Cognito groups.
+         */
+        const groups =
+            user.profile?.["cognito:groups"] || [];
 
-            if (!user) {
-                return;
-            }
+        const userGroups =
+            Array.isArray(groups)
+                ? groups
+                : [groups];
 
-            window.currentUser =
-                user;
-
-            /*
-             * Determine the user's Cognito groups.
-             */
-            const groups =
-                user.profile?.["cognito:groups"] || [];
-
-            const userGroups =
-                Array.isArray(groups)
-                    ? groups
-                    : [groups];
-
-            /*
-             * Determine whether the user can edit members.
-             *
-             * This is only for controlling the UI.
-             * The API continues to enforce permissions.
-             */
-            window.canEditMembers =
-                userGroups.some(group =>
-                    [
-                        "MembershipAdmin",
-                        "ApplicationAdmin"
-                    ].includes(group)
-                );
-
-
-            const signedInUser =
-                document.querySelector(
-                    "#signed-in-user"
-                );
-
-            if (signedInUser) {
-
-                const email =
-                    user.profile?.email ||
-                    "Unknown user";
-
-                const DISPLAY_GROUPS = [
+        /*
+         * Determine whether the user can edit members.
+         *
+         * This is only for controlling the UI.
+         * The API continues to enforce permissions.
+         */
+        window.canEditMembers =
+            userGroups.some(group =>
+                [
                     "MembershipAdmin",
-                    "ApplicationAdmin",
-                    "PaymentAdmin",
-                    "MembershipViewer"
-                ];
-
-                const displayedGroups =
-                    userGroups.filter(group =>
-                        DISPLAY_GROUPS.includes(group)
-                    );
-
-                const role =
-                    displayedGroups.length > 0
-                        ? displayedGroups.join(", ")
-                        : "Read-only";
-
-                console.log("All Cognito groups:", userGroups);
-                console.log("Displayed groups:", displayedGroups);
-
-                signedInUser.textContent =
-                    `Signed in as ${email}  (${role})`;
-            }
-
-            const logoutButton =
-                document.querySelector(
-                    "#logout-button"
-                );
-
-            if (logoutButton) {
-
-                logoutButton.addEventListener(
-                    "click",
-                    signOutRedirect
-                );
-            }
-
-            document.dispatchEvent(
-                new Event(
-                    "authentication-ready"
-                )
+                    "ApplicationAdmin"
+                ].includes(group)
             );
 
-        } catch (error) {
 
-            console.error(
-                "Authentication failed:",
-                error
+        const signedInUser =
+            document.querySelector(
+                "#signed-in-user"
             );
 
+        if (signedInUser) {
+
+            const email =
+                user.profile?.email ||
+                "Unknown user";
+
+            const DISPLAY_GROUPS = [
+                "MembershipAdmin",
+                "ApplicationAdmin",
+                "PaymentAdmin",
+                "MembershipViewer"
+            ];
+
+            const displayedGroups =
+                userGroups.filter(group =>
+                    DISPLAY_GROUPS.includes(group)
+                );
+
+            const role =
+                displayedGroups.length > 0
+                    ? displayedGroups.join(", ")
+                    : "Read-only";
+
+            console.log(
+                "All Cognito groups:",
+                userGroups
+            );
+
+            console.log(
+                "Displayed groups:",
+                displayedGroups
+            );
+
+            signedInUser.textContent =
+                `Signed in as ${email}  (${role})`;
+        }
+
+
+        const logoutButton =
+            document.querySelector(
+                "#logout-button"
+            );
+
+        if (logoutButton) {
+
+            logoutButton.addEventListener(
+                "click",
+                signOutRedirect
+            );
+        }
+
+
+        /*
+         * Authentication has succeeded.
+         * The page can now be made visible.
+         */
+        document.body.style.visibility =
+            "visible";
+
+
+        document.dispatchEvent(
+            new Event(
+                "authentication-ready"
+            )
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Authentication failed:",
+            error
+        );
+
+    }
+}
+
+
+/*
+ * Normal page load.
+ */
+document.addEventListener(
+    "DOMContentLoaded",
+    checkAuthentication
+);
+
+
+/*
+ * Handle a page restored from the browser's
+ * Back/Forward cache.
+ */
+window.addEventListener(
+    "pageshow",
+    event => {
+
+        if (
+            event.persisted &&
+            document.body.dataset.protected === "true"
+        ) {
+
+            /*
+             * Hide the page while authentication
+             * is checked again.
+             */
+            document.body.style.visibility =
+                "hidden";
+
+            checkAuthentication();
         }
     }
 );
+
