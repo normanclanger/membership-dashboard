@@ -5,6 +5,7 @@ from responses import (
     forbidden,
     created,
 )
+from database import get_connection
 
 def handle_resolve_coverage(
     event,
