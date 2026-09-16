@@ -21,6 +21,10 @@ const districtSelect =
         "#payment-district"
     );
 
+const memberSearch =
+    document.querySelector(
+        "#payment-member-search"
+    );
 
 const loadButton =
     document.querySelector(
@@ -401,15 +405,61 @@ function updateSortIndicators() {
     );
 }
 
+function getFilteredPayments() {
+
+    const search =
+        memberSearch
+            ? memberSearch.value
+                .trim()
+                .toLowerCase()
+            : "";
+
+    if (!search) {
+
+        return payments;
+    }
+
+    return payments.filter(
+        payment => {
+
+            const membershipNumber =
+                String(
+                    payment.membership_number || ""
+                ).toLowerCase();
+
+            const firstName =
+                String(
+                    payment.first_name || ""
+                ).toLowerCase();
+
+            const surname =
+                String(
+                    payment.surname || ""
+                ).toLowerCase();
+
+            const memberName =
+                `${firstName} ${surname}`;
+
+            return (
+                membershipNumber.includes(search) ||
+                firstName.includes(search) ||
+                surname.includes(search) ||
+                memberName.includes(search)
+            );
+        }
+    );
+}
 
 function renderPayments() {
 
     reportBody.innerHTML =
         "";
 
+    const filteredPayments =
+        getFilteredPayments();
 
     if (
-        payments.length === 0
+        filteredPayments.length === 0
     ) {
 
         emptyMessage.hidden =
@@ -455,7 +505,7 @@ function renderPayments() {
 
 
     reportHeading.hidden =
-        false;
+        true;
 
 
     let subscriptions =
@@ -468,7 +518,7 @@ function renderPayments() {
         0;
 
 
-    payments.forEach(
+    filteredPayments.forEach(
         payment => {
 
             subscriptions +=
@@ -742,6 +792,18 @@ document
             );
         }
     );
+
+if (memberSearch) {
+
+    memberSearch.addEventListener(
+        "input",
+        () => {
+
+            renderPayments();
+
+        }
+    );
+}
 
 
 loadButton.addEventListener(
