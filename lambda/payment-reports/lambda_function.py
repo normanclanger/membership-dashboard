@@ -278,30 +278,30 @@ def get_payment_list(event):
     # Validate calendar year
     # ---------------------------------------------------------
 
+    if calendar_year:
+        try:
 
-    try:
-
-        calendar_year = int(
-            calendar_year
-        )
-
-    except (TypeError, ValueError):
-
-        return bad_request({
-            "error": (
-                "Calendar year must be a number"
+            calendar_year = int(
+                calendar_year
             )
-        })
+
+        except (TypeError, ValueError):
+
+            return bad_request({
+                "error": (
+                    "Calendar year must be a number"
+                )
+            })
 
 
-    if (
-        calendar_year < 1900
-        or calendar_year > 2100
-    ):
+        if (
+            calendar_year < 1900
+            or calendar_year > 2200
+        ):
 
-        return bad_request({
-            "error": "Calendar year is invalid"
-        })
+            return bad_request({
+                "error": "Calendar year is invalid"
+            })
 
 
     # ---------------------------------------------------------
