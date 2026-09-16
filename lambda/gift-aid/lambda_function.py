@@ -543,6 +543,12 @@ def lambda_handler(event, context):
             "member_id"
         )
     )
+    
+    gift_aid_reference_parameter = (
+        query_parameters.get(
+            "gift_aid_reference"
+        )
+    )
 
     if is_public:
 
@@ -582,6 +588,12 @@ def lambda_handler(event, context):
 
             return bad_request(
                 "member_id is required"
+            )
+            
+        if not gift_aid_reference_parameter:
+
+            return bad_request(
+                "gift_aid_reference is required"
             )
 
         if token:
@@ -788,6 +800,7 @@ def handle_get(
 
         else:
 
+
             try:
 
                 member_id = int(
@@ -803,32 +816,32 @@ def handle_get(
                     "Invalid member_id"
                 )
 
-            cur.execute(
-                """
-                SELECT
-                    gift_aid_reference
-                FROM gift_aid_members
-                WHERE member_id = %s
-                  AND (
-                      valid_until IS NULL
-                      OR valid_until >= CURRENT_DATE
-                  )
-                ORDER BY gift_aid_reference DESC
-                LIMIT 1
-                """,
-                (
-                    member_id,
-                ),
+            query_parameters = (
+                event.get(
+                    "queryStringParameters"
+                )
+                or {}
             )
 
-            reference_row = (
-                cur.fetchone()
+            gift_aid_reference_parameter = (
+                query_parameters.get(
+                    "gift_aid_reference"
+                )
             )
 
-            gift_aid_reference = (
-                reference_row[0]
-                if reference_row
-                else None
+            try:
+
+                gift_aid_reference = int(
+                    gift_aid_reference_parameter
+                )
+
+            except (
+                TypeError,
+                ValueError
+            ):
+
+                return bad_request(
+                    "Invalid gift_aid_reference"
             )
 
         cur.execute(
@@ -924,7 +937,9 @@ def handle_get(
                 status
             FROM gift_aid_declaration_audit
             WHERE gift_aid_reference = %s
-            ORDER BY id DESC
+            ORDER BY
+                recorded_at DESC,
+                id DESC
             LIMIT 1
             """,
             (
