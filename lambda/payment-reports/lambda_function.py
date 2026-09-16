@@ -278,12 +278,6 @@ def get_payment_list(event):
     # Validate calendar year
     # ---------------------------------------------------------
 
-    if not calendar_year:
-
-        return bad_request({
-            "error": "Calendar year is required"
-        })
-
 
     try:
 
@@ -364,27 +358,22 @@ def get_payment_list(event):
                 JOIN districts d
                     ON d.id = t.district_id
 
-                WHERE p.calendar_year = %s
+
             """
 
-            parameters = [
-                calendar_year
-            ]
+            conditions = []
+            parameters = []
 
-
-            # -------------------------------------------------
-            # Optional district filter
-            # -------------------------------------------------
+            if calendar_year:
+                conditions.append("p.calendar_year = %s")
+                parameters.append(calendar_year)
 
             if district:
+                conditions.append("d.code = %s")
+                parameters.append(district)
 
-                sql += """
-                    AND d.code = %s
-                """
-
-                parameters.append(
-                    district
-                )
+            if conditions:
+                sql += " WHERE " + " AND ".join(conditions)
 
 
             # -------------------------------------------------

@@ -119,7 +119,24 @@ function populateYears() {
 
     yearSelect.innerHTML =
         "";
+		
+	
+	const option =
+        document.createElement(
+            "option"
+        );
 
+
+    option.value = ""
+
+    option.textContent =
+        "All years";
+
+
+    yearSelect.appendChild(
+        option
+	);
+	
 
     for (
         let year = currentYear+2;
@@ -484,6 +501,10 @@ function renderPayments() {
 
             row.innerHTML = `
                 <td>
+                    ${payment.statement_reference}
+                </td>			
+			
+                <td>
                     ${payment.payment_date}
                 </td>
 
@@ -529,6 +550,10 @@ function renderPayments() {
                         payment.total
                     )}
                 </td>
+				
+                <td>
+                    ${payment.calendar_year}
+                </td>				
             `;
 
 

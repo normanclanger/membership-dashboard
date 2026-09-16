@@ -1,0 +1,435 @@
+{{ define "main" }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+
+    <h1>
+        Gift Aid declarations
+    </h1>
+
+    <a
+        href="/gift-aid/declarations/new/"
+        class="btn btn-secondary"
+    >
+        Add new declaration
+    </a>
+
+</div>
+
+<div class="declaration-search mb-3">
+
+    <label for="declaration-search">
+        Search declarations:
+    </label>
+
+    <input
+        type="search"
+        id="declaration-search"
+        placeholder="Name or membership number"
+    >
+
+</div>
+
+<div
+    id="declarations-error"
+    class="alert alert-danger"
+    hidden
+>
+</div>
+
+
+<div class="declarations-page">
+
+    <table
+        id="gift-aid-declarations"
+        class="table table-striped mb-0"
+    >
+
+        <thead>
+
+            <tr>
+
+                <th>
+                    Gift Aid ref
+                </th>
+
+                <th>
+                    Member
+                </th>
+
+                <th>
+                    Date
+                </th>
+
+                <th>
+                    Method
+                </th>
+
+                <th>
+                    Status
+                </th>
+
+                <th>
+                    Review
+                </th>
+
+                <th>
+                    Covered members
+                </th>
+
+                <th>
+                    Actions
+                </th>
+
+            </tr>
+
+        </thead>
+
+
+        <tbody>
+
+            <tr>
+
+                <td colspan="8">
+                    Loading...
+                </td>
+
+            </tr>
+
+        </tbody>
+
+    </table>
+
+</div>
+
+
+<script type="module">
+
+import {
+    requireLogin
+} from "/js/auth.js";
+
+
+const searchInput =
+    document.querySelector(
+        "#declaration-search"
+    );
+
+
+async function loadDeclarations() {
+
+    const tbody =
+        document.querySelector(
+            "#gift-aid-declarations tbody"
+        );
+
+    const error =
+        document.querySelector(
+            "#declarations-error"
+        );
+
+
+    error.hidden = true;
+
+
+    try {
+
+        const user =
+            await requireLogin();
+
+
+        if (!user) {
+            return;
+        }
+
+
+        const response =
+            await fetch(
+                `${window.API_BASE_URL}/api/gift-aid/admin/declarations`,
+                {
+                    headers: {
+                        Authorization:
+                            `Bearer ${user.access_token}`
+                    }
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Unable to load Gift Aid declarations."
+            );
+        }
+
+
+        tbody.innerHTML = "";
+
+
+        const search =
+            searchInput.value
+                .trim()
+                .toLowerCase();
+
+
+        const declarations =
+            search
+                ? data.declarations.filter(
+                    declaration => {
+
+                        const memberName =
+                            `${declaration.first_name} ${declaration.surname}`
+                                .toLowerCase();
+
+
+                        const membershipNumber =
+                            declaration.membership_number
+                                .toLowerCase();
+
+
+                        const coveredText =
+                            (
+                                declaration.covered_members || []
+                            )
+                            .map(
+                                member => {
+
+                                    return [
+                                        member.name,
+                                        member.first_name,
+                                        member.surname,
+                                        member.membership_number,
+                                        member.description
+                                    ]
+                                    .filter(Boolean)
+                                    .join(" ");
+                                }
+                            )
+                            .join(" ")
+                            .toLowerCase();
+
+
+                        return (
+                            memberName.includes(search) ||
+                            membershipNumber.includes(search) ||
+                            coveredText.includes(search)
+                        );
+                    }
+                )
+                : data.declarations;
+
+
+        if (
+            declarations.length === 0
+        ) {
+
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8">
+                        No declarations found.
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
+
+        declarations.forEach(
+            declaration => {
+
+                const row =
+                    document.createElement(
+                        "tr"
+                    );
+
+
+                const member =
+                    `${declaration.membership_number} ` +
+                    `${declaration.first_name} ` +
+                    `${declaration.surname}`;
+
+
+                let coveredMembers =
+                    "-";
+
+
+                if (
+                    declaration.covered_members &&
+                    declaration.covered_members.length > 0
+                ) {
+
+                    coveredMembers =
+                        declaration.covered_members
+                            .map(
+                                member => {
+
+                                    if (
+                                        member.name
+                                    ) {
+                                        return (
+                                            member.name
+                                        );
+                                    }
+
+
+                                    if (
+                                        member.first_name &&
+                                        member.surname
+                                    ) {
+                                        return (
+                                            `${member.first_name} ` +
+                                            `${member.surname}`
+                                        );
+                                    }
+
+
+                                    if (
+                                        member.membership_number
+                                    ) {
+                                        return (
+                                            `Membership ${member.membership_number}`
+                                        );
+                                    }
+
+
+                                    if (
+                                        member.description
+                                    ) {
+                                        return (
+                                            member.description
+                                        );
+                                    }
+
+
+                                    return "Unresolved member";
+                                }
+                            )
+                            .join(
+                                ", "
+                            );
+                }
+
+
+                let review =
+                    "-";
+
+
+                if (
+                    declaration.pending_review_type
+                ) {
+
+                    review =
+                        declaration.pending_review_type
+                            .replaceAll(
+                                "_",
+                                " "
+                            );
+                }
+
+
+                row.innerHTML = `
+
+                    <td>
+                        ${declaration.gift_aid_reference}
+                    </td>
+
+                    <td>
+                        ${member}
+                    </td>
+
+                    <td>
+                        ${declaration.affirmed_date || "-"}
+                    </td>
+
+                    <td>
+                        ${declaration.declaration_method}
+                    </td>
+
+                    <td>
+                        ${declaration.status}
+                    </td>
+
+                    <td>
+                        ${review}
+                    </td>
+
+                    <td>
+                        ${coveredMembers}
+                    </td>
+
+                    <td>
+
+                        <a
+                            class="btn btn-danger btn-sm"
+                            href="/gift-aid/declarations/edit/?id=${declaration.audit_id}"
+                        >
+                            Edit
+                        </a>
+
+                        |
+
+                        <a
+                            class="btn btn-warning btn-sm"
+                            href="/gift-aid/declarations/cancel/?id=${declaration.audit_id}"
+                        >
+                            Cancel
+                        </a>
+
+                    </td>
+
+                `;
+
+
+                tbody.appendChild(
+                    row
+                );
+
+            }
+        );
+
+    } catch (err) {
+
+        console.error(
+            "Gift Aid declarations error:",
+            err
+        );
+
+
+        error.textContent =
+            err.message ||
+            "Unable to load Gift Aid declarations.";
+
+
+        error.hidden = false;
+
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8">
+                    Unable to load declarations.
+                </td>
+            </tr>
+        `;
+    }
+}
+
+
+document.addEventListener(
+    "authentication-ready",
+    loadDeclarations
+);
+
+
+searchInput.addEventListener(
+    "search",
+    loadDeclarations
+);
+
+</script>
+
+{{ end }}
