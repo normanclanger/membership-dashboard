@@ -1955,3 +1955,764 @@ def handle_declarations():
 
         if conn:
             conn.close()
+
+
+def handle_admin_save(event):
+
+    conn = None
+
+    try:
+
+        body_text = (
+            event.get("body")
+            or "{}"
+        )
+
+        try:
+
+            body = json.loads(
+                body_text
+            )
+
+        except json.JSONDecodeError:
+
+            return bad_request(
+                "Invalid JSON request body"
+            )
+
+        mode = body.get(
+            "mode"
+        )
+
+        if mode not in (
+            "new",
+            "edit",
+        ):
+
+            return bad_request(
+                "mode must be new or edit"
+            )
+
+        audit_id = body.get(
+            "audit_id"
+        )
+
+        if mode == "edit":
+
+            if audit_id is None:
+
+                return bad_request(
+                    "audit_id is required when editing a declaration"
+                )
+
+            try:
+
+                audit_id = int(
+                    audit_id
+                )
+
+            except (
+                TypeError,
+                ValueError
+            ):
+
+                return bad_request(
+                    "Invalid audit_id"
+                )
+
+        else:
+
+            audit_id = None
+
+        member_id = body.get(
+            "member_id"
+        )
+
+        if member_id is None:
+
+            return bad_request(
+                "member_id is required"
+            )
+
+        try:
+
+            member_id = int(
+                member_id
+            )
+
+        except (
+            TypeError,
+            ValueError
+        ):
+
+            return bad_request(
+                "Invalid member_id"
+            )
+
+        declarer_name = body.get(
+            "declarer_name"
+        )
+
+        address_line_1 = body.get(
+            "declarer_address_line_1"
+        )
+
+        address_line_2 = body.get(
+            "declarer_address_line_2"
+        )
+
+        postcode = body.get(
+            "declarer_postcode"
+        )
+
+        email_address = body.get(
+            "email_address"
+        )
+
+        affirmed_date = body.get(
+            "affirmed_date"
+        )
+
+        wording_version_id = body.get(
+            "wording_version_id"
+        )
+
+        declaration_text = body.get(
+            "declaration_text"
+        )
+
+        affirmed = body.get(
+            "affirmed"
+        )
+
+        required_fields = {
+            "declarer_name": declarer_name,
+            "declarer_address_line_1": address_line_1,
+            "declarer_postcode": postcode,
+            "email_address": email_address,
+            "wording_version_id": wording_version_id,
+            "declaration_text": declaration_text,
+        }
+
+        for field_name, value in required_fields.items():
+
+            if (
+                value is None
+                or
+                str(value).strip() == ""
+            ):
+
+                return bad_request(
+                    field_name
+                    + " is required"
+                )
+
+        if affirmed is not True:
+
+            return bad_request(
+                "Submitting on behalf of the member must be affirmed"
+            )
+
+        covered_members = body.get(
+            "covered_members"
+        )
+
+        if covered_members is None:
+
+            covered_members = []
+
+        if not isinstance(
+            covered_members,
+            list
+        ):
+
+            return bad_request(
+                "covered_members must be a list"
+            )
+
+        conn = get_connection()
+
+        with conn.cursor() as cur:
+
+            # -------------------------------------------------
+            # Verify the declaration owner exists
+            # -------------------------------------------------
+
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    membership_number,
+                    first_name,
+                    surname
+                FROM members
+                WHERE id = %s
+                """,
+                (
+                    member_id,
+                ),
+            )
+
+            member_row = cur.fetchone()
+
+            if member_row is None:
+
+                return not_found(
+                    "Member not found"
+                )
+
+            # -------------------------------------------------
+            # Validate and build the covered-member snapshot
+            # -------------------------------------------------
+
+            covered_snapshot = []
+
+            covered_ids = set()
+
+            for item in covered_members:
+
+                if not isinstance(
+                    item,
+                    dict
+                ):
+
+                    return bad_request(
+                        "Each covered member must be an object"
+                    )
+
+                submitted_id = item.get(
+                    "member_id"
+                )
+
+                # Admin Save does not accept unresolved /
+                # informal covered members.
+                if submitted_id is None:
+
+                    return bad_request(
+                        "Every covered member must be resolved to a member_id before saving"
+                    )
+
+                try:
+
+                    covered_id = int(
+                        submitted_id
+                    )
+
+                except (
+                    TypeError,
+                    ValueError
+                ):
+
+                    return bad_request(
+                        "Invalid covered member_id"
+                    )
+
+                if covered_id in covered_ids:
+
+                    return bad_request(
+                        "A covered member has been included more than once"
+                    )
+
+                covered_ids.add(
+                    covered_id
+                )
+
+                cur.execute(
+                    """
+                    SELECT
+                        id,
+                        membership_number,
+                        first_name,
+                        surname
+                    FROM members
+                    WHERE id = %s
+                    """,
+                    (
+                        covered_id,
+                    ),
+                )
+
+                covered_row = (
+                    cur.fetchone()
+                )
+
+                if covered_row is None:
+
+                    return bad_request(
+                        "Covered member does not exist: "
+                        + str(covered_id)
+                    )
+
+                covered_snapshot.append(
+                    {
+                        "member_id":
+                            covered_row[0],
+
+                        "membership_number":
+                            covered_row[1],
+
+                        "first_name":
+                            covered_row[2],
+
+                        "surname":
+                            covered_row[3],
+                    }
+                )
+
+            # A member cannot be both the declaration owner
+            # and a covered member.
+            if member_id in covered_ids:
+
+                return bad_request(
+                    "The declaration owner cannot also be a covered member"
+                )
+
+            # -------------------------------------------------
+            # Determine current declaration / reference
+            # -------------------------------------------------
+
+            current_audit = None
+            gift_aid_reference = None
+            supersedes_audit_id = None
+
+            if mode == "edit":
+
+                cur.execute(
+                    """
+                    SELECT
+                        id,
+                        member_id,
+                        gift_aid_reference,
+                        action,
+                        declaration_method,
+                        declaration_text,
+                        declarer_name,
+                        declarer_address_line_1,
+                        declarer_address_line_2,
+                        declarer_postcode,
+                        email_address,
+                        affirmed_date,
+                        invitation_id,
+                        recorded_by,
+                        wording_version_id,
+                        covered_members,
+                        affirmed,
+                        status,
+                        pending_review_type
+                    FROM gift_aid_declaration_audit
+                    WHERE id = %s
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM gift_aid_declaration_audit newer
+                          WHERE newer.supersedes_audit_id = id
+                      )
+                    FOR UPDATE
+                    """,
+                    (
+                        audit_id,
+                    ),
+                )
+
+                current_audit = (
+                    cur.fetchone()
+                )
+
+                if current_audit is None:
+
+                    return not_found(
+                        "Current Gift Aid declaration not found"
+                    )
+
+                gift_aid_reference = (
+                    current_audit[2]
+                )
+
+                supersedes_audit_id = (
+                    current_audit[0]
+                )
+
+                # The member being edited must still be
+                # the declaration owner.
+                if int(current_audit[1]) != member_id:
+
+                    return bad_request(
+                        "The declaration owner does not match the selected member"
+                    )
+
+            else:
+
+                # A genuinely new declaration gets a new
+                # Gift Aid reference.
+                cur.execute(
+                    """
+                    SELECT nextval(
+                        'gift_aid_reference_seq'
+                    )
+                    """
+                )
+
+                gift_aid_reference = (
+                    cur.fetchone()[0]
+                )
+
+            # -------------------------------------------------
+            # Find current live Gift Aid relationships
+            # -------------------------------------------------
+
+            cur.execute(
+                """
+                SELECT
+                    gam.member_id,
+                    m.membership_number,
+                    m.first_name,
+                    m.surname
+                FROM gift_aid_members gam
+                JOIN members m
+                    ON m.id = gam.member_id
+                WHERE gam.gift_aid_reference = %s
+                  AND (
+                      gam.valid_until IS NULL
+                      OR gam.valid_until >= CURRENT_DATE
+                  )
+                ORDER BY gam.member_id
+                """,
+                (
+                    gift_aid_reference,
+                ),
+            )
+
+            existing_rows = (
+                cur.fetchall()
+            )
+
+            existing_members = []
+
+            for row in existing_rows:
+
+                existing_members.append(
+                    {
+                        "member_id":
+                            row[0],
+
+                        "membership_number":
+                            row[1],
+
+                        "first_name":
+                            row[2],
+
+                        "surname":
+                            row[3],
+                    }
+                )
+
+            live_relationship_ids = {
+                int(member["member_id"])
+                for member in existing_members
+            }
+
+            # The declaration owner is part of the
+            # expected Gift Aid relationship set.
+            submitted_relationship_ids = set(
+                covered_ids
+            )
+
+            submitted_relationship_ids.add(
+                member_id
+            )
+
+            # -------------------------------------------------
+            # Process 1 relationship check
+            # -------------------------------------------------
+
+            relationships_match = (
+                submitted_relationship_ids
+                ==
+                live_relationship_ids
+            )
+
+            added_members = sorted(
+                submitted_relationship_ids
+                -
+                live_relationship_ids
+            )
+
+            removed_members = sorted(
+                live_relationship_ids
+                -
+                submitted_relationship_ids
+            )
+
+            if relationships_match:
+
+                audit_status = (
+                    "CONFIRMED"
+                )
+
+                pending_review_type = None
+
+            else:
+
+                audit_status = (
+                    "PENDING_REVIEW"
+                )
+
+                pending_review_type = (
+                    "RELATIONSHIP_MISMATCH"
+                )
+
+            # -------------------------------------------------
+            # Build the new audit entry
+            # -------------------------------------------------
+
+            audit_action = (
+                "AFFIRMED"
+                if mode == "new"
+                else
+                "UPDATED"
+            )
+
+            recorded_by = get_cognito_sub(
+                event
+            )
+
+            if not affirmed_date:
+
+                affirmed_date = (
+                    "CURRENT_DATE"
+                )
+
+            if affirmed_date == "CURRENT_DATE":
+
+                cur.execute(
+                    """
+                    INSERT INTO gift_aid_declaration_audit (
+                        member_id,
+                        gift_aid_reference,
+                        action,
+                        declaration_method,
+                        declaration_text,
+                        declarer_name,
+                        declarer_address_line_1,
+                        declarer_address_line_2,
+                        declarer_postcode,
+                        email_address,
+                        affirmed_date,
+                        ip_address,
+                        user_agent,
+                        invitation_id,
+                        recorded_by,
+                        wording_version_id,
+                        affirmed,
+                        status,
+                        pending_review_type,
+                        covered_members,
+                        supersedes_audit_id
+                    )
+                    VALUES (
+                        %s,
+                        %s,
+                        %s,
+                        'MANUAL',
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        CURRENT_DATE,
+                        %s,
+                        %s,
+                        NULL,
+                        %s,
+                        %s,
+                        TRUE,
+                        %s,
+                        %s,
+                        %s,
+                        %s
+                    )
+                    RETURNING id
+                    """,
+                    (
+                        member_id,
+                        gift_aid_reference,
+                        audit_action,
+                        declaration_text,
+                        declarer_name,
+                        address_line_1,
+                        address_line_2,
+                        postcode,
+                        email_address,
+                        get_source_ip(event),
+                        get_user_agent(event),
+                        recorded_by,
+                        wording_version_id,
+                        audit_status,
+                        pending_review_type,
+                        json.dumps(
+                            covered_snapshot
+                        ),
+                        supersedes_audit_id,
+                    ),
+                )
+
+            else:
+
+                cur.execute(
+                    """
+                    INSERT INTO gift_aid_declaration_audit (
+                        member_id,
+                        gift_aid_reference,
+                        action,
+                        declaration_method,
+                        declaration_text,
+                        declarer_name,
+                        declarer_address_line_1,
+                        declarer_address_line_2,
+                        declarer_postcode,
+                        email_address,
+                        affirmed_date,
+                        ip_address,
+                        user_agent,
+                        invitation_id,
+                        recorded_by,
+                        wording_version_id,
+                        affirmed,
+                        status,
+                        pending_review_type,
+                        covered_members,
+                        supersedes_audit_id
+                    )
+                    VALUES (
+                        %s,
+                        %s,
+                        %s,
+                        'MANUAL',
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        NULL,
+                        %s,
+                        %s,
+                        TRUE,
+                        %s,
+                        %s,
+                        %s,
+                        %s
+                    )
+                    RETURNING id
+                    """,
+                    (
+                        member_id,
+                        gift_aid_reference,
+                        audit_action,
+                        declaration_text,
+                        declarer_name,
+                        address_line_1,
+                        address_line_2,
+                        postcode,
+                        email_address,
+                        affirmed_date,
+                        get_source_ip(event),
+                        get_user_agent(event),
+                        recorded_by,
+                        wording_version_id,
+                        audit_status,
+                        pending_review_type,
+                        json.dumps(
+                            covered_snapshot
+                        ),
+                        supersedes_audit_id,
+                    ),
+                )
+
+            new_audit_id = (
+                cur.fetchone()[0]
+            )
+
+            conn.commit()
+
+        response = {
+            "audit_id":
+                new_audit_id,
+
+            "supersedes_audit_id":
+                supersedes_audit_id,
+
+            "gift_aid_reference":
+                gift_aid_reference,
+
+            "member_id":
+                member_id,
+
+            "mode":
+                mode,
+
+            "action":
+                audit_action,
+
+            "method":
+                "MANUAL",
+
+            "affirmed":
+                True,
+
+            "status":
+                audit_status,
+
+            "pending_review_type":
+                pending_review_type,
+
+            "covered_members":
+                covered_snapshot,
+
+            "relationship_ids":
+                sorted(
+                    submitted_relationship_ids
+                ),
+
+            "live_relationship_ids":
+                sorted(
+                    live_relationship_ids
+                ),
+
+            "relationships_match":
+                relationships_match,
+
+            "added_members":
+                added_members,
+
+            "removed_members":
+                removed_members,
+        }
+
+        return success(
+            response
+        )
+
+    except Exception as exc:
+
+        if conn:
+
+            conn.rollback()
+
+        print(
+            "Gift Aid admin save error:",
+            exc
+        )
+
+        return bad_request(
+            "Unable to save the Gift Aid declaration"
+        )
+
+    finally:
+
+        if conn:
+
+            conn.close()

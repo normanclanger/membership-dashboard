@@ -15,7 +15,8 @@ from giftaid1 import (
      handle_resolve_member,
      handle_confirm_relationships,
      handle_dashboard_summary,
-     handle_declarations
+     handle_declarations,
+     handle_admin_save
 )
 
 from ga_email import (
@@ -47,7 +48,7 @@ RESOLVE_COVERAGE_PATH = "/api/gift-aid/admin/pending"
 EMAIL_TEST_PATH = "/api/gift-aid/email-test"
 DASHBOARD_SUMMARY_PATH = "/api/gift-aid/admin/dashboard"
 DECLARATIONS_PATH = "/api/gift-aid/admin/declarations"
-
+ADMIN_SAVE_DECLARATION_PATH = "/api/gift-aid/admin/declaration/save"
 
    
     
@@ -504,6 +505,24 @@ def lambda_handler(event, context):
             )
 
         return handle_declarations()
+        
+    # Save route for admin edited declaration    
+    
+    if path == ADMIN_SAVE_DECLARATION_PATH:
+
+        if method != "POST":
+
+            return bad_request(
+                "Method not allowed"
+            )
+
+        if not can_administer(event):
+
+            return forbidden(
+                "You do not have permission to save Gift Aid declarations"
+            )
+
+        return handle_admin_save(event)
 
 
     # original handling for public & admin declaration management
