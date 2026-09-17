@@ -1342,7 +1342,9 @@ def handle_confirm_relationships(
                 "Invalid JSON request body"
             )
 
-
+        confirmed = body.get(
+          "confirmed"
+)
 
         if confirmed is not True:
 
