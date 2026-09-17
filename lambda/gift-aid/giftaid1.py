@@ -9,6 +9,19 @@ from responses import (
 )
 from database import get_connection
 
+def covered_members_have_informal_entries(
+    covered_members
+):
+    for member in covered_members or []:
+
+        if not isinstance(member, dict):
+            continue
+
+        if member.get("member_id") is None:
+            return True
+
+    return False
+
 def handle_resolve_coverage(
     event,
     audit_id
@@ -1329,9 +1342,7 @@ def handle_confirm_relationships(
                 "Invalid JSON request body"
             )
 
-        confirmed = body.get(
-            "confirmed"
-        )
+
 
         if confirmed is not True:
 

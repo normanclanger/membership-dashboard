@@ -15,7 +15,8 @@ from giftaid1 import (
      handle_resolve_member,
      handle_confirm_relationships,
      handle_dashboard_summary,
-     handle_declarations
+     handle_declarations,
+     covered_members_have_informal_entries
 )
 
 from ga_email import (
@@ -184,18 +185,7 @@ def covered_member_ids(covered_members):
     return ids
 
 
-def covered_members_have_informal_entries(
-    covered_members
-):
-    for member in covered_members or []:
 
-        if not isinstance(member, dict):
-            continue
-
-        if member.get("member_id") is None:
-            return True
-
-    return False
 
 
 def declaration_relationships_consistent(
