@@ -479,6 +479,20 @@ def lambda_handler(event, context):
             )
 
         return handle_admin_save(event)
+        
+    if path == ADMIN_EDIT_DECLARATION_PATH:
+
+        if method != "GET":
+            return bad_request(
+                "Method not allowed"
+            )
+
+        if not can_administer(event):
+            return forbidden(
+                "You do not have permission to view Gift Aid declarations"
+            )
+
+        return handle_admin_get_declaration(event)
 
 
     # original handling for public & admin declaration management
@@ -526,19 +540,7 @@ def lambda_handler(event, context):
     )
     
     
-    if path == ADMIN_EDIT_DECLARATION_PATH:
 
-        if method != "GET":
-            return bad_request(
-                "Method not allowed"
-            )
-
-        if not can_administer(event):
-            return forbidden(
-                "You do not have permission to view Gift Aid declarations"
-            )
-
-        return handle_admin_get_declaration(event)
 
     if is_public:
 
