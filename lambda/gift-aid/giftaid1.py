@@ -9,6 +9,34 @@ from responses import (
 )
 from database import get_connection
 
+def covered_member_ids(covered_members):
+    ids = set()
+
+    for member in covered_members or []:
+
+        if not isinstance(member, dict):
+            continue
+
+        member_id = member.get(
+            "member_id"
+        )
+
+        if member_id is None:
+            continue
+
+        try:
+            ids.add(
+                int(member_id)
+            )
+
+        except (
+            TypeError,
+            ValueError
+        ):
+            continue
+
+    return ids
+
 def covered_members_have_informal_entries(
     covered_members
 ):

@@ -16,7 +16,8 @@ from giftaid1 import (
      handle_confirm_relationships,
      handle_dashboard_summary,
      handle_declarations,
-     covered_members_have_informal_entries
+     covered_members_have_informal_entries,
+     covered_member_ids
 )
 
 from ga_email import (
@@ -156,33 +157,7 @@ def get_request_path(event):
     )
 
 
-def covered_member_ids(covered_members):
-    ids = set()
 
-    for member in covered_members or []:
-
-        if not isinstance(member, dict):
-            continue
-
-        member_id = member.get(
-            "member_id"
-        )
-
-        if member_id is None:
-            continue
-
-        try:
-            ids.add(
-                int(member_id)
-            )
-
-        except (
-            TypeError,
-            ValueError
-        ):
-            continue
-
-    return ids
 
 
 
