@@ -41,6 +41,7 @@ EMAIL_TEST_PATH = "/api/gift-aid/email-test"
 DASHBOARD_SUMMARY_PATH = "/api/gift-aid/admin/dashboard"
 DECLARATIONS_PATH = "/api/gift-aid/admin/declarations"
 ADMIN_SAVE_DECLARATION_PATH = "/api/gift-aid/admin/declaration/save"
+ADMIN_EDIT_DECLARATION_PATH = "/api/gift-aid/admin/declaration/edit"
 
    
     
@@ -523,6 +524,21 @@ def lambda_handler(event, context):
             "gift_aid_reference"
         )
     )
+    
+    
+    if path == ADMIN_EDIT_DECLARATION_PATH:
+
+    if method != "GET":
+        return bad_request(
+            "Method not allowed"
+        )
+
+    if not can_administer(event):
+        return forbidden(
+            "You do not have permission to view Gift Aid declarations"
+        )
+
+    return handle_admin_get_declaration(event)
 
     if is_public:
 
@@ -5355,4 +5371,127 @@ def handle_declarations():
         if conn:
             conn.close()
 
+def handle_admin_get_declaration(event):
+    conn = None
 
+    try:
+        query = (
+            event.get("queryStringParameters")
+            or {}
+        )
+
+        audit_id = query.get("id")
+
+        if audit_id is None:
+            return bad_request(
+                "id is required"
+            )
+
+        try:
+            audit_id = int(audit_id)
+
+        except (TypeError, ValueError):
+            return bad_request(
+                "Invalid audit_id"
+            )
+
+        conn = get_connection()
+
+        with conn.cursor() as cur:
+
+            cur.execute(
+                """
+                SELECT
+                    a.id,
+                    a.member_id,
+                    m.membership_number,
+                    m.first_name,
+                    m.surname,
+                    a.gift_aid_reference,
+                    a.action,
+                    a.declaration_method,
+                    a.declaration_text,
+                    a.declarer_name,
+                    a.declarer_address_line_1,
+                    a.declarer_address_line_2,
+                    a.declarer_postcode,
+                    a.email_address,
+                    a.affirmed_date,
+                    a.wording_version_id,
+                    a.covered_members,
+                    a.affirmed,
+                    a.status,
+                    a.pending_review_type,
+                    a.recorded_at
+                FROM gift_aid_declaration_audit a
+                JOIN members m
+                    ON m.id = a.member_id
+                WHERE a.id = %s
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM gift_aid_declaration_audit newer
+                      WHERE newer.supersedes_audit_id = a.id
+                  )
+                """,
+                (audit_id,)
+            )
+
+            row = cur.fetchone()
+
+        if row is None:
+            return not_found(
+                "Current Gift Aid declaration not found"
+            )
+
+        return success(
+            {
+                "audit_id": row[0],
+                "member_id": row[1],
+                "membership_number": row[2],
+                "first_name": row[3],
+                "surname": row[4],
+                "gift_aid_reference": row[5],
+                "action": row[6],
+                "declaration_method": row[7],
+                "declaration_text": row[8],
+                "declarer_name": row[9],
+                "declarer_address_line_1": row[10],
+                "declarer_address_line_2": row[11],
+                "declarer_postcode": row[12],
+                "email_address": row[13],
+                "affirmed_date": (
+                    row[14].isoformat()
+                    if row[14]
+                    else None
+                ),
+                "wording_version_id": row[15],
+                "covered_members": row[16] or [],
+                "affirmed": row[17],
+                "status": row[18],
+                "pending_review_type": row[19],
+                "recorded_at": (
+                    row[20].isoformat()
+                    if row[20]
+                    else None
+                )
+            }
+        )
+
+    except Exception as exc:
+
+        if conn:
+            conn.rollback()
+
+        print(
+            "Gift Aid admin get declaration error:",
+            exc
+        )
+
+        return bad_request(
+            "Unable to load the Gift Aid declaration"
+        )
+
+    finally:
+
+        if conn:
+            conn.close()
