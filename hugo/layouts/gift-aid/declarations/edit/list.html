@@ -1,0 +1,304 @@
+{{ define "main" }}
+
+<div class="container">
+
+    <h1>Gift Aid declaration</h1>
+
+    <p>
+        Edit the Gift Aid declaration below.
+    </p>
+
+    <div id="declaration-loading">
+        Loading declaration...
+    </div>
+
+    <div id="declaration-error" class="alert alert-danger" hidden></div>
+
+    <form id="declaration-form" hidden>
+	
+	    <input
+        type="hidden"
+        id="member-id"
+        >
+
+        <h2>Member</h2>
+
+        <div class="mb-3">
+            <label for="member-name">
+                Member
+            </label>
+
+            <input
+                type="text"
+                id="member-name"
+                class="form-control"
+                readonly
+            >
+        </div>
+
+        <div class="mb-3">
+            <label for="membership-number">
+                Membership number
+            </label>
+
+            <input
+                type="text"
+                id="membership-number"
+                class="form-control"
+                readonly
+            >
+        </div>
+
+        <div class="mb-3">
+            <label for="gift-aid-reference">
+                Gift Aid reference
+            </label>
+
+            <input
+                type="text"
+                id="gift-aid-reference"
+                class="form-control"
+                readonly
+            >
+        </div>
+
+
+        <h2>Declaration</h2>
+
+        <div class="mb-3">
+            <label for="declarer-name">
+                Declarer name
+            </label>
+
+            <input
+                type="text"
+                id="declarer-name"
+                class="form-control"
+            >
+        </div>
+
+        <div class="mb-3">
+            <label for="declarer-address-line-1">
+                Address line 1
+            </label>
+
+            <input
+                type="text"
+                id="declarer-address-line-1"
+                class="form-control"
+            >
+        </div>
+
+        <div class="mb-3">
+            <label for="declarer-address-line-2">
+                Address line 2
+            </label>
+
+            <input
+                type="text"
+                id="declarer-address-line-2"
+                class="form-control"
+            >
+        </div>
+
+        <div class="mb-3">
+            <label for="declarer-postcode">
+                Postcode
+            </label>
+
+            <input
+                type="text"
+                id="declarer-postcode"
+                class="form-control"
+            >
+        </div>
+
+        <div class="mb-3">
+            <label for="email-address">
+                Email address
+            </label>
+
+            <input
+                type="email"
+                id="email-address"
+                class="form-control"
+            >
+        </div>
+
+        <div class="mb-3">
+            <label for="affirmed-date">
+                Affirmed date
+            </label>
+
+            <input
+                type="date"
+                id="affirmed-date"
+                class="form-control"
+            >
+        </div>
+
+        <div class="mb-3">
+            <label for="wording-version-id">
+                Wording version
+            </label>
+
+            <input
+                type="text"
+                id="wording-version-id"
+                class="form-control"
+            >
+        </div>
+
+        <div class="mb-3">
+            <label for="declaration-text">
+                Declaration text
+            </label>
+
+            <textarea
+                id="declaration-text"
+                class="form-control"
+                rows="8"
+            ></textarea>
+        </div>
+
+
+        <h2>Covered members</h2>
+
+        <p>
+            These are the members covered by this Gift Aid declaration.
+        </p>
+
+        <div id="covered-members">
+
+            <div id="covered-members-list">
+                <!-- Selected covered members appear here -->
+            </div>
+
+            <div class="mt-3">
+
+                <label for="covered-member-search">
+                    Add covered member
+                </label>
+
+                <div class="d-flex gap-2">
+
+                    <input
+                        type="search"
+                        id="covered-member-search"
+                        class="form-control"
+                        placeholder="Membership number or name"
+                    >
+
+                    <button
+                        type="button"
+                        id="covered-member-search-button"
+                        class="btn btn-secondary"
+                    >
+                        Search
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div
+                id="covered-member-search-results"
+                class="mt-3"
+            >
+                <!-- Search results appear here -->
+            </div>
+
+        </div>
+
+
+        <h2>Confirmation</h2>
+
+        <div class="form-check mb-3">
+
+            <input
+                type="checkbox"
+                id="affirmed"
+                class="form-check-input"
+            >
+
+            <label
+                for="affirmed"
+                class="form-check-label"
+            >
+                Submitting on behalf of the member
+            </label>
+
+        </div>
+
+        <div class="mb-3">
+
+            <button
+                type="submit"
+                id="save-declaration"
+                class="btn btn-primary"
+            >
+                Save declaration
+            </button>
+
+            <a
+                href="/giftaid-declarations/"
+                class="btn btn-secondary"
+            >
+                Cancel
+            </a>
+
+        </div>
+		
+		<div
+            id="process-2"
+            class="mt-4"
+            hidden
+        >
+
+            <h2>Relationship confirmation required</h2>
+
+            <p>
+                The declaration has been saved, but the current
+                Gift Aid relationships do not match the declaration.
+            </p>
+
+            <h3>Members to add</h3>
+
+            <div id="process-2-added">
+            </div>
+
+            <h3>Members to remove</h3>
+
+            <div id="process-2-removed">
+            </div>
+
+            <p class="mt-3">
+                These changes have not yet been made to the
+                live Gift Aid relationships.
+            </p>
+
+            <p>
+                Review the proposed changes before confirming.
+            </p>
+			
+            <button
+                type="button"
+                id="process-2-confirm"
+                class="btn btn-primary"
+            >
+                Confirm relationships
+            </button>
+
+        </div>
+
+    </form>
+
+</div>
+
+<script
+    type="module"
+    src="/js/declaration-edit.js"
+></script>
+
+{{ end }}
+

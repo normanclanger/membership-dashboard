@@ -5300,6 +5300,67 @@ def handle_dashboard_summary():
 
             row = cur.fetchone()
 
+
+            cur.execute(
+                """
+                SELECT
+                    a.id,
+                    a.gift_aid_reference,
+                    a.member_id,
+                    m.membership_number,
+                    m.first_name,
+                    m.surname,
+                    a.pending_review_type
+                FROM current_audits a
+                JOIN members m
+                    ON m.id = a.member_id
+                WHERE a.status = 'PENDING_REVIEW'
+                ORDER BY a.recorded_at DESC, a.id DESC
+                """
+            )
+
+            pending_rows = cur.fetchall()
+
+
+        relationship_mismatches = []
+        coverage_requests = []
+        covered_elsewhere_reviews = []
+
+
+        for pending_row in pending_rows:
+
+            item = {
+                "audit_id": pending_row[0],
+                "gift_aid_reference": pending_row[1],
+                "member_id": pending_row[2],
+                "membership_number": pending_row[3],
+                "first_name": pending_row[4],
+                "surname": pending_row[5],
+                "pending_review_type": pending_row[6]
+            }
+
+
+            if pending_row[6] == "RELATIONSHIP_MISMATCH":
+
+                relationship_mismatches.append(
+                    item
+                )
+
+
+            elif pending_row[6] == "COVERAGE_REQUEST":
+
+                coverage_requests.append(
+                    item
+                )
+
+
+            elif pending_row[6] == "COVERED_ELSEWHERE":
+
+                covered_elsewhere_reviews.append(
+                    item
+                )
+
+
         return success(
             {
                 "total_members": row[0],
@@ -5311,6 +5372,15 @@ def handle_dashboard_summary():
                 "members_invited": row[6],
                 "open_invitations": row[7],
                 "used_invitations": row[8],
+
+                "relationship_mismatches":
+                    relationship_mismatches,
+
+                "coverage_requests":
+                    coverage_requests,
+
+                "covered_elsewhere_reviews":
+                    covered_elsewhere_reviews
             }
         )
 

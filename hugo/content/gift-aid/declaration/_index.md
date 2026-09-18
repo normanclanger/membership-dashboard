@@ -1,3 +1,3 @@
 ---
-title: "Declaration"
+title: "Gift-Aid Declaration"
 ---
