@@ -3106,12 +3106,70 @@ def handle_admin_save(event):
                 -
                 submitted_relationship_ids
             )
+            
+            added_member_details = []
+            removed_member_details = []
+
+            with conn.cursor() as cur:
+
+                for member_id in added_members:
+
+                    cur.execute(
+                        """
+                        SELECT
+                            id,
+                            membership_number,
+                            first_name,
+                            surname
+                        FROM members
+                        WHERE id = %s
+                        """,
+                        (member_id,)
+                    )
+
+                    row = cur.fetchone()
+
+                    if row is not None:
+
+                        added_member_details.append({
+                            "member_id": row[0],
+                            "membership_number": row[1],
+                            "first_name": row[2],
+                            "surname": row[3]
+                        })
+
+
+                for member_id in removed_members:
+
+                    cur.execute(
+                        """
+                        SELECT
+                            id,
+                            membership_number,
+                            first_name,
+                            surname
+                        FROM members
+                        WHERE id = %s
+                        """,
+                        (member_id,)
+                    )
+
+                    row = cur.fetchone()
+
+                    if row is not None:
+
+                        removed_member_details.append({
+                            "member_id": row[0],
+                            "membership_number": row[1],
+                            "first_name": row[2],
+                            "surname": row[3]
+                        })
 
             if relationships_match:
 
                 audit_status = (
-                    "CONFIRMED"
-                )
+                        "CONFIRMED"
+                    )
 
                 pending_review_type = None
 
@@ -3355,6 +3413,9 @@ def handle_admin_save(event):
 
             "removed_members":
                 removed_members,
+                
+            "added_member_details": added_member_details,
+            "removed_member_details": removed_member_details,    
         }
 
         return success(
