@@ -5445,6 +5445,60 @@ def handle_admin_get_declaration(event):
                 "Current Gift Aid declaration not found"
             )
 
+        covered_members = row[16] or []
+
+        complete_covered_members = []
+
+        for covered_member in covered_members:
+
+            if covered_member.get("member_id") is None:
+
+                # Keep unresolved/informal entries unchanged
+                complete_covered_members.append(
+                    covered_member
+                )
+
+                continue
+
+            covered_member_id = int(
+                covered_member["member_id"]
+            )
+
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    membership_number,
+                    first_name,
+                    surname
+                FROM members
+                WHERE id = %s
+                """,
+                (covered_member_id,)
+            )
+
+            covered_row = cur.fetchone()
+
+            if covered_row is None:
+
+                # The member no longer exists.
+                # Keep the original entry so the admin
+                # page can still identify the problem.
+                complete_covered_members.append(
+                    covered_member
+                )
+
+                continue
+
+            complete_covered_members.append(
+                {
+                    "member_id": covered_row[0],
+                    "membership_number": covered_row[1],
+                    "first_name": covered_row[2],
+                    "surname": covered_row[3],
+                }
+            )
+
         return success(
             {
                 "audit_id": row[0],
@@ -5467,7 +5521,7 @@ def handle_admin_get_declaration(event):
                     else None
                 ),
                 "wording_version_id": row[15],
-                "covered_members": row[16] or [],
+                "covered_members": complete_covered_members,
                 "affirmed": row[17],
                 "status": row[18],
                 "pending_review_type": row[19],
