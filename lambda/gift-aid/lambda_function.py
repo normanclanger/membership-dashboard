@@ -5396,6 +5396,8 @@ def handle_dashboard_summary():
 
                 "relationship_mismatches":
                     relationship_mismatches,
+                    
+                "unresolved_members": unresolved_members,
 
                 "coverage_requests":
                     coverage_requests,
