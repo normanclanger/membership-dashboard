@@ -5311,13 +5311,18 @@ def handle_dashboard_summary():
                     m.first_name,
                     m.surname,
                     a.pending_review_type
-                FROM current_audits a
+                FROM gift_aid_declaration_audit a
                 JOIN members m
                     ON m.id = a.member_id
                 WHERE a.status = 'PENDING_REVIEW'
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM gift_aid_declaration_audit newer
+                      WHERE newer.supersedes_audit_id = a.id
+                  )
                 ORDER BY a.recorded_at DESC, a.id DESC
                 """
-            )
+)
 
             pending_rows = cur.fetchall()
 
