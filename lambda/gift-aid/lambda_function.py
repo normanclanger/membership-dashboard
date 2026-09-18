@@ -5310,6 +5310,7 @@ def handle_dashboard_summary():
                     m.membership_number,
                     m.first_name,
                     m.surname,
+                    a.action,
                     a.pending_review_type
                 FROM gift_aid_declaration_audit a
                 JOIN members m
@@ -5341,18 +5342,19 @@ def handle_dashboard_summary():
                 "membership_number": pending_row[3],
                 "first_name": pending_row[4],
                 "surname": pending_row[5],
-                "pending_review_type": pending_row[6]
+                "action": pending_row[6],
+                "pending_review_type": pending_row[7]
             }
 
 
-            if pending_row[6] == "RELATIONSHIP_MISMATCH":
+            if pending_row[7] == "RELATIONSHIP_MISMATCH":
 
                 relationship_mismatches.append(
                     item
                 )
 
 
-            elif pending_row[6] == "COVERAGE_REQUEST":
+            elif pending_row[7] == "COVERAGE_REQUEST":
 
                 coverage_requests.append(
                     item
