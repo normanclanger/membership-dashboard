@@ -5331,39 +5331,53 @@ def handle_dashboard_summary():
         relationship_mismatches = []
         coverage_requests = []
         covered_elsewhere_reviews = []
+        unresolved_members = []
 
 
         for pending_row in pending_rows:
 
+            audit_id = pending_row[0]
+            gift_aid_reference = pending_row[1]
+            member_id = pending_row[2]
+            membership_number = pending_row[3]
+            first_name = pending_row[4]
+            surname = pending_row[5]
+            action = pending_row[6]
+            pending_review_type = pending_row[7]
+
             item = {
-                "audit_id": pending_row[0],
-                "gift_aid_reference": pending_row[1],
-                "member_id": pending_row[2],
-                "membership_number": pending_row[3],
-                "first_name": pending_row[4],
-                "surname": pending_row[5],
-                "action": pending_row[6],
-                "pending_review_type": pending_row[7]
+                "audit_id": audit_id,
+                "gift_aid_reference": gift_aid_reference,
+                "member_id": member_id,
+                "membership_number": membership_number,
+                "first_name": first_name,
+                "surname": surname,
+                "action": action,
+                "pending_review_type": pending_review_type
             }
 
 
-            if pending_row[7] == "RELATIONSHIP_MISMATCH":
+            if action == "COVERED_ELSEWHERE":
+
+                covered_elsewhere_reviews.append(
+                    item
+                )
+
+            elif pending_review_type == "RELATIONSHIP_MISMATCH":
 
                 relationship_mismatches.append(
                     item
                 )
 
+            elif pending_review_type == "UNRESOLVED_MEMBER":
 
-            elif pending_row[7] == "COVERAGE_REQUEST":
-
-                coverage_requests.append(
+                unresolved_members.append(
                     item
                 )
 
+            elif pending_review_type == "COVERAGE_REQUEST":
 
-            elif pending_row[6] == "COVERED_ELSEWHERE":
-
-                covered_elsewhere_reviews.append(
+                coverage_requests.append(
                     item
                 )
 
