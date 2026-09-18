@@ -5440,64 +5440,64 @@ def handle_admin_get_declaration(event):
 
             row = cur.fetchone()
 
-        if row is None:
-            return not_found(
-                "Current Gift Aid declaration not found"
-            )
-
-        covered_members = row[16] or []
-
-        complete_covered_members = []
-
-        for covered_member in covered_members:
-
-            if covered_member.get("member_id") is None:
-
-                # Keep unresolved/informal entries unchanged
-                complete_covered_members.append(
-                    covered_member
+            if row is None:
+                return not_found(
+                    "Current Gift Aid declaration not found"
                 )
 
-                continue
+            covered_members = row[16] or []
 
-            covered_member_id = int(
-                covered_member["member_id"]
-            )
+            complete_covered_members = []
 
-            cur.execute(
-                """
-                SELECT
-                    id,
-                    membership_number,
-                    first_name,
-                    surname
-                FROM members
-                WHERE id = %s
-                """,
-                (covered_member_id,)
-            )
+            for covered_member in covered_members:
 
-            covered_row = cur.fetchone()
+                if covered_member.get("member_id") is None:
 
-            if covered_row is None:
+                    # Keep unresolved/informal entries unchanged
+                    complete_covered_members.append(
+                        covered_member
+                    )
 
-                # The member no longer exists.
-                # Keep the original entry so the admin
-                # page can still identify the problem.
-                complete_covered_members.append(
-                    covered_member
+                    continue
+
+                covered_member_id = int(
+                    covered_member["member_id"]
                 )
 
-                continue
+                cur.execute(
+                    """
+                    SELECT
+                        id,
+                        membership_number,
+                        first_name,
+                        surname
+                    FROM members
+                    WHERE id = %s
+                    """,
+                    (covered_member_id,)
+                )
 
-            complete_covered_members.append(
-                {
-                    "member_id": covered_row[0],
-                    "membership_number": covered_row[1],
-                    "first_name": covered_row[2],
-                    "surname": covered_row[3],
-                }
-            )
+                covered_row = cur.fetchone()
+
+                if covered_row is None:
+
+                    # The member no longer exists.
+                    # Keep the original entry so the admin
+                    # page can still identify the problem.
+                    complete_covered_members.append(
+                        covered_member
+                    )
+
+                    continue
+
+                complete_covered_members.append(
+                    {
+                        "member_id": covered_row[0],
+                        "membership_number": covered_row[1],
+                        "first_name": covered_row[2],
+                        "surname": covered_row[3],
+                    }
+                )
 
         return success(
             {
