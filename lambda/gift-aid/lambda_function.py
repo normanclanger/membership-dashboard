@@ -42,6 +42,7 @@ DASHBOARD_SUMMARY_PATH = "/api/gift-aid/admin/dashboard"
 DECLARATIONS_PATH = "/api/gift-aid/admin/declarations"
 ADMIN_SAVE_DECLARATION_PATH = "/api/gift-aid/admin/declaration/save"
 ADMIN_EDIT_DECLARATION_PATH = "/api/gift-aid/admin/declaration/edit"
+ADMIN_DECLARATION_FOR_MEMBER_PATH = "/api/gift-aid/admin/declaration-for-member"
 
    
     
@@ -494,6 +495,17 @@ def lambda_handler(event, context):
 
         return handle_admin_get_declaration(event)
 
+    if path == ADMIN_DECLARATION_FOR_MEMBER_PATH:
+
+        if method != "GET":
+            return bad_request("Method not allowed")
+
+        if not can_administer(event):
+            return forbidden(
+                "You do not have permission to view Gift Aid declarations"
+            )
+
+        return handle_admin_get_declaration_for_member(event)
 
     # original handling for public & admin declaration management
     
@@ -5869,6 +5881,163 @@ def handle_admin_get_declaration(event):
 
         return bad_request(
             "Unable to load the Gift Aid declaration"
+        )
+
+    finally:
+
+        if conn:
+            conn.close()
+           
+           
+def handle_admin_get_declaration_for_member(event):
+
+    conn = None
+
+    try:
+
+        query = (
+            event.get("queryStringParameters")
+            or {}
+        )
+
+        member_id = query.get("id")
+
+        if member_id is None:
+            return bad_request(
+                "id is required"
+            )
+
+        try:
+            member_id = int(member_id)
+
+        except (
+            TypeError,
+            ValueError
+        ):
+            return bad_request(
+                "Invalid member_id"
+            )
+
+        conn = get_connection()
+
+        with conn.cursor() as cur:
+
+            cur.execute(
+                """
+                SELECT
+                    a.id,
+                    a.member_id,
+                    m.membership_number,
+                    m.first_name,
+                    m.surname,
+                    a.gift_aid_reference,
+                    a.action,
+                    a.declaration_method,
+                    a.declaration_text,
+                    a.declarer_name,
+                    a.affirmed_date,
+                    a.covered_members,
+                    a.affirmed,
+                    a.status,
+                    a.pending_review_type,
+                    a.recorded_at
+                FROM gift_aid_declaration_audit a
+                JOIN members m
+                    ON m.id = a.member_id
+                WHERE a.member_id = %s
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM gift_aid_declaration_audit newer
+                      WHERE newer.supersedes_audit_id = a.id
+                  )
+                ORDER BY
+                    a.recorded_at DESC,
+                    a.id DESC
+                LIMIT 1
+                """,
+                (
+                    member_id,
+                )
+            )
+
+            row = cur.fetchone()
+
+        if row is None:
+            return not_found(
+                "Member does not have a current Gift Aid declaration"
+            )
+
+        action = row[6]
+        status = row[13]
+
+        if action in (
+            "CANCELLED",
+            "DECLINED",
+            "COVERED_ELSEWHERE"
+        ):
+            return not_found(
+                "Member does not have a current usable Gift Aid declaration"
+            )
+
+        if action not in (
+            "AFFIRMED",
+            "UPDATED"
+        ):
+            return not_found(
+                "Member does not have a current usable Gift Aid declaration"
+            )
+
+        if status not in (
+            "CONFIRMED",
+            "PENDING_REVIEW"
+        ):
+            return not_found(
+                "Member does not have a current usable Gift Aid declaration"
+            )
+
+        return success(
+            {
+                "audit_id": row[0],
+                "member_id": row[1],
+                "membership_number": row[2],
+                "first_name": row[3],
+                "surname": row[4],
+                "gift_aid_reference": row[5],
+                "action": row[6],
+                "declaration_method": row[7],
+                "declaration_text": row[8],
+                "declarer_name": row[9],
+                "affirmed_date": (
+                    row[10].isoformat()
+                    if row[10]
+                    else None
+                ),
+                "covered_members": (
+                    row[11] or []
+                ),
+                "affirmed": row[12],
+                "status": row[13],
+                "pending_review_type": row[14],
+                "recorded_at": (
+                    row[15].isoformat()
+                    if row[15]
+                    else None
+                )
+            }
+        )
+
+    except Exception as exc:
+
+        if conn:
+            conn.rollback()
+
+        print(
+            "Gift Aid declaration-for-member error:",
+            exc
+        )
+
+        return bad_request(
+            "Unable to load the member's Gift Aid declaration"
         )
 
     finally:
