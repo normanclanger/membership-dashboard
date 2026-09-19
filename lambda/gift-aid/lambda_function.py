@@ -4090,6 +4090,101 @@ def handle_resolve_coverage(
             cur.fetchone()[0]
         )
 
+
+        # Create a separate audit event recording that the
+        # original COVERED_ELSEWHERE request has been resolved.
+        #
+        # This is NOT a new Gift Aid declaration and therefore
+        # does not supersede the coverage request or another
+        # declaration audit.
+        cur.execute(
+            """
+            INSERT INTO gift_aid_declaration_audit (
+                member_id,
+                gift_aid_reference,
+                action,
+                declaration_method,
+                declaration_text,
+                declarer_name,
+                declarer_address_line_1,
+                declarer_address_line_2,
+                declarer_postcode,
+                email_address,
+                affirmed_date,
+                ip_address,
+                user_agent,
+                invitation_id,
+                recorded_by,
+                wording_version_id,
+                affirmed,
+                status,
+                pending_review_type,
+                covered_members
+            )
+            VALUES (
+                %s,
+                %s,
+                'COVERED_ELSEWHERE',
+                'MANUAL',
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                FALSE,
+                'CONFIRMED',
+                NULL,
+                %s
+            )
+            RETURNING id
+            """,
+            (
+                original[1],
+                original[2],
+                original[4],
+                original[5],
+                original[6],
+                original[7],
+                original[8],
+                original[9],
+                original[10],
+                original[11],
+                get_source_ip(event),
+                get_user_agent(event),
+                original[12],
+                get_cognito_sub(event),
+                original[14],
+                json.dumps(
+                    original_covered_members
+                ),
+            ),
+        )
+
+        resolution_audit_id = (
+            cur.fetchone()[0]
+        )
+
+        # Mark the original COVERED_ELSEWHERE request as resolved.
+        cur.execute(
+            """
+            UPDATE gift_aid_declaration_audit
+            SET resolved_by_audit_id = %s
+            WHERE id = %s
+            """,
+            (
+                resolution_audit_id,
+                original[0],
+            ),
+        )
+
+
         conn.commit()
 
         return success(
@@ -4102,6 +4197,9 @@ def handle_resolve_coverage(
 
                 "source_coverage_request_id":
                     original[0],
+                    
+                "resolution_audit_id":
+                    resolution_audit_id,    
 
                 "gift_aid_reference":
                     working_reference,
