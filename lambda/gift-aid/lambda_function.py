@@ -5326,6 +5326,26 @@ def handle_dashboard_summary():
 )
 
             pending_rows = cur.fetchall()
+            
+            
+            cur.execute(
+                """
+                SELECT
+                    exception_type,
+                    gift_aid_reference,
+                    member_id,
+                    membership_number,
+                    first_name,
+                    surname
+                FROM gift_aid_relationship_exceptions
+                ORDER BY
+                    gift_aid_reference,
+                    exception_type,
+                    member_id
+                """
+            )
+
+            relationship_exception_rows = cur.fetchall()
 
 
         relationship_mismatches = []
@@ -5333,6 +5353,10 @@ def handle_dashboard_summary():
         covered_elsewhere_reviews = []
         unresolved_members = []
 
+        missing_relationships = []
+        extra_relationships = []
+        inactive_relationships = []
+        no_declaration_relationships = []
 
         for pending_row in pending_rows:
 
@@ -5381,6 +5405,43 @@ def handle_dashboard_summary():
                     item
                 )
 
+        for relationship_row in relationship_exception_rows:
+
+            exception_type = relationship_row[0]
+
+            item = {
+                "exception_type": exception_type,
+                "gift_aid_reference": relationship_row[1],
+                "member_id": relationship_row[2],
+                "membership_number": relationship_row[3],
+                "first_name": relationship_row[4],
+                "surname": relationship_row[5]
+            }
+
+            if exception_type == "MISSING_RELATIONSHIP":
+
+                missing_relationships.append(
+                    item
+                )
+
+            elif exception_type == "EXTRA_RELATIONSHIP":
+
+                extra_relationships.append(
+                    item
+                )
+
+            elif exception_type == "INACTIVE_DECLARATION_HAS_RELATIONSHIP":
+
+                inactive_relationships.append(
+                    item
+                )
+
+            elif exception_type == "NO_DECLARATION":
+
+                no_declaration_relationships.append(
+                    item
+                )
+
 
         return success(
             {
@@ -5403,7 +5464,19 @@ def handle_dashboard_summary():
                     coverage_requests,
 
                 "covered_elsewhere_reviews":
-                    covered_elsewhere_reviews
+                    covered_elsewhere_reviews,
+
+                "missing_relationships":
+                    missing_relationships,
+
+                "extra_relationships":
+                    extra_relationships,
+
+                "inactive_relationships":
+                    inactive_relationships,
+
+                "no_declaration_relationships":
+                    no_declaration_relationships
             }
         )
 
