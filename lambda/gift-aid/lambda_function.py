@@ -5413,6 +5413,7 @@ def handle_dashboard_summary():
                 JOIN members m
                     ON m.id = a.member_id
                 WHERE a.status = 'PENDING_REVIEW'
+                  AND a.resolved_by_audit_id IS NULL                
                   AND NOT EXISTS (
                       SELECT 1
                       FROM gift_aid_declaration_audit newer
