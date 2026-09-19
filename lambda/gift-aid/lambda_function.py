@@ -4148,7 +4148,6 @@ def handle_resolve_coverage(
             (
                 original[1],
                 original[2],
-                original[4],
                 original[5],
                 original[6],
                 original[7],
