@@ -1,5 +1,8 @@
 import hashlib
 import json
+import secrets
+from datetime import datetime, timezone
+import psycopg
 
 from database import get_connection
 from responses import (
@@ -44,6 +47,7 @@ ADMIN_SAVE_DECLARATION_PATH = "/api/gift-aid/admin/declaration/save"
 ADMIN_EDIT_DECLARATION_PATH = "/api/gift-aid/admin/declaration/edit"
 ADMIN_DECLARATION_FOR_MEMBER_PATH = "/api/gift-aid/admin/declaration-for-member"
 ADMIN_INVITATION_CHECK_PATH = "/api/gift-aid/admin/invitations/check"
+ADMIN_INVITATION_GENERATE_PATH = "/api/gift-aid/admin/invitations/generate"
 
    
     
@@ -521,6 +525,18 @@ def lambda_handler(event, context):
             )
 
         return handle_admin_invitation_check(event)
+        
+        
+    if path == ADMIN_INVITATION_GENERATE_PATH:
+        if method != "POST":
+            return bad_request("Method not allowed")
+
+        if not can_administer(event):
+           return forbidden(
+                "You do not have permission to generate Gift Aid invitations"
+            )
+
+        return handle_admin_invitation_generate(event)    
 
     # original handling for public & admin declaration management
     
@@ -6330,6 +6346,373 @@ def handle_admin_invitation_check(event):
 
         return bad_request(
             "Unable to check members for Gift Aid invitations"
+        )
+
+    finally:
+
+        if conn:
+            conn.close()
+            
+            
+def handle_admin_invitation_generate(event):
+    conn = None
+
+    try:
+        body = json.loads(event.get("body") or "{}")
+
+        membership_numbers = body.get("membership_numbers")
+
+        if not isinstance(membership_numbers, list):
+            return bad_request("membership_numbers must be a list")
+
+        if not membership_numbers:
+            return bad_request("membership_numbers must not be empty")
+
+        # Clean the supplied membership numbers.
+        cleaned_numbers = []
+
+        for value in membership_numbers:
+            if value is None:
+                continue
+
+            value = str(value).strip()
+
+            if value:
+                cleaned_numbers.append(value)
+
+        if not cleaned_numbers:
+            return bad_request("No membership numbers were supplied")
+
+        # Reject duplicates rather than silently creating multiple
+        # invitations for the same member.
+        seen = set()
+        duplicates = []
+
+        for membership_number in cleaned_numbers:
+            if membership_number in seen:
+                if membership_number not in duplicates:
+                    duplicates.append(membership_number)
+            else:
+                seen.add(membership_number)
+
+        if duplicates:
+            return bad_request({
+                "message": "Duplicate membership numbers were supplied",
+                "duplicates": duplicates
+            })
+
+        conn = get_connection()
+
+        results = []
+        pending_reviews = []
+        not_found = []
+
+        # ---------------------------------------------------------
+        # First phase: check the entire batch before creating
+        # anything.
+        # ---------------------------------------------------------
+
+        with conn.cursor() as cur:
+
+            for membership_number in cleaned_numbers:
+
+                cur.execute(
+                    """
+                    SELECT
+                        id,
+                        membership_number,
+                        first_name,
+                        surname
+                    FROM members
+                    WHERE membership_number = %s
+                    """,
+                    (membership_number,)
+                )
+
+                member = cur.fetchone()
+
+                if member is None:
+                    not_found.append({
+                        "membership_number": membership_number
+                    })
+                    continue
+
+                member_id = member[0]
+
+                cur.execute(
+                    """
+                    SELECT
+                        a.id,
+                        a.gift_aid_reference,
+                        a.action,
+                        a.status,
+                        a.pending_review_type
+                    FROM gift_aid_declaration_audit a
+                    WHERE a.member_id = %s
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM gift_aid_declaration_audit newer
+                          WHERE newer.supersedes_audit_id = a.id
+                      )
+                    ORDER BY
+                        a.recorded_at DESC,
+                        a.id DESC
+                    LIMIT 1
+                    """,
+                    (member_id,)
+                )
+
+                declaration = cur.fetchone()
+
+                result = {
+                    "membership_number": member[1],
+                    "member_id": member_id,
+                    "first_name": member[2],
+                    "surname": member[3]
+                }
+
+                if declaration is None:
+                    result["state"] = "NO_DECLARATION"
+                    result["audit_id"] = None
+                    result["gift_aid_reference"] = None
+                    result["action"] = None
+                    result["status"] = None
+                    result["pending_review_type"] = None
+
+                    results.append(result)
+                    continue
+
+                audit_id = declaration[0]
+                gift_aid_reference = declaration[1]
+                action = declaration[2]
+                status = declaration[3]
+                pending_review_type = declaration[4]
+
+                result["audit_id"] = audit_id
+                result["gift_aid_reference"] = gift_aid_reference
+                result["action"] = action
+                result["status"] = status
+                result["pending_review_type"] = pending_review_type
+
+                if status == "PENDING_REVIEW":
+                    result["state"] = "PENDING_REVIEW"
+                    pending_reviews.append(result)
+                    results.append(result)
+                    continue
+
+                if status == "CONFIRMED" and action in (
+                    "AFFIRMED",
+                    "UPDATED"
+                ):
+                    result["state"] = "EXISTING_DECLARATION"
+
+                elif action == "CANCELLED":
+                    result["state"] = "CANCELLED"
+
+                elif action == "DECLINED":
+                    result["state"] = "DECLINED"
+
+                elif action == "COVERED_ELSEWHERE":
+                    result["state"] = "COVERED_ELSEWHERE"
+
+                else:
+                    result["state"] = "OTHER"
+
+                results.append(result)
+
+        # ---------------------------------------------------------
+        # The whole batch must pass validation before we insert
+        # anything.
+        # ---------------------------------------------------------
+
+        if not_found:
+            conn.rollback()
+
+            return bad_request({
+                "message": "One or more membership numbers were not found",
+                "not_found": not_found,
+                "results": results
+            })
+
+        if pending_reviews:
+            conn.rollback()
+
+            return success({
+                "status": "BLOCKED",
+                "message": (
+                    "Invitation generation is blocked because one or "
+                    "more members have pending Gift Aid reviews."
+                ),
+                "pending_reviews": pending_reviews,
+                "results": results
+            })
+
+        # ---------------------------------------------------------
+        # All validation has passed.
+        #
+        # For now we use the same expiry date used during testing.
+        # We can make this configurable when we build the admin page.
+        # ---------------------------------------------------------
+
+        expires_at = datetime.now(timezone.utc) + timedelta(days=365)
+
+        generated = []
+
+        with conn.cursor() as cur:
+
+            for result in results:
+
+                member_id = result["member_id"]
+
+                # Existing declaration number, or NULL for a member
+                # who does not currently have one.
+                gift_aid_reference = result["gift_aid_reference"]
+
+                invitation_id = None
+                raw_token = None
+                stored_expires_at = None
+
+                # -------------------------------------------------
+                # Generate a token.
+                #
+                # The savepoint is important: if PostgreSQL rejects
+                # the hash because of the unique constraint, the
+                # failed INSERT does not abort the whole transaction.
+                # -------------------------------------------------
+
+                for attempt in range(5):
+
+                    raw_token = secrets.token_urlsafe(32)
+
+                    token_hash = hashlib.sha256(
+                        raw_token.encode("utf-8")
+                    ).hexdigest()
+
+                    savepoint_name = f"token_attempt_{attempt}"
+
+                    cur.execute(
+                        f"SAVEPOINT {savepoint_name}"
+                    )
+
+                    try:
+                        cur.execute(
+                            """
+                            INSERT INTO gift_aid_invitations (
+                                member_id,
+                                gift_aid_reference,
+                                token_hash,
+                                expires_at,
+                                used_at
+                            )
+                            VALUES (
+                                %s,
+                                %s,
+                                %s,
+                                %s,
+                                NULL
+                            )
+                            RETURNING
+                                id,
+                                expires_at
+                            """,
+                            (
+                                member_id,
+                                gift_aid_reference,
+                                token_hash,
+                                expires_at
+                            )
+                        )
+
+                        invitation_id, stored_expires_at = (
+                            cur.fetchone()
+                        )
+
+                        cur.execute(
+                            f"RELEASE SAVEPOINT {savepoint_name}"
+                        )
+
+                        break
+
+                    except psycopg.errors.UniqueViolation as exc:
+
+                        cur.execute(
+                            f"ROLLBACK TO SAVEPOINT {savepoint_name}"
+                        )
+
+                        error_text = str(exc)
+
+                        if (
+                            "gift_aid_invitations_token_hash_key"
+                            not in error_text
+                        ):
+                            raise
+
+                        if attempt == 4:
+                            raise RuntimeError(
+                                "Unable to generate a unique invitation token "
+                                "after 5 attempts"
+                            )
+
+                    except Exception:
+                        cur.execute(
+                            f"ROLLBACK TO SAVEPOINT {savepoint_name}"
+                        )
+                        raise
+
+                if invitation_id is None:
+                    raise RuntimeError(
+                        "Invitation could not be created"
+                    )
+
+                invitation_url = (
+                    "https://admin.suffolkbells.org.uk/"
+                    "gift-aid/declaration/"
+                    f"?token={raw_token}"
+                )
+
+                generated.append({
+                    "invitation_id": invitation_id,
+                    "member_id": member_id,
+                    "membership_number":
+                        result["membership_number"],
+                    "first_name": result["first_name"],
+                    "surname": result["surname"],
+                    "state": result["state"],
+                    "gift_aid_reference": gift_aid_reference,
+                    "expires_at": (
+                        stored_expires_at.isoformat()
+                        if stored_expires_at
+                        else expires_at.isoformat()
+                    ),
+                    "url": invitation_url
+                })
+
+        # ---------------------------------------------------------
+        # Everything succeeded.
+        # ---------------------------------------------------------
+
+        conn.commit()
+
+        return success({
+            "status": "CREATED",
+            "message": (
+                f"{len(generated)} Gift Aid invitation(s) created."
+            ),
+            "invitations": generated
+        })
+
+    except Exception as exc:
+
+        if conn:
+            conn.rollback()
+
+        print(
+            "Gift Aid invitation generation error:",
+            exc
+        )
+
+        return bad_request(
+            "Unable to generate Gift Aid invitations"
         )
 
     finally:
