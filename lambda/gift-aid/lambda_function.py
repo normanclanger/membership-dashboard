@@ -507,6 +507,20 @@ def lambda_handler(event, context):
             )
 
         return handle_admin_get_declaration_for_member(event)
+        
+    if path == ADMIN_INVITATION_CHECK_PATH:
+
+        if method != "POST":
+            return bad_request(
+                "Method not allowed"
+            )
+
+        if not can_administer(event):
+            return forbidden(
+                "You do not have permission to check Gift Aid invitations"
+            )
+
+        return handle_admin_invitation_check(event)
 
     # original handling for public & admin declaration management
     
