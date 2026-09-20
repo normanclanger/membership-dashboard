@@ -43,6 +43,7 @@ DECLARATIONS_PATH = "/api/gift-aid/admin/declarations"
 ADMIN_SAVE_DECLARATION_PATH = "/api/gift-aid/admin/declaration/save"
 ADMIN_EDIT_DECLARATION_PATH = "/api/gift-aid/admin/declaration/edit"
 ADMIN_DECLARATION_FOR_MEMBER_PATH = "/api/gift-aid/admin/declaration-for-member"
+ADMIN_INVITATION_CHECK_PATH = "/api/gift-aid/admin/invitations/check"
 
    
     
@@ -6038,6 +6039,283 @@ def handle_admin_get_declaration_for_member(event):
 
         return bad_request(
             "Unable to load the member's Gift Aid declaration"
+        )
+
+    finally:
+
+        if conn:
+            conn.close()
+            
+def handle_admin_invitation_check(event):
+
+    conn = None
+
+    try:
+
+        body = json.loads(
+            event.get("body") or "{}"
+        )
+
+        membership_numbers = body.get(
+            "membership_numbers"
+        )
+
+        if not isinstance(
+            membership_numbers,
+            list
+        ):
+            return bad_request(
+                "membership_numbers must be a list"
+            )
+
+        if not membership_numbers:
+            return bad_request(
+                "membership_numbers must not be empty"
+            )
+
+        # Clean the supplied membership numbers.
+        cleaned_numbers = []
+
+        for value in membership_numbers:
+
+            if value is None:
+                continue
+
+            value = str(value).strip()
+
+            if value:
+                cleaned_numbers.append(value)
+
+        if not cleaned_numbers:
+            return bad_request(
+                "No membership numbers were supplied"
+            )
+
+        conn = get_connection()
+
+        results = []
+        pending_reviews = []
+        not_found = []
+
+        with conn.cursor() as cur:
+
+            for membership_number in cleaned_numbers:
+
+                # Find the member.
+                cur.execute(
+                    """
+                    SELECT
+                        id,
+                        membership_number,
+                        first_name,
+                        surname
+                    FROM members
+                    WHERE membership_number = %s
+                    """,
+                    (
+                        membership_number,
+                    )
+                )
+
+                member = cur.fetchone()
+
+                if member is None:
+
+                    not_found.append(
+                        {
+                            "membership_number":
+                                membership_number
+                        }
+                    )
+
+                    continue
+
+                member_id = member[0]
+
+                # Find the current Gift Aid declaration.
+                cur.execute(
+                    """
+                    SELECT
+                        a.id,
+                        a.gift_aid_reference,
+                        a.action,
+                        a.status,
+                        a.pending_review_type
+                    FROM gift_aid_declaration_audit a
+                    WHERE a.member_id = %s
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM gift_aid_declaration_audit newer
+                          WHERE newer.supersedes_audit_id = a.id
+                      )
+                    ORDER BY
+                        a.recorded_at DESC,
+                        a.id DESC
+                    LIMIT 1
+                    """,
+                    (
+                        member_id,
+                    )
+                )
+
+                declaration = cur.fetchone()
+
+                base_result = {
+                    "membership_number":
+                        member[1],
+                    "member_id":
+                        member_id,
+                    "first_name":
+                        member[2],
+                    "surname":
+                        member[3]
+                }
+
+                if declaration is None:
+
+                    base_result["state"] = (
+                        "NO_DECLARATION"
+                    )
+
+                    base_result["audit_id"] = None
+                    base_result["gift_aid_reference"] = None
+                    base_result["action"] = None
+                    base_result["status"] = None
+                    base_result["pending_review_type"] = None
+
+                    results.append(
+                        base_result
+                    )
+
+                    continue
+
+                audit_id = declaration[0]
+                gift_aid_reference = declaration[1]
+                action = declaration[2]
+                status = declaration[3]
+                pending_review_type = declaration[4]
+
+                base_result["audit_id"] = audit_id
+                base_result["gift_aid_reference"] = (
+                    gift_aid_reference
+                )
+                base_result["action"] = action
+                base_result["status"] = status
+                base_result["pending_review_type"] = (
+                    pending_review_type
+                )
+
+                # Pending review stops the whole batch.
+                if status == "PENDING_REVIEW":
+
+                    base_result["state"] = (
+                        "PENDING_REVIEW"
+                    )
+
+                    pending_reviews.append(
+                        base_result
+                    )
+
+                    results.append(
+                        base_result
+                    )
+
+                    continue
+
+                # A confirmed affirmed/updated declaration.
+                if (
+                    status == "CONFIRMED"
+                    and action in (
+                        "AFFIRMED",
+                        "UPDATED"
+                    )
+                ):
+
+                    base_result["state"] = (
+                        "EXISTING_DECLARATION"
+                    )
+
+                elif action == "CANCELLED":
+
+                    base_result["state"] = (
+                        "CANCELLED"
+                    )
+
+                elif action == "DECLINED":
+
+                    base_result["state"] = (
+                        "DECLINED"
+                    )
+
+                elif action == "COVERED_ELSEWHERE":
+
+                    base_result["state"] = (
+                        "COVERED_ELSEWHERE"
+                    )
+
+                else:
+
+                    base_result["state"] = (
+                        "OTHER"
+                    )
+
+                results.append(
+                    base_result
+                )
+
+        # Unknown membership numbers are also an error.
+        if not_found:
+
+            return bad_request(
+                {
+                    "message":
+                        "One or more membership numbers were not found",
+                    "not_found":
+                        not_found,
+                    "results":
+                        results
+                }
+            )
+
+        # Pending review blocks the entire batch.
+        if pending_reviews:
+
+            return success(
+                {
+                    "status":
+                        "BLOCKED",
+                    "message":
+                        "Invitation generation is blocked because one or more members have pending Gift Aid reviews.",
+                    "pending_reviews":
+                        pending_reviews,
+                    "results":
+                        results
+                }
+            )
+
+        return success(
+            {
+                "status":
+                    "READY",
+                "message":
+                    "All members are ready for invitation generation.",
+                "results":
+                    results
+            }
+        )
+
+    except Exception as exc:
+
+        if conn:
+            conn.rollback()
+
+        print(
+            "Gift Aid invitation check error:",
+            exc
+        )
+
+        return bad_request(
+            "Unable to check members for Gift Aid invitations"
         )
 
     finally:

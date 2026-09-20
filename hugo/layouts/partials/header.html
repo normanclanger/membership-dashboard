@@ -2,26 +2,45 @@
 
     <div class="site-header-inner">
 
-        <a
-            href="/dashboard/"
-            class="site-branding"
-        >
-    
-	<img
-        	src="/images/SuffolkGuildLogo.png"
-        	alt="Suffolk Guild of Ringers"
-        	class="site-logo"
-    	>
-            <div class="site-branding-text">
-                <div class="site-title">
-                    Suffolk Guild of Ringers
-                </div>
 
-                <div class="site-subtitle">
-                    Administration
-                </div>
-            </div>
-        </a>
+{{ if .Params.token_page }}
+
+    <div class="site-branding">
+
+{{ else }}
+
+    <a
+        href="/dashboard/"
+        class="site-branding"
+    >
+
+{{ end }}
+
+    <img
+        src="/images/SuffolkGuildLogo.png"
+        alt="Suffolk Guild of Ringers"
+        class="site-logo"
+    >
+
+    <div class="site-branding-text">
+        <div class="site-title">
+            Suffolk Guild of Ringers
+        </div>
+
+        <div class="site-subtitle">
+            Administration
+        </div>
+    </div>
+
+{{ if .Params.token_page }}
+
+    </div>
+
+{{ else }}
+
+    </a>
+
+{{ end }}
 
         <div
             id="signed-in-user"
@@ -33,3 +52,4 @@
     </div>
 
 </header>
+

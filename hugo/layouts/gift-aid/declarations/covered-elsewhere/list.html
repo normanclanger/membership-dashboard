@@ -1,0 +1,143 @@
+{{ define "main" }}
+
+<div class="container py-4">
+
+<h1>Gift Aid — Resolve Covered Elsewhere Request</h1>
+
+<div id="declaration-error"
+     class="alert alert-danger"
+     hidden>
+</div>
+
+<div id="loading">
+    Loading coverage request...
+</div>
+
+<div id="coverage-form" hidden>
+
+    <h2>Requesting member</h2>
+
+    <p>
+        <strong>Name:</strong>
+        <span id="requesting-member-name"></span>
+    </p>
+
+    <p>
+        <strong>Membership number:</strong>
+        <span id="requesting-membership-number"></span>
+    </p>
+
+    <h2 class="mt-4">Requested declaration</h2>
+
+    <p>
+        The member has requested to be covered by:
+    </p>
+
+    <div class="alert alert-secondary">
+        <span id="requested-declaration-description"></span>
+    </div>
+
+    <h2 class="mt-4">Find declaration holder</h2>
+
+    <div class="mb-3">
+        <label for="covered-member-search"
+               class="form-label">
+            Membership number or name
+        </label>
+
+        <div class="d-flex gap-2">
+            <input
+                type="search"
+                id="covered-member-search"
+                class="form-control"
+                placeholder="Membership number or name">
+
+            <button
+                type="button"
+                id="covered-member-search-button"
+                class="btn btn-secondary">
+                Search
+            </button>
+        </div>
+    </div>
+
+    <div id="covered-member-search-results"
+         class="mb-4">
+    </div>
+
+    <h2>Selected declaration holder</h2>
+
+    <div id="selected-declaration"
+         class="alert alert-info"
+         hidden>
+
+        <p class="mb-1">
+            <strong>Name:</strong>
+            <span id="selected-member-name"></span>
+        </p>
+
+        <p class="mb-1">
+            <strong>Membership number:</strong>
+            <span id="selected-membership-number"></span>
+        </p>
+
+        <p class="mb-0">
+            <strong>Gift Aid reference:</strong>
+            <span id="selected-gift-aid-reference"></span>
+        </p>
+
+    </div>
+
+    <button
+        type="button"
+        id="resolve-coverage-button"
+        class="btn btn-primary"
+        disabled>
+        Resolve coverage request
+    </button>
+
+    <a
+        href="/gift-aid/dashboard/"
+        class="btn btn-secondary ms-2">
+        Cancel
+    </a>
+
+</div>
+
+<div id="process-2"
+     class="mt-4"
+     hidden>
+
+    <h2>Relationship changes</h2>
+
+    <p>
+        The declaration and current Gift Aid relationships
+        do not currently match.
+    </p>
+
+    <h3>Members to add</h3>
+
+    <div id="process-2-added">
+    </div>
+
+    <h3>Members to remove</h3>
+
+    <div id="process-2-removed">
+    </div>
+
+    <button
+        type="button"
+        id="confirm-process-2-button"
+        class="btn btn-primary">
+        Confirm relationships
+    </button>
+
+</div>
+
+</div>
+
+<script type="module"
+        src="/js/covered-elsewhere.js">
+</script>
+
+{{ end }}

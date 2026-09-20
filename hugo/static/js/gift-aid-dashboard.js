@@ -60,6 +60,91 @@ const usedInvitations =
         "#gift-aid-used-invitations"
     );
 
+const relationshipMismatchesCount =
+    document.querySelector(
+        "#gift-aid-relationship-mismatches-count"
+    );
+
+const relationshipMismatches =
+    document.querySelector(
+        "#gift-aid-relationship-mismatches"
+    );
+
+
+const unresolvedMembersCount =
+    document.querySelector(
+        "#gift-aid-unresolved-members-count"
+    );
+
+const unresolvedMembers =
+    document.querySelector(
+        "#gift-aid-unresolved-members"
+    );
+
+
+const coverageRequestsCount =
+    document.querySelector(
+        "#gift-aid-coverage-requests-count"
+    );
+
+const coverageRequests =
+    document.querySelector(
+        "#gift-aid-coverage-requests"
+    );
+
+
+const coveredElsewhereReviewsCount =
+    document.querySelector(
+        "#gift-aid-covered-elsewhere-reviews-count"
+    );
+
+const coveredElsewhereReviews =
+    document.querySelector(
+        "#gift-aid-covered-elsewhere-reviews"
+    );
+	
+const missingRelationshipsCount =
+    document.querySelector(
+        "#gift-aid-missing-relationships-count"
+    );
+
+const missingRelationships =
+    document.querySelector(
+        "#gift-aid-missing-relationships"
+    );
+
+
+const extraRelationshipsCount =
+    document.querySelector(
+        "#gift-aid-extra-relationships-count"
+    );
+
+const extraRelationships =
+    document.querySelector(
+        "#gift-aid-extra-relationships"
+    );
+
+
+const inactiveRelationshipsCount =
+    document.querySelector(
+        "#gift-aid-inactive-relationships-count"
+    );
+
+const inactiveRelationships =
+    document.querySelector(
+        "#gift-aid-inactive-relationships"
+    );
+
+
+const noDeclarationCount =
+    document.querySelector(
+        "#gift-aid-no-declaration-count"
+    );
+
+const noDeclaration =
+    document.querySelector(
+        "#gift-aid-no-declaration"
+    );	
 
 const error =
     document.querySelector(
@@ -188,6 +273,67 @@ async function loadSummary() {
             formatNumber(
                 data.used_invitations
             );
+			
+			
+		populateExceptions(
+            relationshipMismatches,
+            relationshipMismatchesCount,
+            data.relationship_mismatches || [],
+            "No relationship mismatches."
+        );
+
+
+        populateExceptions(
+            unresolvedMembers,
+            unresolvedMembersCount,
+            data.unresolved_members || [],
+            "No unresolved members."
+        );
+
+
+        populateExceptions(
+            coverageRequests,
+            coverageRequestsCount,
+            data.coverage_requests || [],
+            "No coverage requests."
+        );
+
+
+        populateExceptions(
+            coveredElsewhereReviews,
+            coveredElsewhereReviewsCount,
+            data.covered_elsewhere_reviews || [],
+            "No covered-elsewhere reviews.",
+            true
+        );
+		
+		populateRelationshipConsistency(
+            missingRelationships,
+              missingRelationshipsCount,
+              data.missing_relationships || [],
+              "No missing relationships."
+          );
+
+          populateRelationshipConsistency(
+              extraRelationships,
+              extraRelationshipsCount,
+              data.extra_relationships || [],
+              "No extra relationships."
+          );
+
+          populateRelationshipConsistency(
+              inactiveRelationships,
+              inactiveRelationshipsCount,
+              data.inactive_relationships || [],
+              "No inactive relationships."
+          );
+
+          populateRelationshipConsistency(
+              noDeclaration,
+              noDeclarationCount,
+              data.no_declaration_relationships || [],
+              "No relationships without declarations."
+          );
 
     } catch (err) {
 
@@ -204,5 +350,136 @@ async function loadSummary() {
     }
 }
 
+function populateExceptions(
+    container,
+    countElement,
+    items,
+    emptyMessage,
+    coveredElsewhere = false
+) {
+
+    countElement.textContent =
+        formatNumber(items.length);
+
+    container.innerHTML = "";
+
+
+    if (items.length === 0) {
+
+        container.textContent =
+            emptyMessage;
+
+        return;
+    }
+
+
+    items.forEach(item => {
+
+        const row =
+            document.createElement("div");
+
+        row.className =
+            "mb-3";
+
+
+        const description =
+            document.createElement("div");
+
+        if (item.gift_aid_reference !== null) {
+
+            description.textContent =
+                `${item.first_name} ` +
+                `${item.surname} ` +
+                `(${item.membership_number}) ` +
+                `— Gift Aid ref ${item.gift_aid_reference}`;
+
+        } else {
+
+            description.textContent =
+                `${item.first_name} ` +
+                `${item.surname} ` +
+                `(${item.membership_number})`;
+        }
+
+
+        row.appendChild(
+            description
+        );
+
+
+        const link =
+            document.createElement("a");
+
+
+        if (coveredElsewhere) {
+
+            link.href =
+                `/gift-aid/declarations/covered-elsewhere/?id=${encodeURIComponent(item.audit_id)}`;
+
+            link.textContent =
+                "Manage covered-elsewhere request";
+
+        } else {
+
+            link.href =
+                `/gift-aid/declarations/edit/?id=${encodeURIComponent(item.audit_id)}`;
+
+            link.textContent =
+                "Edit declaration";
+        }
+
+
+        row.appendChild(
+            link
+        );
+
+        container.appendChild(
+            row
+        );
+    });
+}
+
+function populateRelationshipConsistency(
+    container,
+    countElement,
+    items,
+    emptyMessage
+) {
+    countElement.textContent =
+        formatNumber(items.length);
+
+    container.innerHTML = "";
+
+    if (items.length === 0) {
+        container.textContent =
+            emptyMessage;
+        return;
+    }
+
+    items.forEach(item => {
+        const row =
+            document.createElement("div");
+
+        row.className =
+            "mb-3";
+
+        const description =
+            document.createElement("div");
+
+        description.textContent =
+            `Gift Aid ref ${item.gift_aid_reference} — ` +
+            `${item.first_name} ` +
+            `${item.surname} ` +
+            `(${item.membership_number})`;
+
+        row.appendChild(
+            description
+        );
+
+        container.appendChild(
+            row
+        );
+    });
+}
 
 loadSummary();

@@ -37,7 +37,7 @@
                         </th>
                         <td class="text-end">
                             <span id="gift-aid-total-members">—</span>
-						</td>
+                        </td>
                     </tr>
 
                     <tr>
@@ -46,8 +46,7 @@
                         </th>
                         <td class="text-end">
                             <span id="gift-aid-confirmed-declarations">—</span>
-							
-						</td>
+                        </td>
                     </tr>
 
                     <tr>
@@ -56,7 +55,7 @@
                         </th>
                         <td class="text-end">
                             <span id="gift-aid-pending-review">—</span>
-					    </td>
+                        </td>
                     </tr>
 
                     <tr>
@@ -65,9 +64,8 @@
                         </th>
                         <td class="text-end">
                             <span id="gift-aid-declined">—</span>
- 
-						</td>
-                   </tr>
+                        </td>
+                    </tr>
 
                     <tr>
                         <th>
@@ -75,8 +73,7 @@
                         </th>
                         <td class="text-end">
                             <span id="gift-aid-cancelled">—</span>
-							
-						</td>
+                        </td>
                     </tr>
 
                     <tr>
@@ -85,8 +82,7 @@
                         </th>
                         <td class="text-end">
                             <span id="gift-aid-covered-elsewhere">—</span>
-							
-						</td>
+                        </td>
                     </tr>
 
                 </tbody>
@@ -118,8 +114,7 @@
                         </th>
                         <td class="text-end">
                             <span id="gift-aid-members-invited">—</span>
-							
-						</td>
+                        </td>
                     </tr>
 
                     <tr>
@@ -128,8 +123,7 @@
                         </th>
                         <td class="text-end">
                             <span id="gift-aid-open-invitations">—</span>
-							
-						</td>
+                        </td>
                     </tr>
 
                     <tr>
@@ -138,8 +132,7 @@
                         </th>
                         <td class="text-end">
                             <span id="gift-aid-used-invitations">—</span>
-							
-						</td>
+                        </td>
                     </tr>
 
                 </tbody>
@@ -148,6 +141,295 @@
 
         </div>
 
+    </div>
+
+</div>
+
+
+<!-- Exceptions -->
+
+<h2>
+    Exceptions requiring attention
+</h2>
+
+<div class="accordion mb-4" id="gift-aid-exceptions">
+
+
+    <!-- Relationship mismatches -->
+
+    <div class="accordion-item">
+
+        <h2 class="accordion-header" id="heading-relationship-mismatches">
+
+            <button
+                class="accordion-button collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapse-relationship-mismatches"
+                aria-expanded="false"
+                aria-controls="collapse-relationship-mismatches"
+            >
+                Relationship mismatches
+                (<span id="gift-aid-relationship-mismatches-count">0</span>)
+            </button>
+
+        </h2>
+
+        <div
+            id="collapse-relationship-mismatches"
+            class="accordion-collapse collapse"
+            aria-labelledby="heading-relationship-mismatches"
+        >
+
+            <div
+                id="gift-aid-relationship-mismatches"
+                class="accordion-body"
+            >
+                No relationship mismatches.
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Unresolved members -->
+
+    <div class="accordion-item">
+
+        <h2 class="accordion-header" id="heading-unresolved-members">
+
+            <button
+                class="accordion-button collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapse-unresolved-members"
+                aria-expanded="false"
+                aria-controls="collapse-unresolved-members"
+            >
+                Unresolved members
+                (<span id="gift-aid-unresolved-members-count">0</span>)
+            </button>
+
+        </h2>
+
+        <div
+            id="collapse-unresolved-members"
+            class="accordion-collapse collapse"
+            aria-labelledby="heading-unresolved-members"
+        >
+
+            <div
+                id="gift-aid-unresolved-members"
+                class="accordion-body"
+            >
+                No unresolved members.
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Coverage requests -->
+
+    <div class="accordion-item">
+
+        <h2 class="accordion-header" id="heading-coverage-requests">
+
+            <button
+                class="accordion-button collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapse-coverage-requests"
+                aria-expanded="false"
+                aria-controls="collapse-coverage-requests"
+            >
+                Coverage requests
+                (<span id="gift-aid-coverage-requests-count">0</span>)
+            </button>
+
+        </h2>
+
+        <div
+            id="collapse-coverage-requests"
+            class="accordion-collapse collapse"
+            aria-labelledby="heading-coverage-requests"
+        >
+
+            <div
+                id="gift-aid-coverage-requests"
+                class="accordion-body"
+            >
+                No coverage requests.
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Covered elsewhere -->
+
+    <div class="accordion-item">
+
+        <h2 class="accordion-header" id="heading-covered-elsewhere">
+
+            <button
+                class="accordion-button collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapse-covered-elsewhere"
+                aria-expanded="false"
+                aria-controls="collapse-covered-elsewhere"
+            >
+                Covered elsewhere
+                (<span id="gift-aid-covered-elsewhere-reviews-count">0</span>)
+            </button>
+
+        </h2>
+
+        <div
+            id="collapse-covered-elsewhere"
+            class="accordion-collapse collapse"
+            aria-labelledby="heading-covered-elsewhere"
+        >
+
+            <div
+                id="gift-aid-covered-elsewhere-reviews"
+                class="accordion-body"
+            >
+                No covered-elsewhere reviews.
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<h2 class="mt-4">Relationship consistency</h2>
+
+<div class="accordion mb-4" id="relationship-consistency-accordion">
+
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="heading-missing-relationships">
+            <button
+                class="accordion-button collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapse-missing-relationships"
+                aria-expanded="false"
+                aria-controls="collapse-missing-relationships"
+            >
+                Missing relationships
+                (<span
+                    id="gift-aid-missing-relationships-count"
+                    
+                >0</span>)
+            </button>
+        </h2>
+
+        <div
+            id="collapse-missing-relationships"
+            class="accordion-collapse collapse"
+            aria-labelledby="heading-missing-relationships"
+        >
+            <div
+                id="gift-aid-missing-relationships"
+                class="accordion-body"
+            ></div>
+        </div>
+    </div>
+
+
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="heading-extra-relationships">
+            <button
+                class="accordion-button collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapse-extra-relationships"
+                aria-expanded="false"
+                aria-controls="collapse-extra-relationships"
+            >
+                Extra relationships
+                (<span
+                    id="gift-aid-extra-relationships-count"
+                >0</span>)
+            </button>
+        </h2>
+
+        <div
+            id="collapse-extra-relationships"
+            class="accordion-collapse collapse"
+            aria-labelledby="heading-extra-relationships"
+        >
+            <div
+                id="gift-aid-extra-relationships"
+                class="accordion-body"
+            ></div>
+        </div>
+    </div>
+
+
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="heading-inactive-relationships">
+            <button
+                class="accordion-button collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapse-inactive-relationships"
+                aria-expanded="false"
+                aria-controls="collapse-inactive-relationships"
+            >
+                Inactive declaration has relationship
+                (<span
+                    id="gift-aid-inactive-relationships-count"
+                >0</span>)
+            </button>
+        </h2>
+
+        <div
+            id="collapse-inactive-relationships"
+            class="accordion-collapse collapse"
+            aria-labelledby="heading-inactive-relationships"
+        >
+            <div
+                id="gift-aid-inactive-relationships"
+                class="accordion-body"
+            ></div>
+        </div>
+    </div>
+
+
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="heading-no-declaration">
+            <button
+                class="accordion-button collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapse-no-declaration"
+                aria-expanded="false"
+                aria-controls="collapse-no-declaration"
+            >
+                Relationships without declarations
+                (<span
+                    id="gift-aid-no-declaration-count"
+                >0</span>)
+            </button>
+        </h2>
+
+        <div
+            id="collapse-no-declaration"
+            class="accordion-collapse collapse"
+            aria-labelledby="heading-no-declaration"
+        >
+            <div
+                id="gift-aid-no-declaration"
+                class="accordion-body"
+            ></div>
+        </div>
     </div>
 
 </div>
