@@ -1,0 +1,116 @@
+{{ define "main" }}
+
+<div class="container py-4">
+
+
+<h1>Gift Aid invitations</h1>
+
+<p>
+    Enter the membership numbers of the members you want to invite.
+    Enter one membership number per line.
+</p>
+
+<div class="mb-3">
+
+    <label
+        for="membership-numbers"
+        class="form-label"
+    >
+        Membership numbers
+    </label>
+
+    <textarea
+        id="membership-numbers"
+        class="form-control"
+        rows="8"
+        placeholder="Enter list of members, one per line"
+    ></textarea>
+
+</div>
+
+<div
+    id="error-message"
+    class="alert alert-danger"
+    hidden
+></div>
+
+<div
+    id="check-message"
+    class="alert alert-info"
+    hidden
+></div>
+
+<button
+    id="check-button"
+    type="button"
+    class="btn btn-primary"
+>
+    Check members
+</button>
+
+<div
+    id="results-section"
+    class="mt-4"
+    hidden
+>
+
+    <h2>Members</h2>
+
+    <div id="results"></div>
+
+    <div
+        id="generation-message"
+        class="alert alert-warning mt-3"
+        hidden
+    ></div>
+
+    <button
+        id="generate-button"
+        type="button"
+        class="btn btn-success mt-3"
+        disabled
+    >
+        Generate invitations
+    </button>
+
+</div>
+
+<div
+    id="generated-section"
+    class="mt-5"
+    hidden
+>
+    <h2>Generated invitations</h2>
+
+    <p>
+        The generated invitation list is shown below.
+        Each line contains the membership number, text and URL.
+    </p>
+
+    <textarea
+        id="comma-delimited-output"
+        class="form-control"
+        rows="15"
+        readonly
+    ></textarea>
+
+    <button
+        id="copy-all-button"
+        type="button"
+        class="btn btn-secondary mt-2"
+    >
+        Copy all
+    </button>
+</div>
+
+
+
+
+</div>
+
+<script
+    type="module"
+    src="/js/gift-aid-invitations.js"
+></script>
+
+{{ end }}

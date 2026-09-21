@@ -271,13 +271,29 @@ if (action === "CANCELLED") {
 
 } else if (action === "COVERED_ELSEWHERE") {
 
-    statusMessage.textContent =
-        "Gift Aid information submitted on " +
-        date +
-        " — pending administrative review";
+    if (
+        existingDeclaration.status ===
+        "PENDING_REVIEW"
+    ) {
 
-    statusMessage.className =
-        "alert alert-warning mb-4";
+        statusMessage.textContent =
+            "Gift Aid information submitted on " +
+            date +
+            " — pending administrative review";
+
+        statusMessage.className =
+            "alert alert-warning mb-4";
+
+    } else {
+
+        statusMessage.textContent =
+            "Gift Aid recorded as covered by another person's declaration on " +
+            date;
+
+        statusMessage.className =
+            "alert alert-info mb-4";
+    }
+
 
 } else if (action === "UPDATED") {
 
