@@ -473,6 +473,181 @@ def get_payment_list(event):
         conn.close()
 
 
+def get_lost_payers(event):
+
+    query_parameters = (
+        event.get("queryStringParameters")
+        or {}
+    )
+
+    calendar_year = query_parameters.get(
+        "calendar_year"
+    )
+
+    district = query_parameters.get(
+        "district"
+    )
+
+    # Validate calendar year
+    try:
+        calendar_year = int(calendar_year)
+
+    except (TypeError, ValueError):
+        return bad_request(
+            "calendar_year must be a valid year"
+        )
+
+    if (
+        calendar_year < 1900
+        or calendar_year > 2200
+    ):
+        return bad_request(
+            "calendar_year must be between 1900 and 2200"
+        )
+
+    previous_year = calendar_year - 1
+
+    # Normalise optional district
+    if district:
+        district = district.strip().upper()
+
+    sql = """
+        SELECT
+            m.id,
+            m.membership_number,
+            m.first_name,
+            m.surname,
+
+            mc.code AS membership_class,
+            fmt.code AS full_member_type,
+
+            t.tower_name,
+            d.code AS district_code
+
+        FROM members m
+
+        JOIN membership_classes mc
+            ON mc.id = m.membership_class_id
+
+        LEFT JOIN full_member_types fmt
+            ON fmt.id = m.full_member_type_id
+
+        JOIN membership_statuses ms
+            ON ms.id = m.membership_status_id
+
+        JOIN towers t
+            ON t.id = m.tower_id
+
+        JOIN districts d
+            ON d.id = t.district_id
+
+        WHERE
+            ms.code = 'ACTIVE'
+
+            AND (
+                mc.code = 'ASSOCIATE'
+
+                OR (
+                    mc.code = 'FULL'
+                    AND (
+                        fmt.code <> 'LHM'
+                        OR fmt.code IS NULL
+                    )
+                )
+            )
+
+            AND EXISTS (
+                SELECT 1
+                FROM payments p_previous
+                WHERE p_previous.member_id = m.id
+                  AND p_previous.calendar_year = %s
+            )
+
+            AND NOT EXISTS (
+                SELECT 1
+                FROM payments p_current
+                WHERE p_current.member_id = m.id
+                  AND p_current.calendar_year = %s
+            )
+    """
+
+    parameters = [
+        previous_year,
+        calendar_year
+    ]
+
+    if district:
+        sql += """
+            AND d.code = %s
+        """
+
+        parameters.append(
+            district
+        )
+
+    sql += """
+        ORDER BY
+            m.surname,
+            m.first_name,
+            m.id
+    """
+
+    try:
+
+        conn = get_connection()
+
+        try:
+
+            with conn.cursor() as cursor:
+
+                cursor.execute(
+                    sql,
+                    parameters
+                )
+
+                rows = cursor.fetchall()
+
+        finally:
+
+            conn.close()
+
+    except Exception as e:
+
+        print(
+            f"Error getting lost payers: {e}"
+        )
+
+        return server_error(
+            "Unable to retrieve lost payers"
+        )
+
+    lost_payers = []
+
+    for row in rows:
+
+        lost_payers.append(
+            {
+                "id": row[0],
+                "membership_number": row[1],
+                "first_name": row[2],
+                "surname": row[3],
+                "membership_class": row[4],
+                "full_member_type": row[5],
+                "tower_name": row[6],
+                "district": row[7]
+            }
+        )
+
+    return success(
+        {
+            "calendar_year": calendar_year,
+            "previous_year": previous_year,
+            "district": district,
+            "count": len(lost_payers),
+            "members": lost_payers
+        }
+    )
+
 
 def lambda_handler(event, context):
 
@@ -522,6 +697,15 @@ def lambda_handler(event, context):
     ):
 
         return get_payment_list(event)
+        
+        
+    if (
+        http_method == "GET"
+        and route_key
+        == "GET /api/reports/payments/lost-payers"
+    ):
+
+        return get_lost_payers(event)
 
 
     return bad_request({

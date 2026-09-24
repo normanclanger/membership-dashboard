@@ -305,7 +305,10 @@ function getSortValue(
 }
 
 
+
 function sortPayments() {
+
+    const secondaryColumn = "name";
 
     payments.sort(
         (a, b) => {
@@ -316,7 +319,6 @@ function sortPayments() {
                     sortColumn
                 );
 
-
             const bValue =
                 getSortValue(
                     b,
@@ -324,10 +326,8 @@ function sortPayments() {
                 );
 
 
-            if (
-                aValue <
-                bValue
-            ) {
+            // Primary sort
+            if (aValue < bValue) {
 
                 return sortDirection === "asc"
                     ? -1
@@ -335,10 +335,7 @@ function sortPayments() {
             }
 
 
-            if (
-                aValue >
-                bValue
-            ) {
+            if (aValue > bValue) {
 
                 return sortDirection === "asc"
                     ? 1
@@ -346,10 +343,36 @@ function sortPayments() {
             }
 
 
+            // Primary values are equal:
+            // secondary sort by name, always ascending
+            const aSecondary =
+                getSortValue(
+                    a,
+                    secondaryColumn
+                );
+
+            const bSecondary =
+                getSortValue(
+                    b,
+                    secondaryColumn
+                );
+
+
+            if (aSecondary < bSecondary) {
+                return -1;
+            }
+
+            if (aSecondary > bSecondary) {
+                return 1;
+            }
+
+
             return 0;
         }
     );
 }
+
+
 
 
 function updateSortIndicators() {
