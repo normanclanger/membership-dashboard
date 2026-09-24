@@ -3,7 +3,7 @@
 <div class="container mt-4">
 
     <h1>
-        {{ .Title }}
+        Payment Reports
     </h1>
 
 
@@ -54,6 +54,61 @@
     </a>
 
 </div>
+</div>
+<div class="container mt-4">
+
+    <h1>
+        Delinquent Payer Reports
+    </h1>
+
+
+<div class="list-group">
+
+    <a
+        id="full-delinquent-list-link"
+        href="#"
+        class="list-group-item list-group-item-action"
+    >
+        Full Delinquent list
+    </a>
+
+
+    <a
+        id="ne-delinquent-list-link"
+        href="#"
+        class="list-group-item list-group-item-action"
+    >
+        NE Delinquent list
+    </a>
+
+
+    <a
+        id="nw-delinquent-list-link"
+        href="#"
+        class="list-group-item list-group-item-action"
+    >
+        NW Delinquent list
+    </a>
+
+
+    <a
+        id="se-delinquent-list-link"
+        href="#"
+        class="list-group-item list-group-item-action"
+    >
+        SE Delinquent list
+    </a>
+
+
+    <a
+        id="sw-delinquent-list-link"
+        href="#"
+        class="list-group-item list-group-item-action"
+    >
+        SW Delinquent list
+    </a>
+
+</div>
 
 
 <script>
@@ -78,6 +133,24 @@
 
         "sw-payment-list-link":
             "SW"
+	};
+	
+    const delinquentLinks = {	
+	
+        "full-delinquent-list-link":
+            "",
+
+        "ne-delinquent-list-link":
+            "NE",
+
+        "nw-delinquent-list-link":
+            "NW",
+
+        "se-delinquent-list-link":
+            "SE",
+
+        "sw-delinquent-list-link":
+            "SW"			
 
     };
 
@@ -114,6 +187,40 @@
                 href;
         }
     );
+
+    Object.entries(
+        delinquentLinks
+    ).forEach(
+        ([id, district]) => {
+
+            const link =
+                document.getElementById(
+                    id
+                );
+
+
+            if (!link) {
+
+                return;
+            }
+
+
+            let href =
+                `/lost-payers/?calendar_year=${currentYear}`;
+
+
+            if (district) {
+
+                href +=
+                    `&district=${district}`;
+            }
+
+
+            link.href =
+                href;
+        }
+    );
+
 
 </script>
 

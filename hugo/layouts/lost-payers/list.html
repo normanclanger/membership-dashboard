@@ -1,0 +1,238 @@
+{{ define "main" }}
+
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <h1>
+            Delinquent Payers
+        </h1>
+		
+		<button
+            type="button"
+            class="btn btn-secondary"
+            id="lost-payers-report-download"
+        >
+        Download CSV
+        </button>
+
+    </div>
+
+
+    <div
+        id="lost-payers-error"
+        class="alert alert-danger"
+        hidden
+    >
+    </div>
+
+
+    <div class="row mb-4">
+
+        <div class="col-md-3">
+
+            <label
+                for="lost-payers-year"
+                class="form-label"
+            >
+                Payment year
+            </label>
+
+            <select
+                id="lost-payers-year"
+                class="form-select"
+            >
+            </select>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <label
+                for="lost-payers-district"
+                class="form-label"
+            >
+                District
+            </label>
+
+            <select
+                id="lost-payers-district"
+                class="form-select"
+            >
+
+                <option value="">
+                    All districts
+                </option>
+
+                <option value="NE">
+                    NE
+                </option>
+
+                <option value="NW">
+                    NW
+                </option>
+
+                <option value="SE">
+                    SE
+                </option>
+
+                <option value="SW">
+                    SW
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div class="col-md-3 d-flex align-items-end">
+
+            <button
+                type="button"
+                id="load-lost-payers-report"
+                class="btn btn-primary"
+            >
+                View report
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <div class="col-md-6">
+
+        <label
+            for="lost-payers-member-search"
+            class="form-label"
+        >
+            Membership number or name
+        </label>
+
+        <input
+            type="text"
+            class="form-control mb-3"
+            id="lost-payers-member-search"
+            placeholder="Search by membership number, first name or surname..."
+            autocomplete="off">
+
+    </div>
+
+
+    <div
+        id="lost-payers-report-heading"
+        class="mb-3"
+        hidden
+    >
+    </div>
+
+
+    <div class="table-responsive">
+
+        <table
+            class="table table-striped"
+            id="lost-payers-report-table"
+        >
+
+            <thead>
+
+                <tr>
+
+                    <th
+                        scope="col"
+                        data-sort="membership_number"
+                        role="button"
+                    >
+                        Membership Number
+                    </th>
+
+
+                    <th
+                        scope="col"
+                        data-sort="name"
+                        role="button"
+                    >
+                        Name
+                    </th>
+
+
+                    <th
+                        scope="col"
+                        data-sort="membership_class"
+                        role="button"
+                    >
+                        Membership Class
+                    </th>
+
+
+                    <th
+                        scope="col"
+                        data-sort="full_member_type"
+                        role="button"
+                    >
+                        Full Member Type
+                    </th>
+
+
+                    <th
+                        scope="col"
+                        data-sort="tower"
+                        role="button"
+                    >
+                        Tower
+                    </th>
+
+
+                    <th
+                        scope="col"
+                        data-sort="district"
+                        role="button"
+                    >
+                        District
+                    </th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody
+                id="lost-payers-report-body"
+            >
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    <div
+        id="lost-payers-report-empty"
+        class="alert alert-info"
+        hidden
+    >
+        No delinquent payers found.
+    </div>
+
+
+    <div class="mt-4">
+
+        <a
+            href="/reportsdashboard/"
+            class="btn btn-secondary"
+        >
+            Back to reports
+        </a>
+
+    </div>
+
+</div>
+
+
+<script
+    type="module"
+    src="/js/lost-payers.js"
+></script>
+
+{{ end }}
