@@ -462,6 +462,7 @@ function buildInvitationText(
         case "EXISTING_DECLARATION":
 
             return (
+			    "The Suffolk Guild hold an existing declaration linked to your name.  " +
                 "Please use the link below to review " +
                 "your existing Gift Aid declaration and " +
                 "confirm that the information is still " +
@@ -472,8 +473,9 @@ function buildInvitationText(
         case "NO_DECLARATION":
 
             return (
-                "Please use the link below to complete " +
-                "the Gift Aid form. You can make a new " +
+			    "The Suffolk Guild does not hold any information about your gift-aid wishes.  " +
+                "Please use the link below to inform us " +
+                "of your status. You can make a new " +
                 "declaration, confirm that you do not want " +
                 "to make a declaration, or request to be " +
                 "covered by another person's declaration."
@@ -483,7 +485,7 @@ function buildInvitationText(
         case "CANCELLED":
 
             return (
-                "Our records show that your previous Gift Aid " +
+                "The Suffolk Guild records show that your previous Gift Aid " +
                 "declaration has been cancelled. You do not need " +
                 "to do anything unless you would like to reinstate " +
                 "your Gift Aid declaration or request to be covered " +
@@ -495,7 +497,7 @@ function buildInvitationText(
         case "DECLINED":
 
             return (
-                "Our records show that you previously declined " +
+                "The Suffolk Guild records show that you previously declined " +
                 "to make a Gift Aid declaration. If you would now " +
                 "like to make a declaration, or request to be " +
                 "covered by another person's declaration, please " +
@@ -506,10 +508,10 @@ function buildInvitationText(
         case "COVERED_ELSEWHERE":
 
             return (
-                "Our records show that you are currently recorded " +
+                "The Suffolk Guild records show that you are currently recorded " +
                 "as being covered by another person's Gift Aid " +
-                "declaration. Please use the link below if you " +
-                "need to review or update your Gift Aid information."
+                "declaration, opposed to having your own declaration. Please use the link below if you " +
+                "need to review or update your Gift Aid status."
             );
 
 
