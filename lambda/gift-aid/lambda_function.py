@@ -2797,7 +2797,6 @@ def handle_admin_save(event):
             "declarer_name": declarer_name,
             "declarer_address_line_1": address_line_1,
             "declarer_postcode": postcode,
-            "email_address": email_address,
             "wording_version_id": wording_version_id,
             "declaration_text": declaration_text,
         }
