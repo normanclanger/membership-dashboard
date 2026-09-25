@@ -2,20 +2,25 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
 
-    <h1>
-        Gift Aid declarations
-    </h1>
+```
+<h1>
+    Gift Aid declarations
+</h1>
 
-    <a
-        href="/gift-aid/declarations/new/"
-        class="btn btn-secondary"
-    >
-        Add new declaration
-    </a>
+<a
+    href="/gift-aid/declarations/new/"
+    class="btn btn-secondary"
+>
+    Add new declaration
+</a>
+```
 
 </div>
 
-<div class="declaration-search mb-3">
+<div class="row mb-3">
+
+```
+<div class="col-md-6">
 
     <label for="declaration-search">
         Search declarations:
@@ -24,8 +29,34 @@
     <input
         type="search"
         id="declaration-search"
+        class="form-control"
         placeholder="Name or membership number"
     >
+
+</div>
+
+
+<div class="col-md-4 d-flex align-items-end">
+
+    <div class="form-check mb-2">
+
+        <input
+            class="form-check-input"
+            type="checkbox"
+            id="covered-members-only"
+        >
+
+        <label
+            class="form-check-label"
+            for="covered-members-only"
+        >
+            Only show declarations with covered members
+        </label>
+
+    </div>
+
+</div>
+```
 
 </div>
 
@@ -36,71 +67,71 @@
 >
 </div>
 
-
 <div class="declarations-page">
 
-    <table
-        id="gift-aid-declarations"
-        class="table table-striped mb-0"
-    >
+```
+<table
+    id="gift-aid-declarations"
+    class="table table-striped mb-0"
+>
 
-        <thead>
+    <thead>
 
-            <tr>
+        <tr>
 
-                <th>
-                    Gift Aid ref
-                </th>
+            <th>
+                Gift Aid ref
+            </th>
 
-                <th>
-                    Member
-                </th>
+            <th>
+                Member
+            </th>
 
-                <th>
-                    Date
-                </th>
+            <th>
+                Date
+            </th>
 
-                <th>
-                    Method
-                </th>
+            <th>
+                Method
+            </th>
 
-                <th>
-                    Status
-                </th>
+            <th>
+                Status
+            </th>
 
-                <th>
-                    Review
-                </th>
+            <th>
+                Review
+            </th>
 
-                <th>
-                    Covered members
-                </th>
+            <th>
+                Covered members
+            </th>
 
-                <th>
-                    Actions
-                </th>
+            <th>
+                Actions
+            </th>
 
-            </tr>
+        </tr>
 
-        </thead>
+    </thead>
 
 
-        <tbody>
+    <tbody>
 
-            <tr>
+        <tr>
 
-                <td colspan="8">
-                    Loading...
-                </td>
+            <td colspan="8">
+                Loading...
+            </td>
 
-            </tr>
+        </tr>
 
-        </tbody>
+    </tbody>
 
-    </table>
+</table>
+```
 
 </div>
-
 
 <script type="module">
 
@@ -112,6 +143,12 @@ import {
 const searchInput =
     document.querySelector(
         "#declaration-search"
+    );
+
+
+const coveredMembersOnly =
+    document.querySelector(
+        "#covered-members-only"
     );
 
 
@@ -177,50 +214,73 @@ async function loadDeclarations() {
 
 
         const declarations =
-            search
-                ? data.declarations.filter(
-                    declaration => {
+            data.declarations.filter(
+                declaration => {
 
-                        const memberName =
-                            `${declaration.first_name} ${declaration.surname}`
-                                .toLowerCase();
+                    /*
+                     * If the checkbox is selected,
+                     * require at least one covered member.
+                     */
+
+                    if (
+                        coveredMembersOnly.checked &&
+                        (
+                            !declaration.covered_members ||
+                            declaration.covered_members.length === 0
+                        )
+                    ) {
+                        return false;
+                    }
 
 
-                        const membershipNumber =
-                            declaration.membership_number
-                                .toLowerCase();
+                    /*
+                     * Apply the existing search filter.
+                     */
+
+                    if (!search) {
+                        return true;
+                    }
 
 
-                        const coveredText =
-                            (
-                                declaration.covered_members || []
-                            )
-                            .map(
-                                member => {
-
-                                    return [
-                                        member.name,
-                                        member.first_name,
-                                        member.surname,
-                                        member.membership_number,
-                                        member.description
-                                    ]
-                                    .filter(Boolean)
-                                    .join(" ");
-                                }
-                            )
-                            .join(" ")
+                    const memberName =
+                        `${declaration.first_name} ${declaration.surname}`
                             .toLowerCase();
 
 
-                        return (
-                            memberName.includes(search) ||
-                            membershipNumber.includes(search) ||
-                            coveredText.includes(search)
-                        );
-                    }
-                )
-                : data.declarations;
+                    const membershipNumber =
+                        declaration.membership_number
+                            .toLowerCase();
+
+
+                    const coveredText =
+                        (
+                            declaration.covered_members || []
+                        )
+                        .map(
+                            member => {
+
+                                return [
+                                    member.name,
+                                    member.first_name,
+                                    member.surname,
+                                    member.membership_number,
+                                    member.description
+                                ]
+                                .filter(Boolean)
+                                .join(" ");
+                            }
+                        )
+                        .join(" ")
+                        .toLowerCase();
+
+
+                    return (
+                        memberName.includes(search) ||
+                        membershipNumber.includes(search) ||
+                        coveredText.includes(search)
+                    );
+                }
+            );
 
 
         if (
@@ -427,6 +487,12 @@ document.addEventListener(
 
 searchInput.addEventListener(
     "search",
+    loadDeclarations
+);
+
+
+coveredMembersOnly.addEventListener(
+    "change",
     loadDeclarations
 );
 
