@@ -200,14 +200,14 @@ def send_gift_aid_submission_email(
                 )
 
         covered_text = (
-            "\n\nPeople covered by this declaration:\n"
+            "\n\nOther people covered by this declaration as well as yourself:\n"
             + "\n".join(covered_lines)
         )
 
     else:
 
         covered_text = (
-            "\n\nPeople covered by this declaration:\n"
+            "\n\nOther people covered by this declaration as well as yourself:\n"
             "- None"
         )
 
