@@ -1,0 +1,506 @@
+{{ define "main" }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+
+
+<h1>
+    Edit payment
+</h1>
+
+<a
+    href="/reportspayments/"
+    class="btn btn-secondary"
+>
+    Back to payments
+</a>
+
+
+</div>
+
+<div class="row mb-4">
+
+
+<div class="col-md-4">
+
+    <label for="payment-id" class="form-label">
+        Payment ID
+    </label>
+
+    <div class="input-group">
+
+        <input
+            type="number"
+            id="payment-id"
+            class="form-control"
+            min="1"
+        >
+
+        <button
+            id="load-payment-button"
+            type="button"
+            class="btn btn-primary"
+        >
+            Load payment
+        </button>
+
+    </div>
+
+</div>
+
+
+</div>
+
+<div
+    id="load-message"
+    class="alert alert-info"
+    hidden
+>
+</div>
+
+<div
+    id="payment-error"
+    class="alert alert-danger"
+    hidden
+>
+</div>
+
+<div
+    id="payment-section"
+    hidden
+>
+
+<h2 class="mb-3">
+    Current payment
+</h2>
+
+<div class="card mb-4">
+
+
+<div class="card-body">
+
+    <dl class="row mb-0">
+
+        <dt class="col-sm-3">
+            Payment ID
+        </dt>
+
+        <dd
+            id="current-id"
+            class="col-sm-9"
+        >
+        </dd>
+
+
+        <dt class="col-sm-3">
+            Member
+        </dt>
+
+        <dd
+            id="current-member"
+            class="col-sm-9"
+        >
+        </dd>
+
+
+        <dt class="col-sm-3">
+            Payment date
+        </dt>
+
+        <dd
+            id="current-date"
+            class="col-sm-9"
+        >
+        </dd>
+
+
+        <dt class="col-sm-3">
+            Statement reference
+        </dt>
+
+        <dd
+            id="current-reference"
+            class="col-sm-9"
+        >
+        </dd>
+
+
+        <dt class="col-sm-3">
+            Subscription
+        </dt>
+
+        <dd
+            id="current-subscription"
+            class="col-sm-9"
+        >
+        </dd>
+
+
+        <dt class="col-sm-3">
+            Gift
+        </dt>
+
+        <dd
+            id="current-gift"
+            class="col-sm-9"
+        >
+        </dd>
+
+
+        <dt class="col-sm-3">
+            Total
+        </dt>
+
+        <dd
+            id="current-total"
+            class="col-sm-9 fw-bold"
+        >
+        </dd>
+
+
+        <dt class="col-sm-3">
+            Calendar year
+        </dt>
+
+        <dd
+            id="current-year"
+            class="col-sm-9"
+        >
+        </dd>
+
+
+        <dt class="col-sm-3">
+            Import item
+        </dt>
+
+        <dd
+            id="current-import-item"
+            class="col-sm-9"
+        >
+        </dd>
+
+    </dl>
+
+</div>
+
+
+</div>
+
+<h2 class="mb-3">
+    Edit payment
+</h2>
+
+<form id="payment-form">
+
+
+<div class="row">
+
+    <div class="col-md-4 mb-3">
+
+        <label
+            for="payment-date"
+            class="form-label"
+        >
+            Payment date
+        </label>
+
+        <input
+            type="date"
+            id="payment-date"
+            class="form-control"
+            required
+        >
+
+    </div>
+
+
+    <div class="col-md-8 mb-3">
+
+        <label
+            for="statement-reference"
+            class="form-label"
+        >
+            Statement reference
+        </label>
+
+        <input
+            type="text"
+            id="statement-reference"
+            class="form-control"
+            required
+        >
+
+    </div>
+
+</div>
+
+
+<div class="row">
+
+<div class="col-md-8 mb-3">
+
+    <label
+        for="member-search"
+        class="form-label"
+    >
+        Member
+    </label>
+
+    <input
+        type="text"
+        id="member-search"
+        class="form-control"
+        placeholder="Search by name or membership number"
+        autocomplete="off"
+    >
+
+    <div
+        id="member-search-results"
+        class="mt-2"
+    ></div>
+
+    <div
+        id="selected-member"
+        class="alert alert-secondary mt-2"
+        hidden
+    >
+    </div>
+
+    <input
+        type="hidden"
+        id="member-id"
+    >
+
+</div>
+
+
+    <div class="col-md-4 mb-3">
+
+        <label
+            for="subscription-amount"
+            class="form-label"
+        >
+            Subscription amount
+        </label>
+
+        <input
+            type="number"
+            id="subscription-amount"
+            class="form-control"
+            min="0"
+            step="0.01"
+            required
+        >
+
+    </div>
+
+
+    <div class="col-md-4 mb-3">
+
+        <label
+            for="gift-amount"
+            class="form-label"
+        >
+            Gift amount
+        </label>
+
+        <input
+            type="number"
+            id="gift-amount"
+            class="form-control"
+            min="0"
+            step="0.01"
+            required
+        >
+
+    </div>
+
+</div>
+
+
+<div class="row">
+
+    <div class="col-md-4 mb-3">
+
+        <label
+            for="calendar-year"
+            class="form-label"
+        >
+            Calendar year
+        </label>
+
+        <input
+            type="number"
+            id="calendar-year"
+            class="form-control"
+            required
+        >
+
+    </div>
+
+</div>
+
+
+<div class="card mb-4">
+
+    <div class="card-body">
+
+        <div class="row">
+
+            <div class="col-md-4">
+
+                <strong>
+                    Original total:
+                </strong>
+
+                <span id="edit-original-total">
+                    £0.00
+                </span>
+
+            </div>
+
+
+            <div class="col-md-4">
+
+                <strong>
+                    New total:
+                </strong>
+
+                <span id="edit-new-total">
+                    £0.00
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<button
+    type="button"
+    id="save-payment"
+    class="btn btn-primary"
+>
+    Save changes
+</button>
+
+
+</form>
+
+<div
+    id="save-message"
+    class="alert mt-3"
+    hidden
+>
+</div>
+
+</div>
+
+
+<h2 class="mb-3 mt-5">
+    Split payment
+</h2>
+
+<div class="alert alert-info">
+    Use this section when the original payment needs to be
+    replaced by two or more payments. The combined total
+    must remain unchanged.
+</div>
+
+
+<div
+    id="split-rows"
+>
+</div>
+
+
+<div class="card mb-4">
+
+    <div class="card-body">
+
+        <div class="row">
+
+            <div class="col-md-4">
+
+                <strong>
+                    Original total:
+                </strong>
+
+                <span id="split-original-total">
+                    £0.00
+                </span>
+
+            </div>
+
+
+            <div class="col-md-4">
+
+                <strong>
+                    New split total:
+                </strong>
+
+                <span id="split-new-total">
+                    £0.00
+                </span>
+
+            </div>
+
+
+            <div class="col-md-4">
+
+                <strong>
+                    Difference:
+                </strong>
+
+                <span id="split-difference">
+                    £0.00
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<div class="mb-3">
+
+    <button
+        type="button"
+        id="add-split-row"
+        class="btn btn-secondary"
+    >
+        Add payment
+    </button>
+
+</div>
+
+
+<div
+    id="split-message"
+    class="alert mt-3"
+    hidden
+>
+</div>
+
+
+<button
+    type="button"
+    id="save-split"
+    class="btn btn-primary"
+>
+    Save split
+</button>
+
+
+
+<script
+    type="module"
+    src="/js/payment-edit.js"
+></script>
+
+{{ end }}

@@ -9,6 +9,40 @@ import {
 
 const API_BASE = `${window.API_BASE_URL}`;
 
+const ALLOWED_GROUPS = [
+    "PaymentAdmin",
+    "ApplicationAdmin"
+];
+
+let paymentImportsData = null;
+
+
+function getGroups(user) {
+
+    const groups =
+        user?.profile?.["cognito:groups"];
+
+    if (!groups) {
+        return [];
+    }
+
+    return Array.isArray(groups)
+        ? groups
+        : [groups];
+}
+
+let user = null;  // global function to hold user
+
+function userCanManagePayments() {
+
+    const groups =
+        getGroups(user);
+
+    return groups.some(group =>
+        ALLOWED_GROUPS.includes(group)
+    );
+}
+
 
 const yearSelect =
     document.querySelector(
@@ -475,6 +509,15 @@ function getFilteredPayments() {
 
 function renderPayments() {
 
+
+	
+	const canEdit =
+    userCanManagePayments();
+
+    document.getElementById(
+        "payment-edit-heading"
+        ).hidden = !canEdit;
+	
     reportBody.innerHTML =
         "";
 
@@ -626,7 +669,19 @@ function renderPayments() {
 				
                 <td>
                     ${payment.calendar_year}
-                </td>				
+					
+                </td>
+				
+                ${canEdit ? `
+                    <td class="payment-edit-cell">
+                        <a
+                            href="/payment-edit/?id=${payment.id}"
+                            class="btn btn-sm btn-primary"
+                        >
+                            Edit
+                        </a>
+                    </td>
+                ` : ""}				
             `;
 
 
@@ -674,7 +729,7 @@ async function loadReport() {
 
     try {
 
-        const user =
+        user =
             await requireLogin();
 
 
