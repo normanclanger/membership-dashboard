@@ -677,11 +677,13 @@ const response =
 
 const data =
     await response.json();
+	
+console.log("Gift Aid HTTP status:", response.status);
+console.log("Gift Aid response data:", data, typeof data);	
 
 if (!response.ok) {
-
     throw new Error(
-        data.error ||
+        (typeof data === "string" ? data : data.error || data.message) ||
         "Unable to load the Gift Aid declaration."
     );
 }
