@@ -135,6 +135,27 @@ function populateForm(
     declaration
 ) {
 
+    const requestType =
+        document.querySelector("#request-type");
+
+    const actionLabels = {
+      AFFIRMED: "Affirmed request",
+      UPDATED: "Updated declaration",
+      CANCELLED: "Cancellation request",
+      DECLINED: "Declined request"
+
+    };
+
+    const actionLabel =
+        actionLabels[declaration.action] ||
+        declaration.action ||
+        "Unknown";
+
+    requestType.textContent =
+        `Request type: ${actionLabel}`;
+
+    requestType.hidden = false;
+
     document.querySelector(
         "#member-name"
     ).value =
