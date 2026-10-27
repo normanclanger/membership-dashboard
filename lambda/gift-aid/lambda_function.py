@@ -3138,6 +3138,7 @@ def handle_admin_save(event):
 
                 # Cancellations and declines should leave
                 # no live relationships for this reference.
+                submitted_relationship_ids = set()
                 added_members = []
 
                 removed_members = sorted(
@@ -3445,7 +3446,7 @@ def handle_admin_save(event):
                 "MANUAL",
 
             "affirmed":
-                True,
+                audit_affirmed,
 
             "status":
                 audit_status,
