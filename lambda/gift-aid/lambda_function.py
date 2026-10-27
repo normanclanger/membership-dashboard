@@ -4993,7 +4993,7 @@ def handle_confirm_relationships(
 
         confirmed = body.get(
           "confirmed"
-)
+           )
 
         if confirmed is not True:
 
@@ -5201,7 +5201,7 @@ def handle_confirm_relationships(
             cur.execute(
                 """
                 UPDATE gift_aid_members
-                SET valid_until = %s
+                SET valid_until = %s-1
                 WHERE member_id = %s
                   AND gift_aid_reference = %s
                   AND (
