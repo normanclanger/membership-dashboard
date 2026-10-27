@@ -574,7 +574,7 @@ async function searchCoveredMembers() {
 
                     coveredMembers[unresolvedIndex] = {
                         member_id:
-                            memberId,
+                             Number(member.id),
 
                         membership_number:
                             member.membership_number,
