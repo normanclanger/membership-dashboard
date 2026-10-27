@@ -569,24 +569,9 @@ async function searchCoveredMembers() {
                                 member.membership_number
                     );
 
-
                 if (unresolvedIndex !== -1) {
-
-                    coveredMembers[unresolvedIndex] = {
-                        member_id:
-                             Number(member.id),
-
-                        membership_number:
-                            member.membership_number,
-
-                        first_name:
-                            member.first_name,
-
-                        surname:
-                            member.surname
-                    };
-
-                    return;
+                    addCoveredMember(member);
+                    renderCoveredMembers();
 }
 
 
