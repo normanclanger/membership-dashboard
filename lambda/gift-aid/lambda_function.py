@@ -375,6 +375,33 @@ def lambda_handler(event, context):
             :-len("/confirm-relationships")
         ]
 
+        # Determine whether this is a cancellation or decline.
+        conn = None
+        try:
+            conn = get_connection()
+            cur = conn.cursor()
+
+            cur.execute(
+                """
+                SELECT action
+                FROM gift_aid_declaration_audit
+                WHERE id = %s
+                """,
+                (int(audit_id_text),)
+            )
+
+            row = cur.fetchone()
+
+            if row and row[0] in ("CANCELLED", "DECLINED"):
+                return handle_confirm_ended_declaration(
+                    event,
+                    audit_id_text
+                )
+
+        finally:
+            if conn:
+                conn.close()
+
         return handle_confirm_relationships(
             event,
             audit_id_text
@@ -6737,5 +6764,264 @@ def handle_admin_invitation_generate(event):
 
     finally:
 
+        if conn:
+            conn.close()
+            
+            
+###################################################################################
+## New function to remove live relationships for cancelled or declined declarations
+################################################################################### 
+ 
+def handle_confirm_ended_declaration(event, audit_id):
+
+    conn = None
+
+    try:
+        audit_id = int(audit_id)
+
+        body = event.get("body") or "{}"
+
+        if isinstance(body, str):
+            body = json.loads(body)
+
+        if body.get("confirmed") is not True:
+            return bad_request(
+                "Relationship confirmation is required"
+            )
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # Lock and validate the pending audit record.
+        cur.execute(
+            """
+            SELECT
+                a.id,
+                a.member_id,
+                a.gift_aid_reference,
+                a.action,
+                a.declaration_method,
+                a.declaration_text,
+                a.declarer_name,
+                a.declarer_address_line_1,
+                a.declarer_address_line_2,
+                a.declarer_postcode,
+                a.email_address,
+                a.affirmed_date,
+                a.invitation_id,
+                a.recorded_by,
+                a.wording_version_id,
+                a.covered_members,
+                a.affirmed,
+                a.status,
+                a.pending_review_type
+            FROM gift_aid_declaration_audit a
+            WHERE a.id = %s
+              AND a.status = 'PENDING_REVIEW'
+              AND a.pending_review_type =
+                  'RELATIONSHIP_MISMATCH'
+              AND a.action IN ('CANCELLED', 'DECLINED')
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM gift_aid_declaration_audit newer
+                  WHERE newer.supersedes_audit_id = a.id
+              )
+            FOR UPDATE
+            """,
+            (audit_id,)
+        )
+
+        original = cur.fetchone()
+
+        if not original:
+            conn.rollback()
+
+            return bad_request(
+                "The declaration is no longer awaiting confirmation"
+            )
+
+        gift_aid_reference = original[2]
+        audit_action = original[3]
+        affirmed_date = original[11]
+        covered_members = original[15]       
+
+
+        # Lock every currently live relationship for this reference.
+        cur.execute(
+            """
+            SELECT member_id
+            FROM gift_aid_members
+            WHERE gift_aid_reference = %s
+              AND (
+                  valid_until IS NULL
+                  OR valid_until >= CURRENT_DATE
+              )
+            FOR UPDATE
+            """,
+            (gift_aid_reference,)
+        )
+
+        live_ids = {
+            row[0] for row in cur.fetchall()
+        }
+
+        # A relationship is ending, not being transferred or
+        # recreated. Record which members are being removed.
+        removed_members = sorted(live_ids)
+
+        # valid_until is inclusive in the existing live-relationship
+        # queries, so use yesterday to ensure none remain live today.
+        cur.execute(
+            """
+            UPDATE gift_aid_members
+            SET valid_until = CURRENT_DATE - 1
+            WHERE gift_aid_reference = %s
+              AND (
+                  valid_until IS NULL
+                  OR valid_until >= CURRENT_DATE
+              )
+            RETURNING member_id
+            """,
+            (gift_aid_reference,)
+        )
+
+        updated_ids = {
+            row[0] for row in cur.fetchall()
+        }
+
+        # Verify that no live relationships remain.
+        cur.execute(
+            """
+            SELECT member_id
+            FROM gift_aid_members
+            WHERE gift_aid_reference = %s
+              AND (
+                  valid_until IS NULL
+                  OR valid_until >= CURRENT_DATE
+              )
+            """,
+            (gift_aid_reference,)
+        )
+
+        remaining_ids = {
+            row[0] for row in cur.fetchall()
+        }
+
+        if remaining_ids:
+            conn.rollback()
+
+            return bad_request(
+                "Unable to end all Gift Aid relationships"
+            )
+
+        # The audit record must preserve CANCELLED or DECLINED.
+        # It must not be changed to UPDATED.
+        cur.execute(
+            """
+            INSERT INTO gift_aid_declaration_audit (
+                member_id,
+                gift_aid_reference,
+                action,
+                declaration_method,
+                declaration_text,
+                declarer_name,
+                declarer_address_line_1,
+                declarer_address_line_2,
+                declarer_postcode,
+                email_address,
+                affirmed_date,
+                ip_address,
+                user_agent,
+                invitation_id,
+                recorded_by,
+                wording_version_id,
+                affirmed,
+                status,
+                pending_review_type,
+                covered_members,
+                supersedes_audit_id
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                'MANUAL',
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                FALSE,
+                'CONFIRMED',
+                NULL,
+                %s,
+                %s
+            )
+            RETURNING id
+            """,
+            (
+                original[1],
+                gift_aid_reference,
+                audit_action,
+                original[5],
+                original[6],
+                original[7],
+                original[8],
+                original[9],
+                original[10],
+                affirmed_date,
+                get_source_ip(event),
+                get_user_agent(event),
+                original[12],
+                get_cognito_sub(event),
+                original[14],
+                json.dumps(covered_members),
+                original[0],
+            )
+        )
+
+        new_audit_id = cur.fetchone()[0]
+
+        conn.commit()
+
+        return success(
+            {
+                "audit_id": new_audit_id,
+                "supersedes_audit_id": original[0],
+                "gift_aid_reference": gift_aid_reference,
+                "member_id": original[1],
+                "action": audit_action,
+                "method": "MANUAL",
+                "affirmed": False,
+                "status": "CONFIRMED",
+                "pending_review_type": None,
+                "covered_members": covered_members,
+                "added_members": [],
+                "removed_members": removed_members,
+                "relationship_ids": [],
+            }
+        )
+
+    except Exception as exc:
+        if conn:
+            conn.rollback()
+
+        print(
+            "Gift Aid confirm ended declaration error:",
+            exc
+        )
+
+        return bad_request(
+            "Unable to confirm the ended Gift Aid declaration"
+        )
+
+    finally:
         if conn:
             conn.close()
