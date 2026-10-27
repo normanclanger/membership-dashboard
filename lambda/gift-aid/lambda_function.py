@@ -2820,13 +2820,49 @@ def handle_admin_save(event):
             "affirmed"
         )
 
+        # Address details are required for declarations that
+        # affirm Gift Aid, but not for cancellations or declines.
+        if mode == "edit":
+            conn = get_connection()
+
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT action
+                        FROM gift_aid_declaration_audit
+                        WHERE id = %s
+                          AND NOT EXISTS (
+                              SELECT 1
+                              FROM gift_aid_declaration_audit newer
+                              WHERE newer.supersedes_audit_id =
+                                    gift_aid_declaration_audit.id
+                          )
+                        """,
+                        (audit_id,)
+                    )
+                    action_row = cur.fetchone()
+
+                    if action_row is None:
+                        return not_found(
+                            "Current Gift Aid declaration not found"
+                        )
+
+                    existing_action = action_row[0]
+            finally:
+                conn.close()
+        else:
+            existing_action = "AFFIRMED"
+
         required_fields = {
             "declarer_name": declarer_name,
-            "declarer_address_line_1": address_line_1,
-            "declarer_postcode": postcode,
             "wording_version_id": wording_version_id,
             "declaration_text": declaration_text,
         }
+
+        if existing_action not in ("CANCELLED", "DECLINED"):
+            required_fields["declarer_address_line_1"] = address_line_1
+            required_fields["declarer_postcode"] = postcode
 
         for field_name, value in required_fields.items():
 
