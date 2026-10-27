@@ -3117,41 +3117,69 @@ def handle_admin_save(event):
                 for member in existing_members
             }
 
-            # The declaration owner is part of the
-            # expected Gift Aid relationship set.
-            submitted_relationship_ids = set(
-                covered_ids
-            )
 
-            submitted_relationship_ids.add(
-                member_id
-            )
+            # -------------------------------------------------
+            # Determine the action being saved
+            # -------------------------------------------------
+
+            if mode == "new":
+
+                audit_action = "AFFIRMED"
+
+            else:
+
+                audit_action = current_audit[3]
 
             # -------------------------------------------------
             # Process 1 relationship check
             # -------------------------------------------------
 
-            relationships_match = (
-                submitted_relationship_ids
-                ==
-                live_relationship_ids
-            )
+            if audit_action in ("CANCELLED", "DECLINED"):
 
-            added_members = sorted(
-                submitted_relationship_ids
-                -
-                live_relationship_ids
-            )
+                # Cancellations and declines should leave
+                # no live relationships for this reference.
+                added_members = []
 
-            removed_members = sorted(
-                live_relationship_ids
-                -
-                submitted_relationship_ids
-            )
-            
+                removed_members = sorted(
+                    live_relationship_ids
+                )
+
+                relationships_match = (
+                    len(live_relationship_ids) == 0
+                )
+
+            else:
+
+                # The declaration owner is part of the
+                # expected Gift Aid relationship set.
+                submitted_relationship_ids = set(
+                    covered_ids
+                )
+
+                submitted_relationship_ids.add(
+                    member_id
+                )
+
+                relationships_match = (
+                    submitted_relationship_ids
+                    ==
+                    live_relationship_ids
+                )
+
+                added_members = sorted(
+                    submitted_relationship_ids
+                    -
+                    live_relationship_ids
+                )
+
+                removed_members = sorted(
+                    live_relationship_ids
+                    -
+                    submitted_relationship_ids
+                )
+
             added_member_details = []
             removed_member_details = []
-
 
             for added_member_id in added_members:
 
@@ -3179,8 +3207,7 @@ def handle_admin_save(event):
                         "surname": row[3]
                     })
 
-
-            for added_member_id in removed_members:
+            for removed_member_id in removed_members:
 
                 cur.execute(
                     """
@@ -3192,7 +3219,7 @@ def handle_admin_save(event):
                     FROM members
                     WHERE id = %s
                     """,
-                    (added_member_id,)
+                    (removed_member_id,)
                 )
 
                 row = cur.fetchone()
@@ -3208,32 +3235,18 @@ def handle_admin_save(event):
 
             if relationships_match:
 
-                audit_status = (
-                        "CONFIRMED"
-                    )
-
+                audit_status = "CONFIRMED"
                 pending_review_type = None
 
             else:
 
-                audit_status = (
-                    "PENDING_REVIEW"
-                )
-
-                pending_review_type = (
-                    "RELATIONSHIP_MISMATCH"
-                )
+                audit_status = "PENDING_REVIEW"
+                pending_review_type = "RELATIONSHIP_MISMATCH"
 
             # -------------------------------------------------
             # Build the new audit entry
             # -------------------------------------------------
 
-            audit_action = (
-                "AFFIRMED"
-                if mode == "new"
-                else
-                "UPDATED"
-            )
 
             recorded_by = get_cognito_sub(
                 event
@@ -3245,6 +3258,11 @@ def handle_admin_save(event):
                     "CURRENT_DATE"
                 )
 
+            audit_affirmed = audit_action not in (
+                 "CANCELLED",
+                 "DECLINED"
+            
+            )             
             if affirmed_date == "CURRENT_DATE":
 
                 cur.execute(
@@ -3289,7 +3307,7 @@ def handle_admin_save(event):
                         NULL,
                         %s,
                         %s,
-                        TRUE,
+                        %s,
                         %s,
                         %s,
                         %s,
@@ -3311,6 +3329,7 @@ def handle_admin_save(event):
                         get_user_agent(event),
                         recorded_by,
                         wording_version_id,
+                        audit_affirmed,
                         audit_status,
                         pending_review_type,
                         json.dumps(
@@ -3364,7 +3383,7 @@ def handle_admin_save(event):
                         NULL,
                         %s,
                         %s,
-                        TRUE,
+                        %s,
                         %s,
                         %s,
                         %s,
@@ -3387,6 +3406,7 @@ def handle_admin_save(event):
                         get_user_agent(event),
                         recorded_by,
                         wording_version_id,
+                        audit_affirmed,
                         audit_status,
                         pending_review_type,
                         json.dumps(
