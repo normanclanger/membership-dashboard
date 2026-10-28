@@ -671,6 +671,7 @@ async function resolveCoverage() {
         resolveButton.textContent.trim() ===
         "Mark request complete"
     ) {
+        await completeCoveredElsewhere();
         return;
     }
 
@@ -1088,6 +1089,98 @@ async function confirmProcess2() {
 
         process2.appendChild(
             errorElement
+        );
+    }
+}
+
+async function completeCoveredElsewhere() {
+
+    const resolveButton =
+        document.querySelector(
+            "#resolve-coverage-button"
+        );
+
+    if (!selectedMember || !selectedDeclaration) {
+        return;
+    }
+
+    resolveButton.disabled = true;
+    resolveButton.textContent = "Completing...";
+
+    try {
+        const user = await requireLogin();
+
+        if (!user) {
+            resolveButton.disabled = false;
+            resolveButton.textContent = "Mark request complete";
+            return;
+        }
+
+        const response = await fetch(
+            `${API_BASE}/api/gift-aid/admin/pending/${encodeURIComponent(auditId)}/complete-covered-elsewhere`,
+            {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${user.access_token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    declaration_member_id:
+                        Number(selectedMember.id)
+                })
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.error ||
+                "Unable to mark the coverage request complete"
+            );
+        }
+
+        const selectedDeclarationElement =
+            document.querySelector("#selected-declaration");
+
+        selectedDeclarationElement.classList.remove(
+            "alert-info",
+            "alert-warning"
+        );
+
+        selectedDeclarationElement.classList.add(
+            "alert-success"
+        );
+
+        const message = document.createElement("p");
+
+        message.className = "mb-0 mt-3";
+        message.textContent =
+            "The request has been marked complete. The member was already covered, so no Gift Aid relationships needed changing.";
+
+        const oldMessage =
+            document.querySelector("#covered-already-message");
+
+        if (oldMessage) {
+            oldMessage.remove();
+        }
+
+        selectedDeclarationElement.appendChild(message);
+
+        resolveButton.textContent = "Completed";
+
+    } catch (error) {
+        console.error(
+            "Covered Elsewhere completion error:",
+            error
+        );
+
+        resolveButton.disabled = false;
+        resolveButton.textContent = "Mark request complete";
+
+        showSelectionError(
+            error.message ||
+            "Unable to mark the coverage request complete."
         );
     }
 }
