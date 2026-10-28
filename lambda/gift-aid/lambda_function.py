@@ -443,6 +443,37 @@ def lambda_handler(event, context):
             audit_id_text
         )
 
+    # Mark a COVERED_ELSEWHERE request complete
+    # because the requesting member is already covered.
+
+    if (
+        path.startswith(coverage_prefix)
+        and
+        path.endswith("/complete-covered-elsewhere")
+    ):
+
+        if method != "POST":
+            return bad_request("Method not allowed")
+
+        if not can_administer(event):
+            return forbidden(
+                "You do not have permission to resolve Gift Aid coverage requests"
+            )
+
+        audit_id_text = path[
+            len(coverage_prefix):
+        ]
+
+        audit_id_text = audit_id_text[
+            :-len("/complete-covered-elsewhere")
+        ]
+
+        return handle_complete_covered_elsewhere(
+            event,
+            audit_id_text
+        )
+
+
     if path == PENDING_REVIEW_PATH:
 
         if method != "GET":
@@ -7056,6 +7087,346 @@ def handle_confirm_ended_declaration(event, audit_id):
 
         return bad_request(
             "Unable to confirm the ended Gift Aid declaration"
+        )
+
+    finally:
+        if conn:
+            conn.close()
+            
+            
+            
+            
+def handle_complete_covered_elsewhere(
+    event,
+    audit_id
+):
+    conn = None
+
+    try:
+        try:
+            audit_id = int(audit_id)
+        except (TypeError, ValueError):
+            return bad_request("Invalid audit_id")
+
+        body_text = event.get("body") or "{}"
+
+        try:
+            body = json.loads(body_text)
+        except json.JSONDecodeError:
+            return bad_request("Invalid JSON request body")
+
+        declaration_member_id = body.get(
+            "declaration_member_id"
+        )
+
+        try:
+            declaration_member_id = int(
+                declaration_member_id
+            )
+        except (TypeError, ValueError):
+            return bad_request(
+                "Invalid declaration_member_id"
+            )
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # Lock the current unresolved coverage request.
+        cur.execute(
+            """
+            SELECT
+                a.id,
+                a.member_id,
+                a.gift_aid_reference,
+                a.action,
+                a.declaration_method,
+                a.declaration_text,
+                a.declarer_name,
+                a.declarer_address_line_1,
+                a.declarer_address_line_2,
+                a.declarer_postcode,
+                a.email_address,
+                a.affirmed_date,
+                a.invitation_id,
+                a.recorded_by,
+                a.wording_version_id,
+                a.covered_members,
+                a.affirmed,
+                a.status,
+                a.pending_review_type
+            FROM gift_aid_declaration_audit a
+            WHERE a.id = %s
+              AND a.action = 'COVERED_ELSEWHERE'
+              AND a.status = 'PENDING_REVIEW'
+              AND a.pending_review_type = 'COVERAGE_REQUEST'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM gift_aid_declaration_audit newer
+                  WHERE newer.supersedes_audit_id = a.id
+              )
+            FOR UPDATE
+            """,
+            (audit_id,)
+        )
+
+        original = cur.fetchone()
+
+        if not original:
+            return not_found(
+                "Current Gift Aid coverage request not found"
+            )
+
+        original_covered_members = (
+            original[15] or []
+        )
+
+        if (
+            not isinstance(original_covered_members, list)
+            or len(original_covered_members) != 1
+            or not isinstance(original_covered_members[0], dict)
+        ):
+            return bad_request(
+                "The coverage request contains invalid covered member data"
+            )
+
+        requested_member = original_covered_members[0]
+
+        if requested_member.get("member_id") is not None:
+            return bad_request(
+                "The coverage request has already been resolved"
+            )
+
+        requester_id = original[1]
+
+        if requester_id is None:
+            return bad_request(
+                "The coverage request has no requesting member"
+            )
+
+        # Lock the selected member's latest declaration audit.
+        cur.execute(
+            """
+            SELECT
+                a.id,
+                a.member_id,
+                a.gift_aid_reference,
+                a.action,
+                a.status,
+                a.covered_members
+            FROM gift_aid_declaration_audit a
+            WHERE a.member_id = %s
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM gift_aid_declaration_audit newer
+                  WHERE newer.supersedes_audit_id = a.id
+              )
+            ORDER BY a.id DESC
+            LIMIT 1
+            FOR UPDATE
+            """,
+            (declaration_member_id,)
+        )
+
+        declaration = cur.fetchone()
+
+        if not declaration:
+            return bad_request(
+                "The selected member has no current Gift Aid declaration"
+            )
+
+        if declaration[3] not in ("AFFIRMED", "UPDATED"):
+            return bad_request(
+                "The selected member does not have a usable current declaration"
+            )
+
+        if declaration[4] not in ("CONFIRMED", "PENDING_REVIEW"):
+            return bad_request(
+                "The selected declaration has an invalid status"
+            )
+
+        gift_aid_reference = declaration[2]
+
+        if gift_aid_reference is None:
+            return bad_request(
+                "The selected declaration has no Gift Aid reference"
+            )
+
+        # Confirm the requester is included in the declaration's
+        # current covered-member snapshot.
+        declaration_covered_members = (
+            declaration[5] or []
+        )
+
+        if not isinstance(declaration_covered_members, list):
+            return bad_request(
+                "The selected declaration has invalid covered member data"
+            )
+
+        requester_in_snapshot = False
+
+        for covered_member in declaration_covered_members:
+            if not isinstance(covered_member, dict):
+                return bad_request(
+                    "The selected declaration has invalid covered member data"
+                )
+
+            try:
+                covered_member_id = covered_member.get("member_id")
+
+                if (
+                    covered_member_id is not None
+                    and int(covered_member_id) == int(requester_id)
+                ):
+                    requester_in_snapshot = True
+                    break
+
+            except (TypeError, ValueError):
+                return bad_request(
+                    "The selected declaration has an invalid member ID"
+                )
+
+        if not requester_in_snapshot:
+            return bad_request(
+                "The requesting member is not listed on the selected declaration"
+            )
+
+        # Also verify that the relationship is currently live.
+        cur.execute(
+            """
+            SELECT 1
+            FROM gift_aid_members
+            WHERE member_id = %s
+              AND gift_aid_reference = %s
+              AND (
+                  valid_until IS NULL
+                  OR valid_until >= CURRENT_DATE
+              )
+            LIMIT 1
+            """,
+            (
+                requester_id,
+                gift_aid_reference
+            )
+        )
+
+        if cur.fetchone() is None:
+            return bad_request(
+                "The requesting member does not have a live relationship "
+                "with the selected declaration"
+            )
+
+        # Record completion of the request only.
+        # Do not create a new declaration or change relationships.
+        cur.execute(
+            """
+            INSERT INTO gift_aid_declaration_audit (
+                member_id,
+                gift_aid_reference,
+                action,
+                declaration_method,
+                declaration_text,
+                declarer_name,
+                declarer_address_line_1,
+                declarer_address_line_2,
+                declarer_postcode,
+                email_address,
+                affirmed_date,
+                ip_address,
+                user_agent,
+                invitation_id,
+                recorded_by,
+                wording_version_id,
+                affirmed,
+                status,
+                pending_review_type,
+                covered_members
+            )
+            VALUES (
+                %s,
+                %s,
+                'COVERED_ELSEWHERE',
+                'MANUAL',
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                FALSE,
+                'CONFIRMED',
+                NULL,
+                %s
+            )
+            RETURNING id
+            """,
+            (
+                original[1],
+                gift_aid_reference,
+                original[5],
+                original[6],
+                original[7],
+                original[8],
+                original[9],
+                original[10],
+                original[11],
+                get_source_ip(event),
+                get_user_agent(event),
+                original[12],
+                get_cognito_sub(event),
+                original[14],
+                json.dumps(original_covered_members)
+            )
+        )
+
+        resolution_audit_id = cur.fetchone()[0]
+
+        # Link the original pending request to its resolution.
+        cur.execute(
+            """
+            UPDATE gift_aid_declaration_audit
+            SET resolved_by_audit_id = %s
+            WHERE id = %s
+              AND resolved_by_audit_id IS NULL
+            """,
+            (
+                resolution_audit_id,
+                original[0]
+            )
+        )
+
+        if cur.rowcount != 1:
+            raise RuntimeError(
+                "The coverage request could not be marked complete"
+            )
+
+        conn.commit()
+
+        return success({
+            "source_coverage_request_id": original[0],
+            "resolution_audit_id": resolution_audit_id,
+            "gift_aid_reference": gift_aid_reference,
+            "action": "COVERED_ELSEWHERE",
+            "status": "CONFIRMED",
+            "relationships_changed": False
+        })
+
+    except Exception as exc:
+        if conn:
+            conn.rollback()
+
+        print(
+            "Gift Aid complete covered elsewhere error:",
+            exc
+        )
+
+        return bad_request(
+            "Unable to mark the coverage request complete"
         )
 
     finally:
