@@ -5783,16 +5783,20 @@ def handle_declarations():
                 JOIN members m
                     ON m.id = a.member_id
 
-                WHERE a.id = (
-                    SELECT a2.id
-                    FROM gift_aid_declaration_audit a2
-                    WHERE a2.gift_aid_reference =
-                        a.gift_aid_reference
-                    ORDER BY
-                        a2.recorded_at DESC,
-                        a2.id DESC
-                    LIMIT 1
-                )
+                WHERE a.gift_aid_reference IS NOT NULL
+
+                  AND a.action IN (
+                      'AFFIRMED',
+                      'UPDATED',
+                      'CANCELLED',
+                      'DECLINED'
+                  )
+
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM gift_aid_declaration_audit newer
+                      WHERE newer.supersedes_audit_id = a.id
+                  )
 
                 ORDER BY
                     a.gift_aid_reference
