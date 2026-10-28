@@ -5495,6 +5495,7 @@ def handle_dashboard_summary():
 
                         COUNT(*) FILTER (
                             WHERE status = 'PENDING_REVIEW'
+                              AND resolved_by_audit_id IS NULL
                         ) AS pending_review,
 
                         COUNT(*) FILTER (
