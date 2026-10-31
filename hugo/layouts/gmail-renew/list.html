@@ -1,0 +1,79 @@
+{{ define "main" }}
+
+<script type="module">
+    import { requireLogin } from "/js/auth.js";
+
+    document.addEventListener("DOMContentLoaded", async () => {
+        const status = document.getElementById("gmail-renew-status");
+        const button = document.getElementById("gmail-renew-button");
+
+        try {
+            const user = await requireLogin();
+
+            if (!user) return;
+
+            const groups = user.profile["cognito:groups"] || [];
+
+            if (!groups.includes("ApplicationAdmin")) {
+                status.className = "alert alert-danger";
+                status.textContent =
+                    "You are not authorised to renew Gmail access.";
+
+                button.disabled = true;
+                return;
+            }
+
+            status.className = "alert alert-success";
+            status.textContent =
+                "You are authorised to renew Gmail access.";
+
+            button.disabled = false;
+
+        } catch (error) {
+            console.error("Authentication failed:", error);
+            status.className = "alert alert-danger";
+            status.textContent =
+                "Unable to verify your authorisation.";
+        }
+    });
+</script>
+
+<div class="container mt-4">
+
+    <h1>
+        {{ .Title }}
+    </h1>
+
+    <div
+        id="gmail-renew-status"
+        class="alert alert-info"
+    >
+        Check the status of your Gmail authorisation here.
+    </div>
+
+    <div class="mt-4">
+
+        <p>
+            Your Gift Aid email service requires periodic
+            renewal of its Gmail authorisation.
+        </p>
+
+        <p>
+            Click the button below to renew it. You will be
+            taken to Google to confirm access.
+        </p>
+
+        <button
+            id="gmail-renew-button"
+            class="btn btn-primary"
+            type="button"
+        >
+            Renew Gmail authorisation
+        </button>
+
+    </div>
+
+</div>
+
+{{ end }}
+

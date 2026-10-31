@@ -12,6 +12,7 @@ on:
       - 'lambda/payment-reports/**'
       - 'lambda/gift-aid-members/**'
       - 'lambda/gift-aid/**'
+      - 'lambda/gmail-token-renewal/**'
       - '.github/workflows/build-lambda.yml'
 
 permissions:
@@ -206,7 +207,30 @@ jobs:
           cd lambda/gift-aid/package
           zip -r ../lambda.zip .
 
+      # ---------------------------------------------------------
+      # Build gmail-token-renewal
+      # ---------------------------------------------------------
 
+      - name: Build gmail-token-renewal Lambda package
+        run: |
+          cd lambda/gmail-token-renewal
+          rm -rf package
+          mkdir package
+
+          pip install \
+            --platform manylinux2014_x86_64 \
+            --target package \
+            --implementation cp \
+            --python-version 3.13 \
+            --only-binary=:all: \
+            -r requirements.txt
+
+          cp lambda_function.py package/
+
+      - name: Create gmail-token-renewal deployment ZIP
+        run: |
+          cd lambda/gmail-token-renewal/package
+          zip -r ../lambda.zip
 
       # ---------------------------------------------------------
       # AWS credentials
@@ -288,4 +312,13 @@ jobs:
             --function-name gift-aid \
             --zip-file fileb://lambda/gift-aid/lambda.zip
 
+      # ---------------------------------------------------------
+      # Deploy gmail-token-renewal
+      # ---------------------------------------------------------
+
+      - name: Deploy gmail-token-renewal Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name gmail-token-renewal \
+            --zip-file fileb://lambda/gmail-token-renewal/lambda.zip
 
