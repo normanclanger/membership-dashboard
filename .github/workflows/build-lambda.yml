@@ -230,7 +230,7 @@ jobs:
       - name: Create gmail-token-renewal deployment ZIP
         run: |
           cd lambda/gmail-token-renewal/package
-          zip -r ../lambda.zip
+          zip -r ../lambda.zip .
 
       # ---------------------------------------------------------
       # AWS credentials
