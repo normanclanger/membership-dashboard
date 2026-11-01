@@ -172,7 +172,7 @@ def create_state():
     return state, nonce
 
 
-def validate_state(state, cookie_nonce):
+def validate_state(state):
 
     try:
         encoded_payload, supplied_signature = state.split(".")
@@ -200,12 +200,6 @@ def validate_state(state, cookie_nonce):
 
         issued_at = int(payload["iat"])
         nonce = payload.get("nonce")
-
-        if not nonce or not cookie_nonce or not hmac.compare_digest(
-            nonce, cookie_nonce
-        ):
-            logging.error("OAuth state and cookie nonce do not match")
-            return False
 
         now = int(time.time())
 
@@ -382,7 +376,7 @@ def handle_callback(event):
     )
 
     # Validate state before processing either success or error.
-    if not state or not validate_state(state, cookie_nonce):
+    if not state or not validate_state(state):
 
         return html_response(
             400,
