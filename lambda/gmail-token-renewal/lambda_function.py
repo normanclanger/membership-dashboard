@@ -172,7 +172,7 @@ def create_state():
     return state, nonce
 
 
-def validate_state(state):
+def validate_state(state, cookie_nonce):
 
     try:
         encoded_payload, supplied_signature = state.split(".")
@@ -201,16 +201,18 @@ def validate_state(state):
         issued_at = int(payload["iat"])
         nonce = payload.get("nonce")
 
+        if not nonce or not cookie_nonce or not hmac.compare_digest(
+            nonce, cookie_nonce
+        ):
+            logging.error("OAuth state and cookie nonce do not match")
+            return False
+
         now = int(time.time())
 
         logging.info(
             "OAuth state timestamps: issued_at=%s, now=%s, age=%s",
             issued_at, now, now - issued_at
         )
-
-        if not nonce:
-            logging.error("OAuth state has no nonce")
-            return False
 
         if issued_at > now + 60:
             logging.error("OAuth state timestamp is in the future")
