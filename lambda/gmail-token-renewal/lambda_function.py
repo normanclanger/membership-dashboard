@@ -14,6 +14,32 @@ import boto3
 from google_auth_oauthlib.flow import Flow
 
 
+def get_user_groups(event):
+
+    claims = (
+        event.get("requestContext", {})
+        .get("authorizer", {})
+        .get("jwt", {})
+        .get("claims", {})
+    )
+
+    groups = claims.get("cognito:groups", "")
+
+    if not groups:
+        return set()
+
+    groups = groups.strip("[]")
+
+    if not groups:
+        return set()
+
+    return {
+        group.strip().strip("'\"")
+        for group in groups.replace(",", " ").split()
+        if group.strip()
+    }
+
+
 # ---------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------
@@ -273,40 +299,8 @@ def create_oauth_flow(state=None):
 
 def handle_start(event):
 
-    # API Gateway has already validated the JWT.
-    authorizer = (
-        event.get("requestContext", {})
-             .get("authorizer", {})
-             .get("jwt", {})
-    )
 
-    claims = authorizer.get("claims", {})
-
-    groups = claims.get("cognito:groups", [])
-
-
-    if isinstance(groups, str):
-
-        try:
-            parsed = json.loads(groups)
-
-            if isinstance(parsed, list):
-                groups = parsed
-            else:
-                groups = [parsed]
-
-        except (ValueError, TypeError):
-
-            # Handle comma-separated group names.
-            groups = [
-                group.strip().strip("'\"")
-                for group in groups.strip("[]").split(",")
-                if group.strip()
-            ]
-
-    if not isinstance(groups, list):
-        groups = []
-
+    groups = get_user_groups(event)
 
 
     if "ApplicationAdmin" not in groups:
