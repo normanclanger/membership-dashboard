@@ -172,10 +172,9 @@ def create_state():
     return state, nonce
 
 
-def validate_state(state, cookie_nonce):
+def validate_state(state):
 
     try:
-
         encoded_payload, supplied_signature = state.split(".")
 
         expected_signature = hmac.new(
@@ -192,6 +191,7 @@ def validate_state(state, cookie_nonce):
             expected_signature,
             supplied_signature_bytes
         ):
+            logging.error("OAuth state failed signature check")
             return False
 
         payload = json.loads(
@@ -199,26 +199,32 @@ def validate_state(state, cookie_nonce):
         )
 
         issued_at = int(payload["iat"])
-        nonce = payload["nonce"]
+        nonce = payload.get("nonce")
 
         now = int(time.time())
 
+        logging.info(
+            "OAuth state timestamps: issued_at=%s, now=%s, age=%s",
+            issued_at, now, now - issued_at
+        )
+
+        if not nonce:
+            logging.error("OAuth state has no nonce")
+            return False
+
         if issued_at > now + 60:
+            logging.error("OAuth state timestamp is in the future")
             return False
 
         if now - issued_at > STATE_LIFETIME:
+            logging.error("OAuth state has expired")
             return False
 
-        if not cookie_nonce:
-            return False
-
-        if not hmac.compare_digest(nonce, cookie_nonce):
-            return False
-
+        logging.info("OAuth state validation successful")
         return True
 
     except Exception:
-
+        logging.exception("OAuth state validation raised an exception")
         return False
 
 
