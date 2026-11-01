@@ -291,9 +291,9 @@ def create_oauth_flow(state=None):
         client_config,
         scopes=SCOPES,
         state=state,
-        redirect_uri=OAUTH_REDIRECT_URI
+        redirect_uri=OAUTH_REDIRECT_URI,
+        autogenerate_code_verifier=False
     )
-
 
 # ---------------------------------------------------------
 # Start authorisation
