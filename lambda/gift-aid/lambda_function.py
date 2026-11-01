@@ -227,6 +227,50 @@ def declaration_relationships_consistent(
 
 def lambda_handler(event, context):
 
+
+    # Internal test email invocation from Gmail renewal Lambda
+    if event.get("internal_action") == "send_test_email":
+
+        recipient = event.get("to")
+
+        if not recipient:
+            return {
+                "statusCode": 400,
+                "body": json.dumps({
+                    "error": "Recipient is required"
+                })
+            }
+
+        try:
+
+            send_email(
+                recipient=recipient,
+                subject="Suffolk Guild Gift Aid email test",
+                body=(
+                    "This is a test email from the "
+                    "Suffolk Guild of Ringers Gift Aid system."
+                ),
+            )
+
+            return {
+                "statusCode": 200,
+                "body": json.dumps({
+                    "message": "Test email sent",
+                    "to": recipient
+                })
+            }
+
+        except Exception as exc:
+
+            logging.exception("Internal test email failed")
+
+            return {
+                "statusCode": 500,
+                "body": json.dumps({
+                    "error": str(exc)
+                })
+            }
+
     path = get_request_path(
         event
     )
