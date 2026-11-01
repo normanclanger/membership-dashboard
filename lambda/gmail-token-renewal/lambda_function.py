@@ -209,7 +209,7 @@ def validate_state(state, cookie_nonce):
 
         now = int(time.time())
 
-        logging.info(
+        logging.warning(
             "OAuth state timestamps: issued_at=%s, now=%s, age=%s",
             issued_at, now, now - issued_at
         )
@@ -222,7 +222,7 @@ def validate_state(state, cookie_nonce):
             logging.error("OAuth state has expired")
             return False
 
-        logging.info("OAuth state validation successful")
+        logging.warning("OAuth state validation successful")
         return True
 
     except Exception:
@@ -323,7 +323,7 @@ def handle_start(event):
 
         state, nonce = create_state()
         
-        logging.info(
+        logging.warning(
           "OAuth start nonce length: %s",
           len(nonce)
         )
@@ -375,7 +375,7 @@ def handle_callback(event):
 
     cookie_nonce = get_cookie(event, STATE_COOKIE)
     
-    logging.info(
+    logging.warning(
       "OAuth callback cookie present: %s; nonce length: %s",
       bool(cookie_nonce),
       len(cookie_nonce) if cookie_nonce else 0
@@ -449,7 +449,7 @@ def handle_callback(event):
             SecretString=token_json
         )
 
-        logging.info(
+        logging.warning(
             "Gmail OAuth token successfully renewed"
         )
 
@@ -489,7 +489,7 @@ def lambda_handler(event, context):
              .get("method", "")
     )
 
-    logging.info(
+    logging.warning(
         "Gmail renewal request: %s %s",
         method,
         path
