@@ -284,16 +284,30 @@ def handle_start(event):
 
     groups = claims.get("cognito:groups", [])
 
-    # Cognito groups may arrive as a list or a JSON string.
+
     if isinstance(groups, str):
 
         try:
-            groups = json.loads(groups)
+            parsed = json.loads(groups)
+
+            if isinstance(parsed, list):
+                groups = parsed
+            else:
+                groups = [parsed]
+
         except (ValueError, TypeError):
-            groups = [groups]
+
+            # Handle comma-separated group names.
+            groups = [
+                group.strip().strip("'\"")
+                for group in groups.strip("[]").split(",")
+                if group.strip()
+            ]
 
     if not isinstance(groups, list):
         groups = []
+
+
 
     if "ApplicationAdmin" not in groups:
 
