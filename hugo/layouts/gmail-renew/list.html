@@ -1,3 +1,4 @@
+
 {{ define "main" }}
 
 <script type="module">
@@ -29,6 +30,48 @@
 
             button.disabled = false;
 
+            button.addEventListener("click", async () => {
+                try {
+                    button.disabled = true;
+                    status.className = "alert alert-info";
+                    status.textContent = "Starting Gmail authorisation...";
+
+                    const response = await fetch(
+                        window.API_BASE_URL + "/api/gmail-renew/start",
+                        {
+                            headers: {
+                                "Authorization": "Bearer " + user.access_token
+                            }
+                        }
+                    );
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error || "Unable to start renewal."
+                        );
+                    }
+
+                    if (!data.authorization_url) {
+                        throw new Error(
+                            "Google authorisation URL was not returned."
+                        );
+                    }
+
+                    console.log("Google URL:", data.authorization_url);
+                    window.open(data.authorization_url, "_blank");
+
+                } catch (error) {
+                    console.error("Gmail renewal failed:", error);
+
+                    status.className = "alert alert-danger";
+                    status.textContent = error.message;
+
+                    button.disabled = false;
+                }
+            });
+
         } catch (error) {
             console.error("Authentication failed:", error);
             status.className = "alert alert-danger";
@@ -36,6 +79,7 @@
                 "Unable to verify your authorisation.";
         }
     });
+
 </script>
 
 <div class="container mt-4">
@@ -76,4 +120,3 @@
 </div>
 
 {{ end }}
-

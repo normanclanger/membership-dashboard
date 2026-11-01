@@ -470,8 +470,8 @@ def handle_callback(event):
         return html_response(
             200,
             "Your Gmail authorisation has been renewed successfully. "
-            "The Gift Aid email service can continue using the new token.",
-            + test_email_status,
+            "The Gift Aid email service can continue using the new token. "
+            f"{test_email_status}",
             "Renewal successful",
             cookies=[clear_state_cookie()]
         )
