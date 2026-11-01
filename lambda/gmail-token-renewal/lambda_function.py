@@ -322,6 +322,11 @@ def handle_start(event):
     try:
 
         state, nonce = create_state()
+        
+        logging.info(
+          "OAuth start nonce length: %s",
+          len(nonce)
+        )
 
         flow = create_oauth_flow()
 
@@ -369,6 +374,12 @@ def handle_callback(event):
     google_error = query.get("error")
 
     cookie_nonce = get_cookie(event, STATE_COOKIE)
+    
+    logging.info(
+      "OAuth callback cookie present: %s; nonce length: %s",
+      bool(cookie_nonce),
+      len(cookie_nonce) if cookie_nonce else 0
+    )
 
     # Validate state before processing either success or error.
     if not state or not validate_state(state, cookie_nonce):
