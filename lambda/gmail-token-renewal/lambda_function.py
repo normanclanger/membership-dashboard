@@ -14,6 +14,8 @@ import boto3
 from google_auth_oauthlib.flow import Flow
 
 
+
+
 def get_user_groups(event):
 
     claims = (
@@ -57,6 +59,9 @@ OAUTH_REDIRECT_URI = os.environ["OAUTH_REDIRECT_URI"]
 OAUTH_STATE_SECRET = os.environ["OAUTH_STATE_SECRET"].encode("utf-8")
 
 secrets_manager = boto3.client("secretsmanager")
+
+
+lambda_client = boto3.client("lambda")
 
 
 # ---------------------------------------------------------
@@ -446,11 +451,27 @@ def handle_callback(event):
         logging.error(
             "Gmail OAuth token successfully renewed"
         )
+        
+        try:
+
+            send_gift_aid_test_email()
+
+            test_email_status = "Test email sent successfully to normanclanger@gmail.com."
+
+        except Exception:
+
+            logging.exception("Gift Aid test email failed")
+
+            test_email_status = (
+                "Token renewed successfully, but the test email failed. "
+                "Please check CloudWatch logs."
+            )
 
         return html_response(
             200,
             "Your Gmail authorisation has been renewed successfully. "
             "The Gift Aid email service can continue using the new token.",
+            + test_email_status,
             "Renewal successful",
             cookies=[clear_state_cookie()]
         )
@@ -500,3 +521,29 @@ def lambda_handler(event, context):
         "The requested Gmail renewal endpoint was not found.",
         "Not found"
     )
+    
+
+def send_gift_aid_test_email():
+
+    result = lambda_client.invoke(
+        FunctionName="gift-aid",
+        InvocationType="RequestResponse",
+        Payload=json.dumps({
+            "internal_action": "send_test_email",
+            "to": "normanclanger@gmail.com"
+        }).encode("utf-8")
+    )
+
+    response_payload = json.loads(
+        result["Payload"].read()
+    )
+
+    if result["StatusCode"] != 200:
+        raise Exception("Unable to invoke Gift Aid Lambda")
+
+    if response_payload.get("statusCode") != 200:
+        raise Exception(
+            response_payload.get("body", "Test email failed")
+        )
+
+    return True
