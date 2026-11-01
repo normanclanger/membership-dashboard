@@ -331,10 +331,12 @@ def handle_start(event):
         )
 
         return response(
-            302,
-            "",
+            200,
+            json.dumps({
+                "authorization_url": authorization_url
+            }),
             headers={
-                "Location": authorization_url
+                "Content-Type": "application/json"
             },
             cookies=[
                 set_state_cookie(nonce)
